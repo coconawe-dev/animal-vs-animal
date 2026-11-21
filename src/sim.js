@@ -79,7 +79,7 @@ function makeUnit(state, def, team, x, z) {
     armor: def.armor || 0, kbResist: def.kbResist || 0,
     evasion: def.evasion || 0, crit: def.crit || 0.07,
     attackTimer: 0.35 + state.rng() * 0.35,
-    skillTimer: 1.1 + state.rng() * 1.4,
+    skillTimer: 2.4 + state.rng() * 3.2,
     targetId: null,
     stun: 0, slow: 0, slowFactor: 1,
     haste: 0, hasteT: 0, speedMul: 1, speedT: 0,

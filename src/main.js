@@ -330,8 +330,8 @@ function handleEvent(ev) {
       const color = SK_COLORS[ev.kind] || 0xffd166;
       const def = ANIMAL_BY_ID[ev.uid ? battle.units.find((u) => u.uid === ev.uid)?.id : ''] || null;
       effects.ring(ev.x, ev.z, 0.7, def ? (def.skill.radius || 3) * 1.15 : 3.4, color, 0.5);
-      effects.flash(ev.x, 1.5, ev.z, 1.5, color, 0.3);
-      effects.burst(ev.x, 1.3, ev.z, color, 14, 4.2);
+      effects.flash(ev.x, 1.5, ev.z, 1.2, color, 0.26);
+      effects.burst(ev.x, 1.3, ev.z, color, 8, 3.6);
       effects.text(ev.x, 3.4, ev.z, ev.name || '', { color: '#ffe3a0', size: 0.72, life: 1.1 });
       sfx.skill(ev.kind);
       if (target) {
@@ -464,7 +464,7 @@ function fitDistance() {
   }
   const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
   const narrow = aspect < 0.7 ? 1.25 : aspect < 0.95 ? 1.08 : 1;
-  return Math.max(10.5, Math.min(38, (maxD * 0.82 + 9.5) * narrow));
+  return Math.max(9.5, Math.min(34, (maxD * 0.72 + 8.5) * narrow));
 }
 
 function focusPoint() {

@@ -348,7 +348,7 @@ export class Stage {
   makeObstacle(ob, arena, rnd) {
     const g = new THREE.Group();
     if (ob.kind === 'tree') {
-      const t = acacia(rnd, 0.95, true);
+      const t = acacia(rnd, 0.72, true);
       g.add(t);
       // 충돌 기둥을 시각적으로도 표시
       const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3520, roughness: 1, flatShading: true });

@@ -169,19 +169,19 @@ export class Effects {
     r.mesh.position.set(x, y, z);
     r.mesh.scale.setScalar(from);
     r.mesh.material.color.setHex(color);
-    r.mesh.material.opacity = 0.95;
+    r.mesh.material.opacity = 0.55;
     r.mesh.visible = true;
     r.life = dur; r.max = dur; r.from = from; r.to = to; r.y = y;
   }
 
   flash(x, y, z, r = 1.6, color = 0xffe6a0, dur = 0.28) {
-    r *= 0.85;
+    r *= 0.7;
     const f = this.flashes[this.flashIdx];
     this.flashIdx = (this.flashIdx + 1) % this.flashes.length;
     f.mesh.position.set(x, y, z);
     f.mesh.scale.setScalar(r);
     f.mesh.material.color.setHex(color);
-    f.mesh.material.opacity = 0.38;
+    f.mesh.material.opacity = 0.24;
     f.mesh.visible = true;
     f.life = dur; f.max = dur; f.r = r;
   }
@@ -267,7 +267,7 @@ export class Effects {
       const k = 1 - Math.max(0, r.life) / r.max;
       const s = r.from + (r.to - r.from) * easeOut(k);
       r.mesh.scale.setScalar(s);
-      r.mesh.material.opacity = Math.max(0, 0.95 * (1 - k) * (1 - k));
+      r.mesh.material.opacity = Math.max(0, 0.55 * (1 - k) * (1 - k));
       if (r.life <= 0) r.mesh.visible = false;
     }
     // 섬광
@@ -276,7 +276,7 @@ export class Effects {
       f.life -= dt;
       const k = 1 - Math.max(0, f.life) / f.max;
       f.mesh.scale.setScalar(f.r * (1 + k * 0.8));
-      f.mesh.material.opacity = Math.max(0, 0.38 * (1 - k));
+      f.mesh.material.opacity = Math.max(0, 0.24 * (1 - k));
       if (f.life <= 0) f.mesh.visible = false;
     }
     // 참격
