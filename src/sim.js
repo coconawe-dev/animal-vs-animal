@@ -569,7 +569,7 @@ function tryCastSkill(state, u, target, d, enemies) {
         dist, width: 1.4, dmg: u.atk * s.power, bleed: s.bleed, bleedTime: s.bleedTime,
         knock: 3, kind: 'pounce', invuln: true,
       });
-      u.dodgeBonus = 0.4; u.dodgeT = 0.8;
+      u.dodgeBonus = 0.2; u.dodgeT = 0.55;
       break;
     }
     case 'charge':
