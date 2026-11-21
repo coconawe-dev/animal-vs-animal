@@ -499,6 +499,16 @@ const PRESET_DATA = [
     arena: 'tundra',
   },
   {
+    id: 'new-blood', name: '신규 유닛 쇼케이스', emoji: '🧟💀🐍',
+    desc: '좀비·스켈레톤·거대 뱀·하이에나·디-렉스 vs 사자·트리케 무리',
+    blue: [
+      P('zombie', -6.0, -4.2), P('skeleton', -7.2, -1.6), P('snake', -4.8, 1.6),
+      P('hyena', -8.0, 0.2), P('drex', -9.2, -3.2),
+    ],
+    red: [...cluster('lion', 6, 'red', 'none', { x0: 4.8, dz: 2.4 }), P('triceratops', 8.2, 0)],
+    arena: 'savanna',
+  },
+  {
     id: 'mega-swarm', name: '100마리 대난전', emoji: '💥',
     desc: '블루 50 vs 레드 50 — 전장 한도 100마리',
     blue: swarmSide('blue'), red: swarmSide('red'), arena: 'savanna',
