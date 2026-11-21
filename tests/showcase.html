@@ -67,14 +67,13 @@ function label(text, x, y, z) {
   scene.add(sp);
 }
 
-const cols = 6;
-const spacing = 3.4;
+const cols = 12;
+const spacing = 3.0;
 const rigs = [];
 ANIMALS.forEach((def, i) => {
   const col = i % cols;
-  const row = Math.floor(i / cols);
   const x = (col - (cols - 1) / 2) * spacing;
-  const z = (row - 0.5) * -4.4;
+  const z = 0;
   const rig = buildAnimalModel(def, i % 2 ? 'red' : 'blue');
   rig.group.position.set(x, 0, z);
   rig.group.rotation.y = 0.35;
@@ -82,12 +81,12 @@ ANIMALS.forEach((def, i) => {
   scene.add(rig.group);
   rigs.push({ rig, phase: i * 0.7 });
   rig.group.rotation.y = 0.5;
-  label(`${def.name}`, x, rig.height + 0.55, z);
+  label(`${def.name}`, x, rig.height + 0.5, z);
 });
 
-camera.fov = 22;
-camera.position.set(0, 5.6, 40);
-camera.lookAt(0, 1.1, -2.2);
+camera.fov = 30;
+camera.position.set(0, 3.6, 46);
+camera.lookAt(0, 1.1, 0);
 camera.updateProjectionMatrix();
 
 let last = performance.now();

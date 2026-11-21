@@ -61,11 +61,11 @@ function buildLion(g, m, rig) {
   body.position.y = 0.94;
   g.add(body); rig.body = body; rig.bodyY = 0.94;
 
-  add(body, G.sphere, m.main, [0, 0.02, -0.02], [0.5, 0.5, 0.86]);
+  add(body, G.sphere, m.main, [0, 0.02, -0.02], [0.5, 0.46, 0.88]);
   add(body, G.sphere, m.main, [0, 0.14, 0.46], [0.46, 0.48, 0.4]);
   add(body, G.sphereLow, m.belly, [0, -0.16, 0.12], [0.4, 0.26, 0.62], null, false);
 
-  rig.legs = quadLegs(body, m.main, { x: 0.33, zf: 0.52, zb: -0.46, len: 0.66, r: 0.12 });
+  rig.legs = quadLegs(body, m.main, { x: 0.33, zf: 0.52, zb: -0.46, len: 0.9, r: 0.12 });
   rig.legs.forEach((l) => { if (l.front) l.pivot.position.y = 0.06; });
 
   const head = new THREE.Group();
@@ -101,17 +101,19 @@ function buildTiger(g, m, rig) {
   body.position.y = 0.9;
   g.add(body); rig.body = body; rig.bodyY = 0.9;
 
-  add(body, G.sphere, m.main, [0, 0, -0.02], [0.46, 0.47, 0.92]);
+  add(body, G.sphere, m.main, [0, 0, -0.02], [0.45, 0.44, 0.95]);
   add(body, G.sphere, m.main, [0, 0.1, 0.44], [0.42, 0.44, 0.4]);
   add(body, G.sphereLow, m.belly, [0, -0.2, 0.1], [0.34, 0.2, 0.64], null, false);
-  // 검은 줄무늬
+  // 검은 줄무늬 (옆면 + 등)
   for (let i = 0; i < 5; i++) {
-    const z = 0.48 - i * 0.26;
-    const s = 0.44 - Math.abs(z - 0.05) * 0.12;
-    add(body, G.box, m.dark, [0, 0.28 - Math.abs(z) * 0.05, z], [s * 1.5, 0.045, 0.075], [0, 0, 0], false);
+    const z = 0.5 - i * 0.26;
+    const h = 0.4 - Math.abs(z) * 0.1;
+    add(body, G.box, m.dark, [0.44, 0.1, z], [0.06, h, 0.1], [0, 0, 0], false);
+    add(body, G.box, m.dark, [-0.44, 0.1, z], [0.06, h, 0.1], [0, 0, 0], false);
+    add(body, G.box, m.dark, [0, 0.4, z], [0.55, 0.05, 0.1], [0, 0, 0], false);
   }
 
-  rig.legs = quadLegs(body, m.main, { x: 0.3, zf: 0.52, zb: -0.5, len: 0.62, r: 0.11 });
+  rig.legs = quadLegs(body, m.main, { x: 0.3, zf: 0.52, zb: -0.5, len: 0.88, r: 0.11 });
   rig.legs.forEach((l) => add(l.pivot, G.box, m.dark, [0, -0.4, 0], [0.19, 0.06, 0.19], null, false));
 
   const head = new THREE.Group();
@@ -146,7 +148,7 @@ function buildElephant(g, m, rig) {
   add(body, G.sphere, m.main, [0, 0.2, 0.5], [0.62, 0.6, 0.5]);
   add(body, G.sphereLow, m.dark, [0, 0.46, -0.15], [0.62, 0.3, 0.7], null, false);
 
-  rig.legs = quadLegs(body, m.dark, { x: 0.44, zf: 0.55, zb: -0.55, len: 0.72, r: 0.19, hoof: m.accent });
+  rig.legs = quadLegs(body, m.dark, { x: 0.44, zf: 0.55, zb: -0.55, len: 0.86, r: 0.19, hoof: m.accent });
   rig.legs.forEach((l) => { l.pivot.position.y = -0.18; });
 
   const head = new THREE.Group();
@@ -185,11 +187,11 @@ function buildBear(g, m, rig) {
   body.position.y = 0.88;
   g.add(body); rig.body = body; rig.bodyY = 0.88;
 
-  add(body, G.sphere, m.main, [0, 0, -0.04], [0.56, 0.54, 0.86]);
+  add(body, G.sphere, m.main, [0, 0, -0.04], [0.56, 0.52, 0.88]);
   add(body, G.sphere, m.main, [0, 0.28, 0.3], [0.5, 0.4, 0.42]);   // 어깨 혹
   add(body, G.sphereLow, m.belly, [0, -0.22, 0.1], [0.4, 0.24, 0.6], null, false);
 
-  rig.legs = quadLegs(body, m.main, { x: 0.38, zf: 0.5, zb: -0.46, len: 0.58, r: 0.16, hoof: m.dark });
+  rig.legs = quadLegs(body, m.main, { x: 0.38, zf: 0.5, zb: -0.46, len: 0.78, r: 0.16, hoof: m.dark });
 
   const head = new THREE.Group();
   head.position.set(0, 0.44, 0.72);
@@ -215,12 +217,12 @@ function buildWolf(g, m, rig) {
   body.position.y = 0.82;
   g.add(body); rig.body = body; rig.bodyY = 0.82;
 
-  add(body, G.sphere, m.main, [0, 0, -0.02], [0.4, 0.4, 0.86]);
+  add(body, G.sphere, m.main, [0, 0, -0.02], [0.38, 0.38, 0.88]);
   add(body, G.sphere, m.main, [0, 0.1, 0.42], [0.36, 0.38, 0.36]);
   add(body, G.sphereLow, m.belly, [0, -0.18, 0.1], [0.3, 0.18, 0.58], null, false);
   add(body, G.sphereLow, m.dark, [0, 0.3, -0.1], [0.28, 0.14, 0.5], null, false);  // 등 털
 
-  rig.legs = quadLegs(body, m.main, { x: 0.26, zf: 0.5, zb: -0.48, len: 0.6, r: 0.09 });
+  rig.legs = quadLegs(body, m.main, { x: 0.26, zf: 0.5, zb: -0.48, len: 0.84, r: 0.09 });
 
   const head = new THREE.Group();
   head.position.set(0, 0.38, 0.78);
@@ -248,7 +250,7 @@ function buildEagle(g, m, rig) {
   add(body, G.sphere, m.main, [0, 0, 0], [0.3, 0.34, 0.5], [0.25, 0, 0]);
   add(body, G.sphereLow, m.belly, [0, -0.14, 0.05], [0.24, 0.18, 0.34], null, false);
 
-  rig.legs = quadLegs(body, m.accent, { x: 0.13, zf: 0.16, zb: 0.02, len: 0.34, r: 0.05 });
+  rig.legs = quadLegs(body, m.accent, { x: 0.13, zf: 0.16, zb: 0.02, len: 0.44, r: 0.05 });
 
   // 날개 (접힌 상태 / 펼친 상태)
   const wings = [];
@@ -296,7 +298,7 @@ function buildCrocodile(g, m, rig) {
     add(body, G.coneLow, m.dark, [0, 0.24, 0.45 - i * 0.22], [0.11, 0.16, 0.1], [-0.2, 0, 0], false);
   }
 
-  rig.legs = quadLegs(body, m.dark, { x: 0.36, zf: 0.42, zb: -0.46, len: 0.34, r: 0.11 });
+  rig.legs = quadLegs(body, m.dark, { x: 0.36, zf: 0.42, zb: -0.46, len: 0.42, r: 0.11 });
   rig.legs.forEach((l) => { l.pivot.rotation.z = l.left ? 0.5 : -0.5; });
 
   const head = new THREE.Group();
@@ -330,11 +332,11 @@ function buildRhino(g, m, rig) {
   body.position.y = 0.94;
   g.add(body); rig.body = body; rig.bodyY = 0.94;
 
-  add(body, G.sphere, m.main, [0, 0, -0.04], [0.6, 0.58, 0.94]);
+  add(body, G.sphere, m.main, [0, 0, -0.04], [0.6, 0.55, 0.94]);
   add(body, G.sphereLow, m.dark, [0, 0.34, -0.1], [0.5, 0.24, 0.7], null, false);   // 등 판
   add(body, G.sphereLow, m.belly, [0, -0.26, 0.05], [0.42, 0.2, 0.6], null, false);
 
-  rig.legs = quadLegs(body, m.dark, { x: 0.4, zf: 0.54, zb: -0.5, len: 0.6, r: 0.17, hoof: m.accent });
+  rig.legs = quadLegs(body, m.dark, { x: 0.4, zf: 0.54, zb: -0.5, len: 0.74, r: 0.17, hoof: m.accent });
 
   const head = new THREE.Group();
   head.position.set(0, 0.16, 0.9);
@@ -365,7 +367,7 @@ function buildFox(g, m, rig) {
   add(body, G.sphereLow, m.belly, [0, -0.14, 0.1], [0.26, 0.16, 0.46], null, false);
   add(body, G.sphere, m.main, [0, 0.08, 0.32], [0.3, 0.3, 0.3]);
 
-  rig.legs = quadLegs(body, m.dark, { x: 0.2, zf: 0.42, zb: -0.4, len: 0.46, r: 0.075 });
+  rig.legs = quadLegs(body, m.dark, { x: 0.2, zf: 0.42, zb: -0.4, len: 0.6, r: 0.075 });
 
   const head = new THREE.Group();
   head.position.set(0, 0.32, 0.62);
@@ -397,7 +399,7 @@ function buildGorilla(g, m, rig) {
   add(body, G.sphere, m.main, [0, 0.34, 0.16], [0.6, 0.4, 0.44]);        // 큰 어깨
   add(body, G.sphereLow, m.accent, [0, 0.3, -0.34], [0.34, 0.34, 0.12], null, false);  // 은빛 등
 
-  rig.legs = quadLegs(body, m.main, { x: 0.26, zf: 0.06, zb: -0.34, len: 0.52, r: 0.13 });
+  rig.legs = quadLegs(body, m.main, { x: 0.26, zf: 0.06, zb: -0.34, len: 0.62, r: 0.13 });
   rig.legs.forEach((l) => { l.pivot.position.z += l.front ? 0.2 : 0; });
 
   // 긴 팔 (너클 워크)
@@ -432,16 +434,17 @@ function buildCheetah(g, m, rig) {
   body.position.y = 0.8;
   g.add(body); rig.body = body; rig.bodyY = 0.8;
 
-  add(body, G.sphere, m.main, [0, 0, -0.02], [0.34, 0.36, 0.82]);
+  add(body, G.sphere, m.main, [0, 0, -0.02], [0.33, 0.34, 0.86]);
   add(body, G.sphereLow, m.belly, [0, -0.16, 0.05], [0.26, 0.16, 0.6], null, false);
   // 점박이
-  for (let i = 0; i < 14; i++) {
-    const z = 0.5 - (i % 7) * 0.18;
-    const x = (i < 7 ? 1 : -1) * (0.16 + (i % 3) * 0.05);
-    add(body, G.sphereLow, m.dark, [x, 0.24, z], [0.035, 0.02, 0.045], null, false);
+  for (let i = 0; i < 16; i++) {
+    const z = 0.55 - (i % 8) * 0.16;
+    const side = i < 8 ? 1 : -1;
+    const y = 0.16 + ((i * 7) % 5) * 0.05;
+    add(body, G.sphereLow, m.dark, [side * 0.33, y, z], [0.028, 0.028, 0.04], null, false);
   }
 
-  rig.legs = quadLegs(body, m.main, { x: 0.24, zf: 0.5, zb: -0.48, len: 0.56, r: 0.08 });
+  rig.legs = quadLegs(body, m.main, { x: 0.24, zf: 0.5, zb: -0.48, len: 0.8, r: 0.08 });
 
   const head = new THREE.Group();
   head.position.set(0, 0.34, 0.7);
@@ -477,7 +480,7 @@ function buildBoar(g, m, rig) {
     add(body, G.coneLow, m.dark, [0, 0.44 - i * 0.01, 0.4 - i * 0.13], [0.06, 0.24, 0.06], [0.25, 0, 0], false);
   }
 
-  rig.legs = quadLegs(body, m.dark, { x: 0.3, zf: 0.38, zb: -0.36, len: 0.4, r: 0.1 });
+  rig.legs = quadLegs(body, m.dark, { x: 0.3, zf: 0.38, zb: -0.36, len: 0.52, r: 0.1 });
 
   const head = new THREE.Group();
   head.position.set(0, 0.18, 0.62);
