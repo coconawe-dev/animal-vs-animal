@@ -132,7 +132,10 @@ export class Stage {
     const w = this.canvas.clientWidth || window.innerWidth;
     const h = this.canvas.clientHeight || window.innerHeight;
     this.renderer.setSize(w, h, false);
-    this.camera.aspect = w / h;
+    const aspect = w / h;
+    this.camera.aspect = aspect;
+    // 세로로 긴 화면에서는 시야각을 넓혀 좌우로 더 보이게
+    this.camera.fov = aspect < 0.62 ? 62 : aspect < 0.85 ? 56 : 46;
     this.camera.updateProjectionMatrix();
   }
 
@@ -295,6 +298,7 @@ export class Stage {
     // 조명
     if (this.sun) { this.scene.remove(this.sun); this.scene.remove(this.sun.target); }
     if (this.hemi) this.scene.remove(this.hemi);
+    if (this.fill) this.scene.remove(this.fill);
     this.hemi = new THREE.HemisphereLight(arena.sky.mid, arena.ground2, arena.ambient * 1.5);
     this.scene.add(this.hemi);
 
@@ -302,10 +306,10 @@ export class Stage {
     sun.position.set(arena.sunPos[0], arena.sunPos[1], arena.sunPos[2]);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -34;
-    sun.shadow.camera.right = 34;
-    sun.shadow.camera.top = 34;
-    sun.shadow.camera.bottom = -34;
+    sun.shadow.camera.left = -24;
+    sun.shadow.camera.right = 24;
+    sun.shadow.camera.top = 24;
+    sun.shadow.camera.bottom = -24;
     sun.shadow.camera.near = 1;
     sun.shadow.camera.far = 120;
     sun.shadow.bias = -0.0012;

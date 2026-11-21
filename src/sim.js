@@ -61,8 +61,8 @@ function spawnTeam(state, ids, team) {
   ids.forEach((id, i) => {
     const def = ANIMAL_BY_ID[id];
     if (!def) return;
-    const z = n === 1 ? 0 : (i - (n - 1) / 2) * 3.1;
-    const x = sign * (11.4 + (i % 2) * 1.5);
+    const z = n === 1 ? 0 : (i - (n - 1) / 2) * 2.7;
+    const x = sign * (7.6 + (i % 2) * 1.2);
     const u = makeUnit(state, def, team, x, z);
     state.units.push(u);
   });
@@ -413,7 +413,6 @@ function updateDash(state, u, dt) {
       knock(state, e, e.x - ax, e.z - az, dash.knock);
       if (dash.stun > 0) stunUnit(state, e, dash.stun);
       if (dash.bleed > 0) addBleed(state, e, u, dash.bleed, dash.bleedTime);
-      if (dash.aoe > 0) areaBurst(state, u, e.x, e.z, dash.aoe, dash.dmg * 0.45, 0);
       emit(state, { type: 'dashHit', uid: u.uid, target: e.uid, x: e.x, z: e.z });
     }
   }

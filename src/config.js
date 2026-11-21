@@ -2,11 +2,11 @@
 // 이 파일은 THREE에 의존하지 않는다. tests/smoke.mjs 가 그대로 불러 검증한다.
 
 export const TUNING = {
-  ARENA_RADIUS: 23.5,        // 전장 반경 (유닛 중심 이동 한계)
+  ARENA_RADIUS: 15.0,        // 전장 반경 (유닛 중심 이동 한계)
   MAX_TEAM: 4,               // 한 팀 최대 유닛 수
   MAX_TIME: 120,             // 배틀 제한 시간(초) — 초과 시 HP 비율 판정
   SIM_DT: 1 / 60,            // 고정 스텝
-  SEPARATION: 1.85,          // 유닛끼리 겹침 방지 거리
+  SEPARATION: 2.35,          // 유닛끼리 겹침 방지 거리
   KNOCK_DECAY: 7.5,          // 넉백 감쇠
   BLEED_TICK: 0.5,           // 출혈 피해 주기
   CRIT_MULT: 1.9,
@@ -161,14 +161,14 @@ export const ARENAS = [
     sun: 0xfff0cf, sunPos: [26, 34, 18], sunI: 2.5, ambient: 0.55,
     decor: 'savanna',
     obstacles: [
-      { x: -9.2, z: -7.8, r: 1.6, h: 2.7, kind: 'rock' },
-      { x: 9.2, z: 7.8, r: 1.6, h: 2.7, kind: 'rock' },
-      { x: -8.6, z: 9.0, r: 1.2, h: 1.6, kind: 'rock' },
-      { x: 8.6, z: -9.0, r: 1.2, h: 1.6, kind: 'rock' },
-      { x: 0, z: -13.2, r: 1.8, h: 3.4, kind: 'tree' },
-      { x: 0, z: 13.2, r: 1.8, h: 3.4, kind: 'tree' },
-      { x: -14.4, z: 0, r: 1.4, h: 2.2, kind: 'rock' },
-      { x: 14.4, z: 0, r: 1.4, h: 2.2, kind: 'rock' },
+      { x: -5.9, z: -5.0, r: 1.15, h: 2.2, kind: 'rock' },
+      { x: 5.9, z: 5.0, r: 1.15, h: 2.2, kind: 'rock' },
+      { x: -5.4, z: 5.6, r: 0.9, h: 1.5, kind: 'rock' },
+      { x: 5.4, z: -5.6, r: 0.9, h: 1.5, kind: 'rock' },
+      { x: 0, z: -8.4, r: 1.5, h: 3.2, kind: 'tree' },
+      { x: 0, z: 8.4, r: 1.5, h: 3.2, kind: 'tree' },
+      { x: -9.2, z: 0, r: 1.0, h: 1.9, kind: 'rock' },
+      { x: 9.2, z: 0, r: 1.0, h: 1.9, kind: 'rock' },
     ],
   },
   {
@@ -179,12 +179,12 @@ export const ARENAS = [
     sun: 0xffd2a0, sunPos: [-22, 30, -14], sunI: 2.6, ambient: 0.5,
     decor: 'canyon',
     obstacles: [
-      { x: -10.5, z: -6.5, r: 1.9, h: 7.5, kind: 'pillar' },
-      { x: 10.5, z: 6.5, r: 1.9, h: 7.5, kind: 'pillar' },
-      { x: -9.5, z: 8.5, r: 1.5, h: 5.2, kind: 'pillar' },
-      { x: 9.5, z: -8.5, r: 1.5, h: 5.2, kind: 'pillar' },
-      { x: 0, z: -13.5, r: 2.1, h: 9, kind: 'pillar' },
-      { x: 0, z: 13.5, r: 2.1, h: 9, kind: 'pillar' },
+      { x: -6.6, z: -4.0, r: 1.4, h: 5.2, kind: 'pillar' },
+      { x: 6.6, z: 4.0, r: 1.4, h: 5.2, kind: 'pillar' },
+      { x: -6.0, z: 5.4, r: 1.1, h: 3.8, kind: 'pillar' },
+      { x: 6.0, z: -5.4, r: 1.1, h: 3.8, kind: 'pillar' },
+      { x: 0, z: -8.6, r: 1.6, h: 6.2, kind: 'pillar' },
+      { x: 0, z: 8.6, r: 1.6, h: 6.2, kind: 'pillar' },
     ],
   },
   {
@@ -195,12 +195,12 @@ export const ARENAS = [
     sun: 0xe8f4ff, sunPos: [16, 38, -20], sunI: 2.3, ambient: 0.62,
     decor: 'tundra',
     obstacles: [
-      { x: -9.8, z: -7.2, r: 1.4, h: 4.2, kind: 'ice' },
-      { x: 9.8, z: 7.2, r: 1.4, h: 4.2, kind: 'ice' },
-      { x: -9.2, z: 8.2, r: 1.1, h: 2.8, kind: 'ice' },
-      { x: 9.2, z: -8.2, r: 1.1, h: 2.8, kind: 'ice' },
-      { x: 0, z: -13.0, r: 1.9, h: 3.6, kind: 'rock' },
-      { x: 0, z: 13.0, r: 1.9, h: 3.6, kind: 'rock' },
+      { x: -6.2, z: -4.4, r: 1.0, h: 3.2, kind: 'ice' },
+      { x: 6.2, z: 4.4, r: 1.0, h: 3.2, kind: 'ice' },
+      { x: -5.8, z: 5.0, r: 0.85, h: 2.2, kind: 'ice' },
+      { x: 5.8, z: -5.0, r: 0.85, h: 2.2, kind: 'ice' },
+      { x: 0, z: -8.2, r: 1.5, h: 3.0, kind: 'rock' },
+      { x: 0, z: 8.2, r: 1.5, h: 3.0, kind: 'rock' },
     ],
   },
 ];

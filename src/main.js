@@ -166,7 +166,9 @@ function startBattle() {
   ui.setFollow(app.follow);
   ui.buildStrips(battle);
   ui.el.logList.innerHTML = '';
-  stage.camGoal.dist = battle.units.length <= 2 ? 27 : battle.units.length <= 4 ? 34 : 41;
+  const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
+  const base = battle.units.length <= 2 ? 24 : battle.units.length <= 4 ? 29 : 34;
+  stage.camGoal.dist = base * (aspect < 0.7 ? 1.15 : 1);
   stage.camGoal.phi = 0.88;
   stage.camGoal.target.set(0, 1.4, 0);
   syncLog();
@@ -178,7 +180,8 @@ function backToBuilder() {
   ui.hideBattleUI();
   ui.showBuilder();
   refreshPreview();
-  stage.camGoal.dist = 30;
+  const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
+  stage.camGoal.dist = 34 * (aspect < 0.7 ? 1.12 : 1);
   stage.camGoal.phi = 0.95;
 }
 
