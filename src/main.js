@@ -34,6 +34,30 @@ function fatal(message) {
   el.innerHTML = `<div class="loader-inner"><span>😵</span><b>게임을 시작할 수 없어요</b><small>${message}</small></div>`;
 }
 
+const SAVE_KEY = 'animal-vs-animal:v1';
+
+function loadSave() {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY);
+    if (!raw) return;
+    const d = JSON.parse(raw);
+    const okTeam = (t) => Array.isArray(t) && t.length > 0 && t.length <= TUNING.MAX_TEAM && t.every((id) => !!ANIMAL_BY_ID[id]);
+    if (!d || !okTeam(d.blue) || !okTeam(d.red)) return;
+    app.teams.blue = d.blue.slice();
+    app.teams.red = d.red.slice();
+    if (ARENA_BY_ID[d.arena]) app.arenaId = d.arena;
+    if (['team', 'duel', 'free'].includes(d.mode)) app.mode = d.mode;
+  } catch (e) { /* 저장값이 없거나 깨졌으면 기본 편성 */ }
+}
+
+function saveState() {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({
+      blue: app.teams.blue, red: app.teams.red, arena: app.arenaId, mode: app.mode,
+    }));
+  } catch (e) { /* 사파리 프라이빗 모드 등 — 무시 */ }
+}
+
 let stage;
 try {
   stage = new Stage(canvas);
@@ -58,12 +82,16 @@ const SK_COLORS = {
   gore: 0xc08bff, evade: 0x6fe8d8, sprint: 0xffe066, gore2: 0xffb0a0,
 };
 
+loadSave();
+
 const ui = new UI(app, {
   onTeamsChange: () => {
+    saveState();
     if (phase === 'preview') refreshPreview();
   },
   onArenaChange: (id) => {
     stage.setArena(ARENA_BY_ID[id] || ARENA_BY_ID.savanna);
+    saveState();
     if (phase === 'preview') refreshPreview();
   },
   onStart: () => startBattle(),
@@ -187,6 +215,8 @@ function startBattle() {
   stage.camGoal.phi = 0.88;
   stage.camGoal.target.set(0, 1.4, 0);
   syncLog();
+  saveState();
+  ui.toast(`⚔️ ${app.teams.blue.length} vs ${app.teams.red.length} 배틀 시작!`);
 }
 
 function backToBuilder() {
@@ -244,6 +274,7 @@ function handleEvent(ev) {
   switch (ev.type) {
     case 'attack': {
       if (target) triggerAttack(target.rig);
+      if (ev.ranged) sfx.whoosh();
       break;
     }
     case 'hit': {
@@ -440,6 +471,7 @@ function frame(now) {
     }
     const evs = drainEvents(battle);
     for (const ev of evs) handleEvent(ev);
+    effects.syncProjectiles(battle.projectiles || []);
     syncLog();
     ui.updateBattle(battle);
   }
