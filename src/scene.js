@@ -76,7 +76,7 @@ function rockMesh(rnd, r, h, color, shadow = false) {
   }
   geo.computeVertexNormals();
   const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.94 }));
-  m.scale.set(r * 1.08, h * 0.8, r * (0.95 + rnd() * 0.2));
+  m.scale.set(r * 0.92, h * 0.72, r * (0.82 + rnd() * 0.18));
   m.position.y = h * 0.34;
   m.rotation.y = rnd() * Math.PI;
   m.castShadow = shadow;
@@ -380,7 +380,7 @@ export class Stage {
         g.add(c);
       }
     } else {
-      const rock = rockMesh(rnd, ob.r, ob.h * 0.75, arena.ground2, true);
+      const rock = rockMesh(rnd, ob.r, ob.h * 0.75, new THREE.Color(arena.ground2).offsetHSL(0, 0.03, -0.07), true);
       g.add(rock);
     }
     return g;

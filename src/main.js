@@ -96,7 +96,7 @@ function updatePreviewFraming() {
     stage.setFocusShift(0.3, 0);
   } else if (panelW > w * 0.2) {
     // 왼쪽 사이드 패널: 화면 중심을 오른쪽으로
-    stage.setFocusShift(0.02, -panelW / 2 / w);
+    stage.setFocusShift(0.02, panelW / 2 / w);
   } else {
     stage.setFocusShift(0, 0);
   }
