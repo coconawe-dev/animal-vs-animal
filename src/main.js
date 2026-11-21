@@ -359,6 +359,25 @@ function afterPlacementChange(refresh = true) {
 
 let partyPreviewDirty = false;
 let partyPreviewAt = 0;
+// 파티에 들어가기 전 샌드박스 배치 (파티를 나오면 돌려준다)
+const partyBackup = { teams: null, arena: null };
+
+function backupSandboxForParty() {
+  if (partyBackup.teams) return;
+  partyBackup.teams = { blue: app.teams.blue.map(clone), red: app.teams.red.map(clone) };
+  partyBackup.arena = app.arenaId;
+}
+
+function restoreSandboxFromParty() {
+  if (partyBackup.teams) {
+    app.teams.blue = partyBackup.teams.blue.map(clone);
+    app.teams.red = partyBackup.teams.red.map(clone);
+    partyBackup.teams = null;
+  }
+  app.teams.green = [];
+  app.teams.gold = [];
+  app.activeTeam = 'blue';
+}
 
 function ensureParty() {
   if (!app.party) {
@@ -383,8 +402,17 @@ function openPartyMode() {
     app.activeTeam = s.myTeam;
     ui.renderParty(s.snapshotState());
   } else {
+    // 파티 전장은 빈 상태에서 시작한다 (샌드박스 배치는 따로 보관해 두고 나중에 돌려준다)
     app.partyInRoom = false;
+    backupSandboxForParty();
+    app.teams.blue = [];
+    app.teams.red = [];
+    app.teams.green = [];
+    app.teams.gold = [];
+    app.partyTeamCount = 2;
+    app.activeTeam = 'blue';
     ui.setPartyStatus('파티를 열면 초대 링크를 복사해 친구에게 보낼 수 있습니다.');
+    if (phase === 'preview') refreshPreview();
   }
   ui.render();
 }
@@ -425,9 +453,7 @@ function leaveParty(backToSandbox = false) {
   if (s) s.leave();
   app.partyInRoom = false;
   app.partyTeamCount = 2;
-  app.teams.green = [];
-  app.teams.gold = [];
-  app.activeTeam = 'blue';
+  restoreSandboxFromParty();
   ui.setPartyStatus('파티에서 나왔습니다');
   if (backToSandbox && app.mode === 'party') {
     app.mode = 'sandbox';
@@ -496,9 +522,7 @@ function onPartyChange(state) {
 function onPartyClosed(reason) {
   app.mode = 'sandbox';
   app.partyInRoom = false;
-  app.teams.green = [];
-  app.teams.gold = [];
-  app.activeTeam = 'blue';
+  restoreSandboxFromParty();
   ui.toast(reason === 'host-left' ? '방장이 나가서 파티가 닫혔습니다' : '파티 연결이 끊겼습니다');
   if (phase !== 'preview') backToBuilder();
   refreshPreview();
