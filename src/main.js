@@ -153,7 +153,7 @@ function clearViews() {
   for (const v of views) {
     stage.scene.remove(v.rig.group);
     disposeRig(v.rig);
-    v.el?.remove();
+    v.el?.el?.remove();
   }
   views = [];
   viewByUid.clear();
