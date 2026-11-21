@@ -238,8 +238,8 @@ function startBattle() {
   const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
   const base = battle.units.length <= 2 ? 24 : battle.units.length <= 4 ? 29 : 34;
   stage.camGoal.dist = base * (aspect < 0.7 ? 1.15 : 1);
-  stage.camGoal.phi = 0.8;
-  stage.camGoal.target.set(0, 1.4, 0);
+  stage.camGoal.phi = 0.64;
+  stage.camGoal.target.set(0, 1.15, 0);
   syncLog();
   saveState();
   ui.toast(`⚔️ ${app.teams.blue.length} vs ${app.teams.red.length} 배틀 시작!`);
@@ -332,7 +332,7 @@ function handleEvent(ev) {
       effects.ring(ev.x, ev.z, 0.7, def ? (def.skill.radius || 3) * 1.15 : 3.4, color, 0.5);
       effects.flash(ev.x, 1.5, ev.z, 1.5, color, 0.3);
       effects.burst(ev.x, 1.3, ev.z, color, 14, 4.2);
-      effects.text(ev.x, 3.1, ev.z, ev.name || '', { color: '#ffe3a0', size: 1.05, life: 1.15 });
+      effects.text(ev.x, 3.4, ev.z, ev.name || '', { color: '#ffe3a0', size: 0.72, life: 1.1 });
       sfx.skill(ev.kind);
       if (target) {
         target.el.el.classList.add('skill');
@@ -464,7 +464,7 @@ function fitDistance() {
   }
   const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
   const narrow = aspect < 0.7 ? 1.25 : aspect < 0.95 ? 1.08 : 1;
-  return Math.max(16, Math.min(52, (maxD * 1.05 + 14) * narrow));
+  return Math.max(10.5, Math.min(38, (maxD * 0.82 + 9.5) * narrow));
 }
 
 function focusPoint() {

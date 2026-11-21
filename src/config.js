@@ -156,8 +156,8 @@ export const ARENAS = [
   {
     id: 'savanna', name: '초원 아레나', emoji: '🌾', tag: '황금빛 초원',
     sky: { top: 0x1d3f6e, mid: 0xf0a860, bottom: 0xf7d9a0 },
-    fog: 0xe8c48a, fogNear: 42, fogFar: 105,
-    ground: 0x9c8a4a, ground2: 0x7d6d36, rim: 0xb9a866,
+    fog: 0xdfc292, fogNear: 38, fogFar: 95,
+    ground: 0xb3a15c, ground2: 0x8d7c42, rim: 0xc9b878,
     sun: 0xfff0cf, sunPos: [26, 34, 18], sunI: 2.5, ambient: 0.55,
     decor: 'savanna',
     obstacles: [

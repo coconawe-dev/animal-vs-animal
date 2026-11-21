@@ -175,12 +175,13 @@ export class Effects {
   }
 
   flash(x, y, z, r = 1.6, color = 0xffe6a0, dur = 0.28) {
+    r *= 0.85;
     const f = this.flashes[this.flashIdx];
     this.flashIdx = (this.flashIdx + 1) % this.flashes.length;
     f.mesh.position.set(x, y, z);
     f.mesh.scale.setScalar(r);
     f.mesh.material.color.setHex(color);
-    f.mesh.material.opacity = 0.65;
+    f.mesh.material.opacity = 0.38;
     f.mesh.visible = true;
     f.life = dur; f.max = dur; f.r = r;
   }
@@ -275,7 +276,7 @@ export class Effects {
       f.life -= dt;
       const k = 1 - Math.max(0, f.life) / f.max;
       f.mesh.scale.setScalar(f.r * (1 + k * 0.8));
-      f.mesh.material.opacity = Math.max(0, 0.65 * (1 - k));
+      f.mesh.material.opacity = Math.max(0, 0.38 * (1 - k));
       if (f.life <= 0) f.mesh.visible = false;
     }
     // 참격
