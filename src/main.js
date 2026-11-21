@@ -948,10 +948,12 @@ document.addEventListener('contextmenu', (e) => e.preventDefault());
 function updateFraming() {
   const w = canvas.clientWidth || 1;
   const h = canvas.clientHeight || 1;
-  const aspect = w / h;
   if (phase !== 'preview') { stage.setFocusShift(0, 0); return; }
-  if (aspect < 1.0) stage.setFocusShift(0.1, 0);
-  else stage.setFocusShift(0.02, 0);
+  // 하단 독에 가리지 않도록, 남은 영역의 중앙에 전장이 오게 화면 중심을 올린다
+  const dock = document.getElementById('dock');
+  const dockH = dock && !dock.classList.contains('closed') ? dock.getBoundingClientRect().height : 0;
+  const shift = Math.max(0, Math.min(0.2, (dockH / h) * 0.55));
+  stage.setFocusShift(shift, 0);
 }
 
 window.addEventListener('resize', () => { stage.resize(); updateFraming(); });
