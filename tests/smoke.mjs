@@ -877,11 +877,18 @@ for (const n of [3, 4]) {
   for (let i = 0; i < 8; i++) { guest.tick(6); await sleep(15); host.tick(0.2); }
   check(host.playerCount === 2, `조용한 손님이 유지된다 (${host.playerCount}명)`);
   check(host.players.get(guest.myPid).placements.length === 1, '배치도 유지된다');
-  // 응답이 30초 넘게 없던 사람은 정리된다
+  // 잠시 끊긴 것(40초)은 남겨 두고 '연결 끊김'으로만 표시한다
   host.players.get(guest.myPid).lastAt = Date.now() - 40000;
   host.tick(0.2);
   await sleep(30);
-  check(host.playerCount === 1, '30초 무응답 참가자는 정리');
+  check(host.playerCount === 2, '40초 무응답은 방에 남아 있다');
+  check(host.players.get(guest.myPid).stale === true, '연결 끊김 표시');
+  check(host.snapshotState().players.some((x) => x.stale), 'UI 에 연결 끊김 노출');
+  // 3분 넘게 안 돌아오면 정리된다
+  host.players.get(guest.myPid).lastAt = Date.now() - 200000;
+  host.tick(0.2);
+  await sleep(30);
+  check(host.playerCount === 1, '3분 무응답 참가자는 정리');
   host.leave();
 }
 

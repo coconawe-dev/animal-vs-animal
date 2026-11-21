@@ -10,7 +10,10 @@ import { Net, normalizeRoomCode } from './net.js';
 export const PHASE = { IDLE: 'idle', LOBBY: 'lobby', PLACE: 'place', BATTLE: 'battle', END: 'end' };
 
 export const SNAPSHOT_HZ = 12;
-const RECV_TIMEOUT_MS = 30000;
+// 잠시 끊긴 것(휴대폰 백그라운드·다른 앱)과 진짜 나간 것을 구분한다
+const STALE_MS = 25000;        // 이만큼 응답이 없으면 '연결 끊김'으로 표시
+const DROP_MS = 180000;        // 3분 동안 안 돌아오면 방에서 정리
+const PING_MS = 5000;          // 살아 있음을 알리는 주기 (탭이 뒤에 있어도 타이머로 돈다)
 
 /* ─────────────────── 이벤트 압축 (방장 → 손님) ─────────────────── */
 
@@ -121,6 +124,7 @@ export class PartySession {
       });
     }
     this._pingAcc = 0;
+    this._pingTimer = null;
     this.stats = { sent: 0, recv: 0 };
   }
 
@@ -159,10 +163,11 @@ export class PartySession {
         me: p.pid === this.myPid,
         host: p.pid === this.net.hostPid || (this.isHost && p.pid === this.myPid),
         ready: !!p.ready,
+        stale: p.pid === this.myPid ? false : (Date.now() - (p.lastAt || 0) > STALE_MS),
         count: (p.placements || []).length,
         used: costOf(p.placements || []),
         budget: PARTY.BUDGET,
-        connected: p.pid === this.myPid ? true : (Date.now() - (p.lastAt || 0) < RECV_TIMEOUT_MS),
+        connected: p.pid === this.myPid ? true : (Date.now() - (p.lastAt || 0) < STALE_MS),
       }));
     return {
       phase: this.phase,
@@ -186,9 +191,26 @@ export class PartySession {
 
   /* ── 방 열기 / 참가 ── */
 
+  // 손님이 살아 있음을 알리는 타이머 (탭이 뒤에 있어도 계속 돈다)
+  _startPing() {
+    this._stopPing();
+    if (typeof setInterval !== 'function') return;
+    this._pingTimer = setInterval(() => {
+      if (!this.active || this.isHost) return;
+      this.send('ping', {});
+    }, PING_MS);
+    // 노드 테스트가 이 타이머 때문에 끝나지 않는 일이 없게
+    this._pingTimer?.unref?.();
+  }
+
+  _stopPing() {
+    if (this._pingTimer) { clearInterval(this._pingTimer); this._pingTimer = null; }
+  }
+
   async host(nick) {
     this.phase = PHASE.LOBBY;
     const code = await this.net.host(nick);
+    this._stopPing();
     this.players.clear();
     this.order = [];
     this._addPlayer({ pid: this.myPid, nick: this.net.nick, host: true });
@@ -201,6 +223,7 @@ export class PartySession {
   async join(code, nick) {
     this.phase = PHASE.LOBBY;
     const data = await this.net.join(normalizeRoomCode(code), nick);
+    this._startPing();
     this.applyRoster(data.players || [], data);
     this.arenaId = data.arenaId || this.arenaId;
     this.phase = data.phase === PHASE.BATTLE ? PHASE.PLACE : (data.phase || PHASE.PLACE);
@@ -370,6 +393,7 @@ export class PartySession {
   }
 
   leave() {
+    this._stopPing();
     const role = this.net.stop();
     this.phase = PHASE.IDLE;
     this.players.clear();
@@ -449,6 +473,11 @@ export class PartySession {
       const player = this.players.get(p.pid);
       if (player) {
         player.lastAt = Date.now();
+        if (player.stale) {
+          player.stale = false;
+          this.status(`${player.nick} 님이 다시 연결되었습니다`);
+          this.changed();
+        }
       } else if (this.players.size < PARTY.MAX_PLAYERS) {
         // 방에서 빠졌던 사람이 다시 살아났다 — 목록을 보내 스스로 판단하게 한다
         this.send('roster', { players: this.rosterPayload(), phase: this.phase, arenaId: this.arenaId });
@@ -727,16 +756,22 @@ export class PartySession {
           this.sendSnapshot();
         }
       }
-      // 오래 응답 없는 참가자 정리
+      // 오래 응답 없는 참가자 — 잠시 끊긴 것과 나간 것을 구분한다
       const now = Date.now();
       for (const pid of [...this.order]) {
         if (pid === this.myPid) continue;
         const p = this.players.get(pid);
-        if (p && now - (p.lastAt || 0) > RECV_TIMEOUT_MS) {
+        if (!p) continue;
+        const silence = now - (p.lastAt || 0);
+        if (silence > DROP_MS) {
           this._removePlayer(pid);
           this.assignTeams();
           this.broadcastRoster();
-          this.status(`${p.nick} 님과 연결이 끊겼습니다`);
+          this.status(`${p.nick} 님이 방에서 나갔습니다`);
+          this.changed();
+        } else if (silence > STALE_MS && !p.stale) {
+          p.stale = true;
+          this.status(`${p.nick} 님의 연결이 잠시 끊겼습니다 (돌아오면 자동 연결)`);
           this.changed();
         }
       }

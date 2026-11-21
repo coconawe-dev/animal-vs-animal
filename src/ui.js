@@ -546,9 +546,10 @@ export class UI {
       const def = teamDef(pl.team);
       const label = pl.me ? `${pl.nick} (나)` : pl.nick;
       const tags = `${def.emoji} ${def.name} · 유닛 ${pl.count} · 예산 ${pl.used}/${pl.budget}`;
-      const state = pl.ready ? '<span class="pr-state ready">준비</span>'
+      const state = pl.stale ? '<span class="pr-state stale">연결 끊김</span>'
+        : pl.ready ? '<span class="pr-state ready">준비</span>'
         : '<span class="pr-state wait">배치 중</span>';
-      rows.push(`<div class="pr-row ${pl.me ? 'me' : ''}" style="--tc:${def.css}">`
+      rows.push(`<div class="pr-row ${pl.me ? 'me' : ''} ${pl.stale ? 'is-stale' : ''}" style="--tc:${def.css}">`
         + '<span class="pr-dot"></span>'
         + `<div class="pr-body"><b>${this._esc(label)}${pl.host ? ' 👑' : ''}</b><small>${tags}</small></div>`
         + state + '</div>');
