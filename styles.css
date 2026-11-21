@@ -74,7 +74,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
 .icon-btn {
   width: 34px; height: 34px; border-radius: 11px; font-size: 14px;
   background: rgba(20, 24, 33, 0.78); border: 1px solid var(--line);
-  display: grid; place-items: center; backdrop-filter: blur(8px);
+  display: grid; place-items: center; -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
   transition: transform .15s, background .2s;
 }
 .icon-btn:active { transform: scale(0.93); background: rgba(40, 46, 60, 0.9); }
@@ -117,7 +117,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
 .chip-btn {
   height: 32px; min-width: 34px; padding: 0 11px; border-radius: 999px;
   background: rgba(18, 22, 30, 0.82); border: 1px solid var(--line);
-  font-size: 12px; font-weight: 700; backdrop-filter: blur(10px);
+  font-size: 12px; font-weight: 700; -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
   display: inline-flex; align-items: center; gap: 5px;
   transition: transform .14s, background .2s, border-color .2s;
 }
@@ -369,7 +369,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
 /* ───────────────────────── 결과 배너 ───────────────────────── */
 .banner {
   position: absolute; inset: 0; z-index: 40; display: grid; place-items: center;
-  background: rgba(4, 6, 10, 0.55); backdrop-filter: blur(4px); padding: 18px;
+  background: rgba(4, 6, 10, 0.55); -webkit-backdrop-filter: blur(4px); backdrop-filter: blur(4px); padding: 18px;
   animation: fadeIn .3s ease-out;
 }
 .banner-card {
@@ -404,7 +404,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
 }
 .toast.show { opacity: 1; transform: translate(-50%, 0); }
 
-.modal { position: absolute; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(5,7,11,.66); backdrop-filter: blur(6px); padding: 18px; }
+.modal { position: absolute; inset: 0; z-index: 60; display: grid; place-items: center; background: rgba(5,7,11,.66); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px); padding: 18px; }
 .modal-card { width: min(360px, 92vw); background: linear-gradient(170deg, rgba(28,32,44,.98), rgba(12,15,21,.99)); border: 1px solid var(--line-strong); border-radius: 20px; padding: 20px; box-shadow: 0 24px 70px rgba(0,0,0,.7); }
 .modal-card h3 { font-size: 16px; margin-bottom: 10px; }
 .modal-card ul { display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px; }
