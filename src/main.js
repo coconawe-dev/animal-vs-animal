@@ -587,7 +587,7 @@ document.addEventListener('visibilitychange', () => {
 /* ────────────────────────────── 시작 ────────────────────────────── */
 
 stage.setArena(ARENA_BY_ID[app.arenaId]);
-stage.camGoal.dist = 30;
+stage.camGoal.dist = previewDistance();
 stage.camGoal.phi = 0.95;
 refreshPreview();
 ui.setSound(true);
