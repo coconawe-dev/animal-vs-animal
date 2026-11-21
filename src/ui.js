@@ -55,6 +55,7 @@ export class UI {
       partyReady: $('#btn-party-ready'), partyStart: $('#btn-party-start'),
       partyRoomStatus: $('#party-room-status'),
       scoreBar: $('#score-bar'), hpRow: $('#team-hp-row'),
+      partyFab: $('#party-fab'),
     };
     this._hud = { score: {}, hp: {} };
     this._switchSig = '';
@@ -282,6 +283,11 @@ export class UI {
     this.el.partyCopy.addEventListener('click', () => this.hooks.onPartyCopy?.());
     this.el.partyReady.addEventListener('click', () => this.hooks.onPartyReady?.());
     this.el.partyStart.addEventListener('click', () => this.hooks.onPartyStart?.());
+    this.el.partyFab?.addEventListener('click', () => {
+      this.openParty();
+      if (this._partyState) this.renderParty(this._partyState);
+      this.hooks.onPartyOpen?.();
+    });
 
     $('#btn-help').addEventListener('click', () => this.el.help.classList.remove('hidden'));
     $('#btn-help-close').addEventListener('click', () => this.el.help.classList.add('hidden'));
@@ -491,13 +497,29 @@ export class UI {
 
   openParty() {
     this.el.partyPanel.classList.remove('hidden');
+    this.updatePartyFab(this._partyState);
     this.el.challengePanel.classList.add('hidden');
     this.el.presetPanel?.classList.add('hidden');
     this.app.showPresets = false;
     if (this.app.partyNick && this.el.partyNick) this.el.partyNick.value = this.app.partyNick;
   }
 
-  hideParty() { this.el.partyPanel.classList.add('hidden'); }
+  // 패널을 닫아도 방에 들어와 있으면 작은 칩으로 남겨 둔다
+  hideParty() { this.el.partyPanel.classList.add('hidden'); this.updatePartyFab(this._partyState); }
+
+  updatePartyFab(p) {
+    const fab = this.el.partyFab;
+    if (!fab) return;
+    const inRoom = !!(p && p.roomCode && p.phase && p.phase !== 'idle');
+    const open = !this.el.partyPanel.classList.contains('hidden');
+    fab.classList.toggle('hidden', !inRoom || open);
+    if (!inRoom) return;
+    const mine = p.players.find((x) => x.me);
+    const label = p.phase === 'battle' || p.phase === 'end' ? '전투 중'
+      : p.myReady ? '준비됨' : `배치 ${p.myUsed}/${p.budget}`;
+    fab.textContent = `🌐 ${p.roomCode} · ${p.players.length}/${p.maxPlayers} · ${label}`;
+    if (mine) fab.style.borderColor = mine.color;
+  }
 
   setPartyStatus(text) {
     if (this.el.partyStatus) this.el.partyStatus.innerHTML = text || '';
@@ -506,6 +528,7 @@ export class UI {
 
   // p = PartySession.snapshotState()
   renderParty(p) {
+    this._partyState = p;
     this.openParty();
     if (!p) return;
     const inRoom = !!p.roomCode && p.phase && p.phase !== 'idle';
@@ -546,6 +569,7 @@ export class UI {
       : (p.players.length < 2 ? '친구를 기다리는 중' : '모두 준비되면 시작');
 
     this.setPartyStatus(p.status || `${p.players.length}/${p.maxPlayers}명 · ${p.teamCount}팀 · 1인당 예산 ${p.budget}`);
+    this.updatePartyFab(p);
   }
 
   _esc(s) {

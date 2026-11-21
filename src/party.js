@@ -10,7 +10,7 @@ import { Net, normalizeRoomCode } from './net.js';
 export const PHASE = { IDLE: 'idle', LOBBY: 'lobby', PLACE: 'place', BATTLE: 'battle', END: 'end' };
 
 export const SNAPSHOT_HZ = 12;
-const RECV_TIMEOUT_MS = 24000;
+const RECV_TIMEOUT_MS = 30000;
 
 /* ─────────────────── 이벤트 압축 (방장 → 손님) ─────────────────── */
 
@@ -112,6 +112,15 @@ export class PartySession {
     this._endSent = false;
     this._endPushed = false;
     this._joinAt = 0;
+    // 휴대폰에서 다른 앱에 다녀오면 잠시 멈췄던 연결을 바로 되살린다
+    if (typeof document !== 'undefined' && document.addEventListener) {
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden || !this.active || this.isHost) return;
+        this.send('ping', {});
+        if (this.phase === PHASE.PLACE) this.send('place', { list: this.me?.placements || [] });
+      });
+    }
+    this._pingAcc = 0;
     this.stats = { sent: 0, recv: 0 };
   }
 
@@ -438,7 +447,12 @@ export class PartySession {
       }
     } else if (type === 'ping') {
       const player = this.players.get(p.pid);
-      if (player) player.lastAt = Date.now();
+      if (player) {
+        player.lastAt = Date.now();
+      } else if (this.players.size < PARTY.MAX_PLAYERS) {
+        // 방에서 빠졌던 사람이 다시 살아났다 — 목록을 보내 스스로 판단하게 한다
+        this.send('roster', { players: this.rosterPayload(), phase: this.phase, arenaId: this.arenaId });
+      }
     }
   }
 
@@ -501,6 +515,18 @@ export class PartySession {
 
   applyRoster(list, extra = {}) {
     const seen = new Set();
+    // 방장이 보낸 목록에 내가 없으면 → 내가 방에서 빠진 것이다
+    if (!this.isHost && (this.phase === PHASE.PLACE || this.phase === PHASE.BATTLE) && list.length
+      && !list.some((x) => x && x.pid === this.myPid)) {
+      this.status('방에서 나갔습니다 (오래 응답이 없었습니다)');
+      this.net.stop();
+      this.phase = PHASE.IDLE;
+      this.players.clear();
+      this.order = [];
+      this.onClosed('removed');
+      this.changed();
+      return;
+    }
     for (const info of list) {
       if (!info || !info.pid) continue;
       seen.add(info.pid);
@@ -675,6 +701,15 @@ export class PartySession {
         if (this.me?.ready) this.send('ready', { on: true });
       }
       this.changed();
+    }
+
+    // 손님은 살아 있음을 알린다 — 조용한 참가자가 방장에게서 잘려 나가지 않게
+    if (!this.isHost && this.phase !== PHASE.IDLE) {
+      this._pingAcc = (this._pingAcc || 0) + dt;
+      if (this._pingAcc >= 6) {
+        this._pingAcc = 0;
+        this.send('ping', {});
+      }
     }
 
     if (this.isHost) {

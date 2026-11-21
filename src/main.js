@@ -213,6 +213,9 @@ const ui = new UI(app, {
     } else {
       if (app.party && app.party.active) leaveParty(false);
       leaveChallenge();
+      restoreSandboxFromParty();
+      refreshPreview();
+      ui.render();
     }
   },
   // ── 파티 멀티 ──
@@ -232,6 +235,15 @@ const ui = new UI(app, {
     const s = app.party;
     if (!s || !s.active) return;
     if (!s.requestStart()) ui.toast('모든 참가자가 준비되어야 시작할 수 있습니다');
+  },
+  onPartyOpen: () => {
+    const s = app.party;
+    if (s && s.active) {
+      app.mode = 'party';
+      app.activeTeam = s.myTeam;
+      ui.renderParty(s.snapshotState());
+      ui.render();
+    }
   },
   onChallenge: (stageDef) => enterChallenge(stageDef),
   onLeaveChallenge: () => leaveChallenge(),
@@ -363,7 +375,8 @@ let partyPreviewAt = 0;
 const partyBackup = { teams: null, arena: null };
 
 function backupSandboxForParty() {
-  if (partyBackup.teams) return;
+  // 챌린지 중에 파티로 갔다면 돌아올 곳은 챌린지이므로 샌드박스를 건드리지 않는다
+  if (partyBackup.teams || app.mode === 'challenge') return;
   partyBackup.teams = { blue: app.teams.blue.map(clone), red: app.teams.red.map(clone) };
   partyBackup.arena = app.arenaId;
 }
@@ -1358,6 +1371,11 @@ try {
   const room = params.get('room');
   if (room) {
     app.mode = 'party';
+    backupSandboxForParty();
+    app.teams.blue = [];
+    app.teams.red = [];
+    app.partyTeamCount = 2;
+    app.activeTeam = 'blue';
     ui.openParty();
     if (ui.el.partyCodeInput) ui.el.partyCodeInput.value = String(room).toUpperCase();
     ui.setPartyStatus(`초대 링크로 들어왔어요 · 방 <b>${String(room).toUpperCase()}</b> — 닉네임을 정하고 <b>참가하기</b>를 누르세요`);

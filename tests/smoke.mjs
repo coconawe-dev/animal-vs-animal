@@ -865,6 +865,26 @@ for (const n of [3, 4]) {
   host.leave();
 }
 
+// 가만히 있어도 연결이 유지된다 (손님 6초마다 ping · 30초 무응답이면 정리)
+{
+  const hub = new MemoryHub();
+  const [host, guest] = makeLoopback(2, { hub });
+  const code = await host.host('방장');
+  await guest.join(code, '손님');
+  await sleep(50);
+  guest.setPlacements([{ id: 'lion', x: 0, z: 0, weapon: 'none' }]);
+  await sleep(30);
+  for (let i = 0; i < 8; i++) { guest.tick(6); await sleep(15); host.tick(0.2); }
+  check(host.playerCount === 2, `조용한 손님이 유지된다 (${host.playerCount}명)`);
+  check(host.players.get(guest.myPid).placements.length === 1, '배치도 유지된다');
+  // 응답이 30초 넘게 없던 사람은 정리된다
+  host.players.get(guest.myPid).lastAt = Date.now() - 40000;
+  host.tick(0.2);
+  await sleep(30);
+  check(host.playerCount === 1, '30초 무응답 참가자는 정리');
+  host.leave();
+}
+
 // 2인 파티는 2팀으로 돌아간다
 {
   const hub = new MemoryHub();

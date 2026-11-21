@@ -170,7 +170,16 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
 .stage.cleared .st-state { color: var(--green); }
 
 /* ───────────────────────── 파티 멀티 패널 ───────────────────────── */
-.party-panel { top: calc(var(--safe-t) + 150px); width: min(364px, calc(100vw - 20px)); max-height: min(70vh, 560px); overflow-y: auto; }
+.party-panel { top: calc(var(--safe-t) + 150px); left: auto; right: calc(var(--safe-r) + 10px); width: min(364px, calc(100vw - 20px)); max-height: min(70vh, 560px); overflow-y: auto; }
+.party-fab {
+  position: absolute; z-index: 22; right: calc(var(--safe-r) + 10px); top: calc(var(--safe-t) + 52px);
+  height: 30px; padding: 0 12px; border-radius: 999px;
+  background: rgba(18,22,30,.9); border: 1px solid rgba(53,212,124,.55); color: #7cf0b4;
+  font-size: 11px; font-weight: 800; white-space: nowrap;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: 0 6px 18px rgba(0,0,0,.4);
+}
+.party-fab:active { transform: scale(.95); }
 .party-setup, .party-room { display: flex; flex-direction: column; gap: 7px; padding: 0 12px 12px; }
 .pp-field { display: flex; align-items: center; gap: 8px; }
 .pp-field > span { font-size: 9.5px; font-weight: 800; color: var(--muted-2); letter-spacing: 0.04em; width: 46px; flex: 0 0 auto; }
@@ -555,6 +564,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
   .toast { bottom: calc(var(--safe-b) + 250px); }
   .challenge-panel { top: calc(var(--safe-t) + 150px); left: 6px; right: 6px; width: auto; }
   .party-panel { top: calc(var(--safe-t) + 132px); left: 6px; right: 6px; width: auto; max-height: min(64vh, 460px); }
+  .party-fab { top: calc(var(--safe-t) + 48px); font-size: 10px; height: 28px; padding: 0 10px; }
   .pp-field input { height: 32px; font-size: 12px; }
   .pp-btn { padding: 9px 10px; font-size: 12px; }
   .pr-row { padding: 6px 8px; }
