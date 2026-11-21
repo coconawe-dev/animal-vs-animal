@@ -27,7 +27,20 @@ const app = {
   sound: true,
 };
 
-const stage = new Stage(canvas);
+function fatal(message) {
+  const el = document.getElementById('loader');
+  if (!el) return;
+  el.classList.remove('gone', 'hidden');
+  el.innerHTML = `<div class="loader-inner"><span>😵</span><b>게임을 시작할 수 없어요</b><small>${message}</small></div>`;
+}
+
+let stage;
+try {
+  stage = new Stage(canvas);
+} catch (err) {
+  fatal('이 브라우저에서 3D 그래픽(WebGL)을 사용할 수 없습니다.<br>사파리/크롬 최신 버전으로 다시 열어 주세요.');
+  throw err;
+}
 const effects = new Effects(stage.scene);
 const sfx = new Sfx();
 
@@ -509,6 +522,11 @@ canvas.addEventListener('wheel', (e) => {
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('resize', () => stage.resize());
+
+canvas.addEventListener('webglcontextlost', (e) => {
+  e.preventDefault();
+  fatal('그래픽 장치가 잠시 끊겼어요. 페이지를 새로고침 해 주세요.');
+});
 window.addEventListener('orientationchange', () => setTimeout(() => stage.resize(), 250));
 
 document.addEventListener('visibilitychange', () => {

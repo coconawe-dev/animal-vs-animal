@@ -76,8 +76,9 @@
 ## 🧪 테스트
 
 ```bash
-npm test          # 또는 node tests/smoke.mjs
+npm test          # node tests/smoke.mjs — 로직·모델 검사 1,013항목
 npm run balance   # 1:1 승률표
+node tests/ui.mjs # 편성/HUD 배선 검사 (npm i --no-save jsdom 필요)
 ```
 
 `tests/smoke.mjs`는 DOM·WebGL 없이 1,000개 이상의 항목을 검사한다.
