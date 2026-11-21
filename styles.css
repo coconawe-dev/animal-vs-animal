@@ -431,15 +431,16 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
   .builder-scroll { padding: 16px 14px 12px; }
   .builder-foot { padding: 9px 14px 14px; }
   .roster { grid-template-columns: repeat(auto-fill, minmax(78px, 1fr)); }
-  .battle-hud { left: 410px; }
-  .team-strip { left: 410px; }
-  .battle-log { right: 14px; }
+  body.builder-open .battle-hud, body.builder-open .team-strip { left: 410px; }
+  body.builder-open .battle-log { right: 14px; }
+  .battle-hud { transition: left .42s cubic-bezier(.22,.9,.28,1); }
+  .team-strip { transition: left .42s cubic-bezier(.22,.9,.28,1); }
 }
 
 /* 큰 화면: 카드 여유 */
 @media (min-width: 1100px) {
   .builder { width: 430px; }
-  .battle-hud, .team-strip { left: 448px; }
+  body.builder-open .battle-hud, body.builder-open .team-strip { left: 448px; }
 }
 
 /* 아이패드 세로 */

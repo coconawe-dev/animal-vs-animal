@@ -272,8 +272,14 @@ export class UI {
     }
   }
 
-  showBuilder() { this.el.builder.classList.remove('closed'); }
-  hideBuilder() { this.el.builder.classList.add('closed'); }
+  showBuilder() {
+    this.el.builder.classList.remove('closed');
+    document.body.classList.add('builder-open');
+  }
+  hideBuilder() {
+    this.el.builder.classList.add('closed');
+    document.body.classList.remove('builder-open');
+  }
 
   /* ───────────── 전투 HUD ───────────── */
 

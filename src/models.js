@@ -524,6 +524,22 @@ export function buildAnimalModel(def, team = 'blue') {
   };
   (BUILDERS[def.id] || buildLion)(group, mats, rig);
 
+  // 발이 지면에 닿도록 몸통 높이를 보정한다 (다리 끝의 최저점 기준)
+  group.updateMatrixWorld(true);
+  let footY = Infinity;
+  for (const leg of rig.legs || []) {
+    const b = new THREE.Box3().setFromObject(leg.pivot);
+    if (Number.isFinite(b.min.y)) footY = Math.min(footY, b.min.y);
+  }
+  if (Number.isFinite(footY) && Math.abs(footY) > 0.005) {
+    rig.body.position.y -= footY;
+    rig.bodyY -= footY;
+  }
+
+  group.updateMatrixWorld(true);
+  const box0 = new THREE.Box3().setFromObject(group);
+  rig.height = Math.max(0.6, box0.max.y - Math.min(0, box0.min.y));
+
   const s = def.scale || 1;
   group.scale.setScalar(s);
   rig.height *= s;
