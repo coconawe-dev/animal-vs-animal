@@ -68,16 +68,16 @@ function gradientSky(top, mid, bottom) {
 }
 
 function rockMesh(rnd, r, h, color, shadow = false) {
-  const geo = new THREE.IcosahedronGeometry(1, 0);
+  const geo = new THREE.IcosahedronGeometry(1, 1);
   const p = geo.attributes.position;
   for (let i = 0; i < p.count; i++) {
-    const s = 0.82 + rnd() * 0.42;
-    p.setXYZ(i, p.getX(i) * s, p.getY(i) * s, p.getZ(i) * s);
+    const s = 0.93 + rnd() * 0.16;
+    p.setXYZ(i, p.getX(i) * s, p.getY(i) * s * 0.86, p.getZ(i) * s);
   }
   geo.computeVertexNormals();
   const m = new THREE.Mesh(geo, new THREE.MeshStandardMaterial({ color, flatShading: true, roughness: 0.94 }));
-  m.scale.set(r, h, r * (0.85 + rnd() * 0.3));
-  m.position.y = h * 0.55;
+  m.scale.set(r * 1.08, h * 0.8, r * (0.95 + rnd() * 0.2));
+  m.position.y = h * 0.34;
   m.rotation.y = rnd() * Math.PI;
   m.castShadow = shadow;
   m.receiveShadow = true;
@@ -95,9 +95,9 @@ function acacia(rnd, scale = 1, shadow = false) {
   g.add(trunk);
   const canopyY = 2.8;
   for (let i = 0; i < 4; i++) {
-    const s = 1.5 + rnd() * 1.1;
+    const s = 1.15 + rnd() * 0.7;
     const m = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), leaf);
-    m.scale.set(s, s * 0.28, s * 0.8);
+    m.scale.set(s, s * 0.3, s * 0.85);
     m.position.set((rnd() - 0.5) * 1.8, canopyY + rnd() * 0.5, (rnd() - 0.5) * 1.8);
     m.castShadow = shadow;
     g.add(m);
@@ -141,17 +141,20 @@ export class Stage {
     this.applyFocusShift();
   }
 
-  // 화면 아래 패널에 가리지 않도록 화면 중심을 위로 올린다 (0~0.45)
-  setFocusShift(frac) {
-    this.focusShift = Math.max(0, Math.min(0.45, frac || 0));
+  // 화면 아래/왼쪽 패널에 가리지 않도록 화면 중심을 옮긴다 (x,y 는 화면 비율)
+  setFocusShift(y = 0, x = 0) {
+    this.focusShift = Math.max(-0.45, Math.min(0.45, y || 0));
+    this.focusShiftX = Math.max(-0.45, Math.min(0.45, x || 0));
     this.applyFocusShift();
   }
 
   applyFocusShift() {
     const w = this.canvas.clientWidth || window.innerWidth;
     const h = this.canvas.clientHeight || window.innerHeight;
-    if (this.focusShift > 0.004) {
-      this.camera.setViewOffset(w, h, 0, h * this.focusShift, w, h);
+    const fy = this.focusShift || 0;
+    const fx = this.focusShiftX || 0;
+    if (Math.abs(fy) > 0.004 || Math.abs(fx) > 0.004) {
+      this.camera.setViewOffset(w, h, -w * fx, h * fy, w, h);
     } else {
       this.camera.clearViewOffset();
     }
@@ -345,7 +348,7 @@ export class Stage {
   makeObstacle(ob, arena, rnd) {
     const g = new THREE.Group();
     if (ob.kind === 'tree') {
-      const t = acacia(rnd, 1.5, true);
+      const t = acacia(rnd, 0.95, true);
       g.add(t);
       // 충돌 기둥을 시각적으로도 표시
       const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3520, roughness: 1, flatShading: true });

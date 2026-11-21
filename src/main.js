@@ -79,16 +79,27 @@ let userZoomed = false;
 // 편성 패널이 열려 있을 때 3D 미리보기를 화면 위쪽에 보이게
 function previewDistance() {
   const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
-  if (aspect > 1.25) return 25;
-  if (aspect > 0.95) return 28;
-  return 34 * (aspect < 0.7 ? 1.12 : 1);
+  if (aspect > 1.25) return 17;
+  if (aspect > 0.95) return 20;
+  return 26 * (aspect < 0.7 ? 1.1 : 1);
 }
 
 function updatePreviewFraming() {
-  const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
-  const narrow = aspect < 1.0;
-  if (phase === 'preview' && narrow) stage.setFocusShift(0.3);
-  else stage.setFocusShift(0);
+  const w = canvas.clientWidth || 1;
+  const h = canvas.clientHeight || 1;
+  const aspect = w / h;
+  const panel = document.querySelector('.builder-panel');
+  const panelW = panel ? panel.getBoundingClientRect().width : 0;
+  if (phase !== 'preview') { stage.setFocusShift(0, 0); return; }
+  if (aspect < 1.0) {
+    // 아래 시트: 화면 중심을 위로
+    stage.setFocusShift(0.3, 0);
+  } else if (panelW > w * 0.2) {
+    // 왼쪽 사이드 패널: 화면 중심을 오른쪽으로
+    stage.setFocusShift(0.02, -panelW / 2 / w);
+  } else {
+    stage.setFocusShift(0, 0);
+  }
 }
 
 const SK_COLORS = {
@@ -227,7 +238,7 @@ function startBattle() {
   const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
   const base = battle.units.length <= 2 ? 24 : battle.units.length <= 4 ? 29 : 34;
   stage.camGoal.dist = base * (aspect < 0.7 ? 1.15 : 1);
-  stage.camGoal.phi = 0.88;
+  stage.camGoal.phi = 0.8;
   stage.camGoal.target.set(0, 1.4, 0);
   syncLog();
   saveState();
@@ -242,7 +253,7 @@ function backToBuilder() {
   ui.showBuilder();
   refreshPreview();
   stage.camGoal.dist = previewDistance();
-  stage.camGoal.phi = 0.95;
+  stage.camGoal.phi = 0.78;
   updatePreviewFraming();
 }
 
@@ -452,7 +463,7 @@ function fitDistance() {
   }
   const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
   const narrow = aspect < 0.7 ? 1.25 : aspect < 0.95 ? 1.08 : 1;
-  return Math.max(20, Math.min(58, (maxD * 1.2 + 17) * narrow));
+  return Math.max(16, Math.min(52, (maxD * 1.05 + 14) * narrow));
 }
 
 function focusPoint() {
