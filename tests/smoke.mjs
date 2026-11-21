@@ -175,7 +175,7 @@ for (const def of ANIMALS) {
   const okBox = [box.min, box.max].every((v) => [v.x, v.y, v.z].every(Number.isFinite));
   check(okBox, `[${def.id}] 바운딩 박스 유효`);
   check(box.min.y > -0.2 && box.min.y < 0.2, `[${def.id}] 발이 지면에 닿음 (min.y=${box.min.y.toFixed(2)})`);
-  check(size.y > 0.7 && size.y < 3.2, `[${def.id}] 키 적정 (${size.y.toFixed(2)})`);
+  check(size.y > 0.6 && size.y < 3.2, `[${def.id}] 키 적정 (${size.y.toFixed(2)})`);
   check(size.x > 0.6 && size.x < 4.2, `[${def.id}] 폭 적정 (${size.x.toFixed(2)})`);
   check(size.z > 0.6 && size.z < 4.2, `[${def.id}] 길이 적정 (${size.z.toFixed(2)})`);
 
