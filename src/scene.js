@@ -67,7 +67,7 @@ function gradientSky(top, mid, bottom) {
   return new THREE.Mesh(geo, mat);
 }
 
-function rockMesh(rnd, r, h, color) {
+function rockMesh(rnd, r, h, color, shadow = false) {
   const geo = new THREE.IcosahedronGeometry(1, 0);
   const p = geo.attributes.position;
   for (let i = 0; i < p.count; i++) {
@@ -79,19 +79,19 @@ function rockMesh(rnd, r, h, color) {
   m.scale.set(r, h, r * (0.85 + rnd() * 0.3));
   m.position.y = h * 0.55;
   m.rotation.y = rnd() * Math.PI;
-  m.castShadow = true;
+  m.castShadow = shadow;
   m.receiveShadow = true;
   return m;
 }
 
-function acacia(rnd, scale = 1) {
+function acacia(rnd, scale = 1, shadow = false) {
   const g = new THREE.Group();
   const bark = new THREE.MeshStandardMaterial({ color: 0x5b4226, flatShading: true, roughness: 0.95 });
   const leaf = new THREE.MeshStandardMaterial({ color: 0x4e6b2a, flatShading: true, roughness: 0.9 });
   const trunk = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.3, 2.6, 6), bark);
   trunk.position.y = 1.3;
   trunk.rotation.z = (rnd() - 0.5) * 0.2;
-  trunk.castShadow = true;
+  trunk.castShadow = shadow;
   g.add(trunk);
   const canopyY = 2.8;
   for (let i = 0; i < 4; i++) {
@@ -99,7 +99,7 @@ function acacia(rnd, scale = 1) {
     const m = new THREE.Mesh(new THREE.SphereGeometry(1, 8, 6), leaf);
     m.scale.set(s, s * 0.28, s * 0.8);
     m.position.set((rnd() - 0.5) * 1.8, canopyY + rnd() * 0.5, (rnd() - 0.5) * 1.8);
-    m.castShadow = true;
+    m.castShadow = shadow;
     g.add(m);
   }
   g.scale.setScalar(scale);
@@ -211,7 +211,7 @@ export class Stage {
       const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.7 + rnd() * 0.5, 1.5), wallMat);
       b.position.set(Math.sin(a) * (R + 3.2), 0.3, Math.cos(a) * (R + 3.2));
       b.rotation.y = a;
-      b.castShadow = true; b.receiveShadow = true;
+      b.castShadow = false; b.receiveShadow = true;
       group.add(b);
     }
 
@@ -231,7 +231,7 @@ export class Stage {
       const x = Math.sin(a) * rad, z = Math.cos(a) * rad;
       if (arena.decor === 'savanna') {
         if (rnd() < 0.45) {
-          const tree = acacia(rnd, 0.8 + rnd() * 0.7);
+          const tree = acacia(rnd, 0.8 + rnd() * 0.7, false);
           tree.position.set(x, 0, z);
           tree.rotation.y = rnd() * 6;
           group.add(tree);
@@ -250,7 +250,7 @@ export class Stage {
         const p = new THREE.Mesh(geo, mat);
         p.position.set(x, h / 2 - 0.4, z);
         p.rotation.y = rnd() * 3;
-        p.castShadow = true; p.receiveShadow = true;
+        p.castShadow = false; p.receiveShadow = true;
         group.add(p);
       } else {
         if (rnd() < 0.4) {
@@ -263,7 +263,7 @@ export class Stage {
           const p = new THREE.Mesh(geo, mat);
           p.position.set(x, h / 2, z);
           p.rotation.z = (rnd() - 0.5) * 0.3;
-          p.castShadow = true;
+          p.castShadow = false;
           group.add(p);
         } else {
           const rock = rockMesh(rnd, 0.9 + rnd() * 2, 0.5 + rnd() * 1.6, 0xdfeaf4);
@@ -345,7 +345,7 @@ export class Stage {
   makeObstacle(ob, arena, rnd) {
     const g = new THREE.Group();
     if (ob.kind === 'tree') {
-      const t = acacia(rnd, 1.5);
+      const t = acacia(rnd, 1.5, true);
       g.add(t);
       // 충돌 기둥을 시각적으로도 표시
       const trunkMat = new THREE.MeshStandardMaterial({ color: 0x4a3520, roughness: 1, flatShading: true });
@@ -377,7 +377,7 @@ export class Stage {
         g.add(c);
       }
     } else {
-      const rock = rockMesh(rnd, ob.r, ob.h * 0.75, arena.ground2);
+      const rock = rockMesh(rnd, ob.r, ob.h * 0.75, arena.ground2, true);
       g.add(rock);
     }
     return g;
