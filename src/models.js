@@ -9,6 +9,7 @@ const G = {
   box: new THREE.BoxGeometry(1, 1, 1),
   cyl: new THREE.CylinderGeometry(1, 1, 1, 12),
   cylLow: new THREE.CylinderGeometry(1, 1, 1, 8),
+  leg: new THREE.CylinderGeometry(0.72, 1, 1, 10),
   cone: new THREE.ConeGeometry(1, 1, 10),
   coneLow: new THREE.ConeGeometry(1, 1, 7),
   capsule: new THREE.CapsuleGeometry(0.5, 1, 4, 10),
@@ -48,7 +49,7 @@ function quadLegs(body, material, opts = {}) {
     pivot.position.set(px, py, pz);
     pivot.rotation.order = 'YXZ';
     body.add(pivot);
-    add(pivot, i < 2 ? G.cyl : G.cyl, material, [0, -len / 2, 0], [r, len, r]);
+    add(pivot, G.leg, material, [0, -len / 2, 0], [r, len, r]);
     if (hoof) add(pivot, G.sphereLow, hoof, [0, -len + r * 0.3, 0.02], [r * 1.25, r * 0.7, r * 1.5]);
     legs.push({ pivot, phase, front: i < 2, left: px > 0 });
   });
@@ -72,13 +73,13 @@ function buildLion(g, m, rig) {
   head.position.set(0, 0.48, 0.8);
   body.add(head); rig.head = head;
 
-  add(head, G.sphereLow, m.dark, [0, 0.0, -0.06], [0.5, 0.48, 0.36]);   // 갈기
+  add(head, G.sphereLow, m.dark, [0, 0.0, -0.08], [0.46, 0.44, 0.34]);   // 갈기
   for (let i = 0; i < 7; i++) {
     const a = (i / 7) * Math.PI * 2;
     add(head, G.coneLow, m.dark, [Math.cos(a) * 0.4, Math.sin(a) * 0.38, -0.08], [0.14, 0.22, 0.14],
       [Math.PI / 2 + Math.sin(a) * 0.4, 0, -a], false);
   }
-  add(head, G.sphere, m.main, [0, 0.02, 0.16], [0.3, 0.29, 0.3]);
+  add(head, G.sphere, m.main, [0, 0.02, 0.2], [0.3, 0.29, 0.3]);
   add(head, G.sphere, m.accent, [0, -0.06, 0.42], [0.17, 0.15, 0.2]);   // 주둥이
   add(head, G.sphereLow, m.dark, [0, -0.02, 0.58], [0.07, 0.06, 0.06], null, false);
   add(head, G.sphereLow, m.eye, [0.14, 0.1, 0.36], [0.045, 0.05, 0.04], null, false);
@@ -106,11 +107,11 @@ function buildTiger(g, m, rig) {
   add(body, G.sphereLow, m.belly, [0, -0.2, 0.1], [0.34, 0.2, 0.64], null, false);
   // 검은 줄무늬 (옆면 + 등)
   for (let i = 0; i < 5; i++) {
-    const z = 0.5 - i * 0.26;
-    const h = 0.4 - Math.abs(z) * 0.1;
-    add(body, G.box, m.dark, [0.44, 0.1, z], [0.06, h, 0.1], [0, 0, 0], false);
-    add(body, G.box, m.dark, [-0.44, 0.1, z], [0.06, h, 0.1], [0, 0, 0], false);
-    add(body, G.box, m.dark, [0, 0.4, z], [0.55, 0.05, 0.1], [0, 0, 0], false);
+    const z = 0.52 - i * 0.24;
+    const h = 0.26 - Math.abs(z) * 0.06;
+    add(body, G.box, m.dark, [0.4, 0.12, z], [0.03, h, 0.07], [0, 0, 0.25], false);
+    add(body, G.box, m.dark, [-0.4, 0.12, z], [0.03, h, 0.07], [0, 0, -0.25], false);
+    add(body, G.box, m.dark, [0, 0.38, z], [0.5, 0.035, 0.08], [0, 0, 0], false);
   }
 
   rig.legs = quadLegs(body, m.main, { x: 0.3, zf: 0.52, zb: -0.5, len: 0.88, r: 0.11 });
@@ -259,10 +260,10 @@ function buildEagle(g, m, rig) {
     pivot.position.set(side * 0.26, 0.1, 0);
     body.add(pivot);
     const featherMat = m.dark;
-    add(pivot, G.box, m.main, [side * 0.28, 0, -0.02], [0.56, 0.07, 0.42], [0, side * 0.08, 0], true);
+    add(pivot, G.sphereLow, m.main, [side * 0.22, 0.02, -0.02], [0.34, 0.1, 0.3], [0, side * 0.1, 0], true);
     for (let i = 0; i < 3; i++) {
-      add(pivot, G.box, featherMat, [side * (0.52 + i * 0.04), -0.02 - i * 0.01, -0.26 - i * 0.13],
-        [0.24, 0.045, 0.24], [0, side * (0.1 + i * 0.12), 0], false);
+      add(pivot, G.sphereLow, featherMat, [side * (0.24 + i * 0.02), -0.01, -0.26 - i * 0.12],
+        [0.13, 0.05, 0.2], [0, side * (0.12 + i * 0.1), 0], false);
     }
     wings.push({ pivot, side });
   });
@@ -640,8 +641,8 @@ export function animateRig(rig, s) {
       w.pivot.rotation.z = w.side * (0.15 + flap);
       w.pivot.rotation.y = w.side * 0.15;
     } else {
-      w.pivot.rotation.z = w.side * (1.15 + Math.sin(rig.t * 2) * 0.06);
-      w.pivot.rotation.y = w.side * -0.5;
+      w.pivot.rotation.z = w.side * (1.32 + Math.sin(rig.t * 2) * 0.05);
+      w.pivot.rotation.y = w.side * -0.75;
     }
   }
 
