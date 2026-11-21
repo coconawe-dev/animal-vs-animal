@@ -70,12 +70,20 @@ function loadSave() {
 
 function saveState() {
   try {
-    localStorage.setItem(SAVE_KEY, JSON.stringify({
-      blue: app.teams.blue.map(clone),
-      red: app.teams.red.map(clone),
-      arena: app.arenaId,
+    const prev = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null') || {};
+    const data = {
       maxCleared: app.maxCleared,
-    }));
+      arena: app.mode === 'challenge' ? (prev.arena || DEFAULT_PLACEMENTS.arena) : app.arenaId,
+    };
+    // 챌린지 중에는 챌린지용 배치가 샌드박스 저장을 덮어쓰지 않게 한다
+    if (app.mode === 'challenge') {
+      if (Array.isArray(prev.blue)) data.blue = prev.blue;
+      if (Array.isArray(prev.red)) data.red = prev.red;
+    } else {
+      data.blue = app.teams.blue.map(clone);
+      data.red = app.teams.red.map(clone);
+    }
+    localStorage.setItem(SAVE_KEY, JSON.stringify(data));
   } catch (e) { /* 사파리 프라이빗 모드 등 — 무시 */ }
 }
 
@@ -433,8 +441,12 @@ function fitDistance() {
     }
   }
   const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
-  const narrow = aspect < 0.7 ? 1.2 : aspect < 0.95 ? 1.05 : 1;
-  return Math.max(11, Math.min(42, (maxD * 0.72 + 9) * narrow));
+  let narrow = 1;
+  if (aspect < 0.52) narrow = 2.45;
+  else if (aspect < 0.68) narrow = 2.2;
+  else if (aspect < 0.85) narrow = 1.6;
+  else if (aspect < 0.98) narrow = 1.15;
+  return Math.max(11, Math.min(64, (maxD * 0.62 + 8.4) * narrow));
 }
 
 function fitPreviewCamera() {
