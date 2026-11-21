@@ -208,7 +208,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
 /* ───────────────────────── 편성 화면 ───────────────────────── */
 .builder {
   position: absolute; z-index: 30; left: 0; right: 0; bottom: 0;
-  height: 76vh; height: 76dvh;
+  height: 68vh; height: 68dvh;
   display: flex; justify-content: center; pointer-events: none;
   transition: transform .42s cubic-bezier(.22,.9,.28,1), opacity .3s;
 }
@@ -444,7 +444,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
 
 /* 아이패드 세로 */
 @media (orientation: portrait) and (min-width: 700px) {
-  .builder { height: 58vh; height: 58dvh; }
+  .builder { height: 56vh; height: 56dvh; }
   .builder-panel { max-width: 640px; }
   .roster { grid-template-columns: repeat(auto-fill, minmax(92px, 1fr)); }
   .card-emoji { font-size: 26px; }
@@ -464,7 +464,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
 }
 
 @media (max-height: 620px) {
-  .builder { height: 82vh; height: 82dvh; }
+  .builder { height: 76vh; height: 76dvh; }
   .builder-title h1 { font-size: 17px; }
   .builder-title p { display: none; }
   .slot { height: 42px; }

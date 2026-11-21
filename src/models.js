@@ -528,6 +528,14 @@ export function buildAnimalModel(def, team = 'blue') {
   group.scale.setScalar(s);
   rig.height *= s;
 
+  // 작은 디테일(눈·이빨·점박이)은 그림자 패스에서 제외 — 드로우 콜 절약
+  group.traverse((o) => {
+    if (!o.isMesh || !o.castShadow) return;
+    o.geometry.computeBoundingSphere?.();
+    const r = (o.geometry.boundingSphere?.radius || 0) * Math.max(o.scale.x, o.scale.y, o.scale.z);
+    if (r < 0.22) o.castShadow = false;
+  });
+
   // 팀 표식: 발밑 링
   const ringGeo = new THREE.RingGeometry(0.62, 0.82, 24);
   const ringMat = new THREE.MeshBasicMaterial({

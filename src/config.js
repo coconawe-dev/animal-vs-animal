@@ -183,8 +183,8 @@ export const ARENAS = [
       { x: 6.6, z: 4.0, r: 1.4, h: 5.2, kind: 'pillar' },
       { x: -6.0, z: 5.4, r: 1.1, h: 3.8, kind: 'pillar' },
       { x: 6.0, z: -5.4, r: 1.1, h: 3.8, kind: 'pillar' },
-      { x: 0, z: -8.6, r: 1.6, h: 6.2, kind: 'pillar' },
-      { x: 0, z: 8.6, r: 1.6, h: 6.2, kind: 'pillar' },
+      { x: 0, z: -8.6, r: 1.2, h: 3.4, kind: 'pillar' },
+      { x: 0, z: 8.6, r: 1.2, h: 3.4, kind: 'pillar' },
     ],
   },
   {
@@ -211,17 +211,17 @@ export const ARENA_BY_ID = Object.fromEntries(ARENAS.map((a) => [a.id, a]));
 
 export const PRESETS = [
   { id: 'jungle-savanna', name: '정글 vs 사바나', emoji: '🌿⚔️🌾',
-    blue: ['tiger', 'crocodile', 'gorilla'], red: ['lion', 'elephant', 'cheetah'], arena: 'savanna' },
+    blue: ['tiger', 'crocodile', 'boar', 'fox'], red: ['lion', 'elephant', 'cheetah'], arena: 'savanna' },
   { id: 'beast-giant', name: '맹수 vs 거대동물', emoji: '🐯⚔️🐘',
     blue: ['tiger', 'wolf', 'fox', 'eagle'], red: ['elephant', 'rhino', 'bear'], arena: 'savanna' },
   { id: 'sky-ground', name: '하늘 vs 땅', emoji: '🦅⚔️🐊',
-    blue: ['eagle', 'cheetah', 'fox'], red: ['crocodile', 'boar', 'gorilla'], arena: 'canyon' },
+    blue: ['eagle', 'cheetah', 'fox', 'tiger'], red: ['crocodile', 'bear', 'boar'], arena: 'canyon' },
   { id: 'duel', name: '1:1 라이벌', emoji: '🦁⚔️🐯',
     blue: ['lion'], red: ['tiger'], arena: 'canyon' },
   { id: 'balance', name: '3v3 밸런스', emoji: '⚖️',
     blue: ['lion', 'wolf', 'crocodile'], red: ['bear', 'tiger', 'eagle'], arena: 'tundra' },
   { id: 'giant', name: '거인 4v4', emoji: '🐘⚔️🦏',
-    blue: ['elephant', 'rhino', 'gorilla', 'bear'], red: ['crocodile', 'lion', 'boar', 'tiger'], arena: 'tundra' },
+    blue: ['elephant', 'rhino', 'bear', 'boar'], red: ['gorilla', 'crocodile', 'lion', 'tiger'], arena: 'tundra' },
 ];
 
 /* ──────────────────────────── 기본 편성 (첫 화면) ──────────────────────────── */

@@ -133,6 +133,10 @@ export class UI {
     $('#btn-back').addEventListener('click', () => this.hooks.onRebuild?.());
 
     this.el.pause.addEventListener('click', () => this.hooks.onPause?.());
+    $('#btn-restart').addEventListener('click', () => {
+      this.hideBanner();
+      this.hooks.onRematch?.();
+    });
     this.el.speed.addEventListener('click', () => this.hooks.onSpeed?.());
     this.el.follow.addEventListener('click', () => this.hooks.onFollow?.());
     this.el.logBtn.addEventListener('click', () => this.toggleLog());
