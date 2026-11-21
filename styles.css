@@ -91,6 +91,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
   display: flex; align-items: center; gap: 0;
   background: var(--panel); border: 1px solid var(--line);
   border-radius: 999px; padding: 5px 6px;
+  -webkit-backdrop-filter: blur(14px); box-shadow: 0 6px 24px rgba(0,0,0,.45);
   backdrop-filter: blur(14px); box-shadow: 0 6px 24px rgba(0,0,0,.45);
 }
 .team-score {
@@ -137,6 +138,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
   background: rgba(12, 15, 21, 0.78); border: 1px solid var(--line);
   border-radius: 10px; padding: 4px 5px 5px;
   display: flex; flex-direction: column; gap: 3px;
+  -webkit-backdrop-filter: blur(8px); transition: opacity .3s, filter .3s, transform .2s;
   backdrop-filter: blur(8px); transition: opacity .3s, filter .3s, transform .2s;
 }
 .unit-card.blue { border-color: rgba(63, 134, 255, 0.35); }
@@ -183,6 +185,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
   width: min(268px, 62vw); max-height: 42vh;
   background: var(--panel); border: 1px solid var(--line); border-radius: 14px;
   display: flex; flex-direction: column; overflow: hidden;
+  -webkit-backdrop-filter: blur(14px); box-shadow: 0 10px 30px rgba(0,0,0,.5);
   backdrop-filter: blur(14px); box-shadow: 0 10px 30px rgba(0,0,0,.5);
 }
 .log-head {
