@@ -777,7 +777,7 @@ export class PartySession {
       }
     } else if (this.phase === PHASE.BATTLE) {
       // 방장 신호가 끊기면 알린다
-      if (this.net.active && this.net.lastRecvAt && Date.now() - this.net.lastRecvAt > RECV_TIMEOUT_MS) {
+      if (this.net.active && this.net.lastRecvAt && Date.now() - this.net.lastRecvAt > STALE_MS) {
         this.status('방장과 연결이 끊겼습니다');
       }
     }

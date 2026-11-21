@@ -521,7 +521,13 @@ function onPartyChange(state) {
     }
   }
 
-  ui.renderParty(state);
+  // 전투 중에는 패널을 다시 열지 않는다 (화면을 가리지 않게 · 상태 칩만 갱신)
+  if (state.phase === PHASE.BATTLE || state.phase === PHASE.END) {
+    ui.updatePartyFab(state);
+    if (phase === 'battle' || phase === 'ended') ui.hideParty();
+  } else {
+    ui.renderParty(state);
+  }
   ui.render();
 
   // 배치 단계로 돌아오면 배치 화면으로

@@ -817,12 +817,19 @@ for (const n of [3, 4]) {
 
   // 방장이 시뮬레이션 → 손님은 스냅샷으로 따라온다
   let guard = 0;
+  let tickErr = null;
   while (!host.battle.over && guard < 20000) {
     simulate(host.battle, 1 / 60, 1 / 60);
-    host.tick(1 / 60);
+    try {
+      host.tick(1 / 60);
+      g2.tick(1 / 60);
+      g3.tick(1 / 60);
+      g4.tick(1 / 60);
+    } catch (e) { tickErr = String(e && e.message || e); }
     g4.battle.events.length = 0;
     guard++;
   }
+  check(tickErr === null, `전투 중 모든 참가자 tick 이 오류 없이 돈다 (${tickErr || 'ok'})`);
   await sleep(150);
   host.tick(1 / 60);
   await sleep(60);
