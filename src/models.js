@@ -1063,6 +1063,9 @@ function buildSnake(g, m, rig) {
     const r = 0.34 - i * 0.03;
     add(body, G.sphereLow, i % 2 ? m.main : m.dark, [0, 0, z], [r, r * 0.86, r * 1.25], null, i < 2);
   }
+  // 세워진 목
+  add(body, G.cyl, m.main, [0, 0.32, 0.7], [0.17, 0.7, 0.17], [0.85, 0, 0]);
+  add(body, G.sphereLow, m.dark, [0, 0.12, 0.5], [0.2, 0.14, 0.22], null, false);
   // 꼬리 (마디 애니메이션)
   let tailParent = body;
   let tz = -1.55;
@@ -1077,21 +1080,21 @@ function buildSnake(g, m, rig) {
   rig.tailTip = tailParent;
 
   const head = new THREE.Group();
-  head.position.set(0, 0.14, 1.0);
+  head.position.set(0, 0.66, 0.98);
   body.add(head); rig.head = head;
-  add(head, G.sphereLow, m.main, [0, 0, 0], [0.27, 0.2, 0.3]);
-  add(head, G.sphereLow, m.dark, [0, 0.1, 0.0], [0.2, 0.1, 0.26], null, false);   // 두건
-  add(head, G.sphereLow, m.accent, [0.1, 0.08, 0.16], [0.04, 0.045, 0.035], null, false);
-  add(head, G.sphereLow, m.accent, [-0.1, 0.08, 0.16], [0.04, 0.045, 0.035], null, false);
+  add(head, G.sphereLow, m.main, [0, 0, 0], [0.3, 0.24, 0.34]);
+  add(head, G.sphereLow, m.dark, [0, 0.12, 0.0], [0.22, 0.1, 0.28], null, false);   // 두건
+  add(head, G.sphereLow, m.accent, [0.11, 0.08, 0.18], [0.045, 0.05, 0.04], null, false);
+  add(head, G.sphereLow, m.accent, [-0.11, 0.08, 0.18], [0.045, 0.05, 0.04], null, false);
   const jaw = new THREE.Group();
-  jaw.position.set(0, -0.1, 0.12);
+  jaw.position.set(0, -0.12, 0.14);
   head.add(jaw); rig.jaw = jaw;
-  add(jaw, G.box, m.belly, [0, 0, 0.14], [0.2, 0.07, 0.28], null, false);
-  add(head, G.coneLow, m.belly, [0.07, -0.12, 0.2], [0.025, 0.13, 0.025], [Math.PI, 0, 0], false);
-  add(head, G.coneLow, m.belly, [-0.07, -0.12, 0.2], [0.025, 0.13, 0.025], [Math.PI, 0, 0], false);
+  add(jaw, G.box, m.belly, [0, 0, 0.15], [0.22, 0.07, 0.3], null, false);
+  add(head, G.coneLow, m.belly, [0.08, -0.14, 0.22], [0.028, 0.15, 0.028], [Math.PI, 0, 0], false);
+  add(head, G.coneLow, m.belly, [-0.08, -0.14, 0.22], [0.028, 0.15, 0.028], [Math.PI, 0, 0], false);
 
   rig.legs = [];
-  rig.height = 0.9;
+  rig.height = 1.4;
 }
 
 /* ───────────────────────────── 하이에나 ───────────────────────────── */
@@ -1163,13 +1166,13 @@ function buildDRex(g, m, rig) {
   rig.arms = [];
   [1, -1].forEach((side) => {
     const sh = new THREE.Group();
-    sh.position.set(side * 0.62, 0.16, 0.5);
+    sh.position.set(side * 0.72, 0.16, 0.5);
     body.add(sh);
-    add(sh, G.cyl, m.main, [0, -0.2, 0.08], [0.17, 0.6, 0.17], [0.5, 0, 0]);
-    add(sh, G.cyl, m.dark, [0, -0.5, 0.22], [0.13, 0.44, 0.13], [0.8, 0, 0]);
-    add(sh, G.sphereLow, m.dark, [0, -0.72, 0.36], [0.19, 0.16, 0.2]);       // 주먹
+    add(sh, G.cyl, m.main, [0, -0.22, 0.1], [0.2, 0.66, 0.2], [0.5, 0, 0]);
+    add(sh, G.cyl, m.dark, [0, -0.56, 0.26], [0.15, 0.5, 0.15], [0.8, 0, 0]);
+    add(sh, G.sphereLow, m.dark, [0, -0.82, 0.42], [0.24, 0.2, 0.24]);       // 주먹
     for (let c = 0; c < 3; c++) {
-      add(sh, G.coneLow, m.accent, [side * (c - 1) * 0.09, -0.82, 0.46], [0.035, 0.2, 0.035], [1.9, 0, 0], false);
+      add(sh, G.coneLow, m.accent, [side * (c - 1) * 0.11, -0.94, 0.52], [0.04, 0.24, 0.04], [1.9, 0, 0], false);
     }
     rig.arms.push({ pivot: sh, side });
   });
@@ -1526,8 +1529,8 @@ export function animateRig(rig, s) {
     } else if (style === 'claw') {
       // 앞으로 뻗은 두 팔을 크게 휘저으며 할퀸다
       for (const ar of rig.arms || []) {
-        ar.pivot.rotation.x = -1.15 - 0.45 * wind + 0.65 * hit;
-        ar.pivot.rotation.z = ar.side * (0.25 + 0.55 * wind - 1.15 * hit);
+        ar.pivot.rotation.x = -0.9 * wind + 0.35 * hit;
+        ar.pivot.rotation.z = ar.side * (0.25 + 0.6 * wind - 1.15 * hit);
       }
       if (body) body.rotation.y = 0.18 * wind - 0.22 * hit;
       if (rig.head) rig.head.rotation.x = -0.15 * wind + 0.25 * hit;
