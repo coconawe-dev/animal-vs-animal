@@ -63,29 +63,32 @@ function label(text, x, y, z) {
   tex.colorSpace = THREE.SRGBColorSpace;
   const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
   sp.position.set(x, y, z);
-  sp.scale.set(3.4, 0.85, 1);
+  sp.scale.set(2.6, 0.65, 1);
   scene.add(sp);
 }
 
-const cols = 4;
-const spacing = 4.6;
+const cols = 6;
+const spacing = 3.4;
 const rigs = [];
 ANIMALS.forEach((def, i) => {
   const col = i % cols;
   const row = Math.floor(i / cols);
   const x = (col - (cols - 1) / 2) * spacing;
-  const z = (row - 0.5) * -5.4;
+  const z = (row - 0.5) * -4.4;
   const rig = buildAnimalModel(def, i % 2 ? 'red' : 'blue');
   rig.group.position.set(x, 0, z);
   rig.group.rotation.y = 0.35;
   if (rig.ring) rig.ring.visible = false;
   scene.add(rig.group);
   rigs.push({ rig, phase: i * 0.7 });
-  label(`${def.emoji} ${def.name}`, x, rig.height + 0.8, z);
+  rig.group.rotation.y = 0.5;
+  label(`${def.name}`, x, rig.height + 0.55, z);
 });
 
-camera.position.set(0, 8.5, 20);
-camera.lookAt(0, 1.2, -2.2);
+camera.fov = 22;
+camera.position.set(0, 5.6, 40);
+camera.lookAt(0, 1.1, -2.2);
+camera.updateProjectionMatrix();
 
 let last = performance.now();
 function loop(now) {
