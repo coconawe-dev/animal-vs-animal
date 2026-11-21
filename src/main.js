@@ -263,8 +263,11 @@ function refreshPreview() {
 
 function afterPlacementChange(refresh = true) {
   saveState();
-  if (refresh) refreshPreview();
-  else refreshPreview();
+  refreshPreview();
+  if (phase === 'preview') {
+    stage.camGoal.dist = previewFit();
+    stage.camGoal.target.set(0, 1.0, 0);
+  }
   ui.render();
 }
 
@@ -450,10 +453,15 @@ function fitDistance() {
 }
 
 function fitPreviewCamera() {
-  stage.camGoal.dist = fitDistance();
+  stage.camGoal.dist = previewFit();
   stage.camGoal.phi = 0.86;
   stage.camGoal.theta = 0.32;
   stage.camGoal.target.set(0, 1.0, 0);
+}
+
+function previewFit() {
+  const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
+  return Math.min(70, fitDistance() * (aspect < 1 ? 1.12 : 1.3));
 }
 
 function startBattle() {
@@ -952,7 +960,7 @@ function updateFraming() {
   // 하단 독에 가리지 않도록, 남은 영역의 중앙에 전장이 오게 화면 중심을 올린다
   const dock = document.getElementById('dock');
   const dockH = dock && !dock.classList.contains('closed') ? dock.getBoundingClientRect().height : 0;
-  const shift = Math.max(0, Math.min(0.2, (dockH / h) * 0.55));
+  const shift = Math.max(0, Math.min(0.2, (dockH / h) * 0.5));
   stage.setFocusShift(shift, 0);
 }
 

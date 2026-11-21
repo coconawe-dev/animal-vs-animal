@@ -268,7 +268,7 @@ export class Stage {
     /* ── ARBS 진영 구분: 블루(서쪽) · 레드(동쪽) 반원 틴트 + 중앙선 ── */
     const halfGeoRed = new THREE.CircleGeometry(R + 1.2, 64, -Math.PI / 2, Math.PI);
     const tintRed = new THREE.Mesh(halfGeoRed, new THREE.MeshBasicMaterial({
-      color: arena.lineRed || 0xff5040, transparent: true, opacity: 0.1, depthWrite: false,
+      color: arena.lineRed || 0xff5040, transparent: true, opacity: 0.13, depthWrite: false,
     }));
     tintRed.rotation.x = -Math.PI / 2;
     tintRed.position.y = 0.035;
@@ -276,7 +276,7 @@ export class Stage {
 
     const halfGeoBlue = new THREE.CircleGeometry(R + 1.2, 64, Math.PI / 2, Math.PI);
     const tintBlue = new THREE.Mesh(halfGeoBlue, new THREE.MeshBasicMaterial({
-      color: arena.lineBlue || 0x3f86ff, transparent: true, opacity: 0.1, depthWrite: false,
+      color: arena.lineBlue || 0x3f86ff, transparent: true, opacity: 0.13, depthWrite: false,
     }));
     tintBlue.rotation.x = -Math.PI / 2;
     tintBlue.position.y = 0.036;
@@ -284,7 +284,7 @@ export class Stage {
 
     // 중앙 구분선
     const lineMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff, transparent: true, opacity: 0.34, depthWrite: false,
+      color: 0xffffff, transparent: true, opacity: 0.42, depthWrite: false,
       blending: THREE.AdditiveBlending,
     });
     const line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, R * 2.05), lineMat);
