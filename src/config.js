@@ -41,7 +41,7 @@ export const ANIMALS = [
   {
     id: 'elephant', name: '코끼리', emoji: '🐘', tier: 4, cost: 5, role: '탱커',
     hp: 268, atk: 16, spd: 2.35, range: 3.2, atkInterval: 1.3,
-    colors: { main: 0x9aa0a8, dark: 0x6b7178, accent: 0xe8e2d4, belly: 0xb6bcc2 },
+    colors: { main: 0x848b95, dark: 0x5e646c, accent: 0xe8e2d4, belly: 0xa0a7af },
     scale: 1.18,
     desc: '가장 단단한 몸. 돌진 한 번에 진형이 무너진다.',
     skill: { kind: 'charge', name: '돌진 밀치기', icon: '🌊', cd: 7.4, range: 10, power: 1.75, stun: 0.8, knock: 15, width: 2.6, dash: 9,
