@@ -1,0 +1,12 @@
+{
+  "name": "animal-vs-animal",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "동물 vs 동물 — Three.js 3D AI 배틀 (auto-battler)",
+  "scripts": {
+    "start": "python3 -m http.server 8080",
+    "test": "node tests/smoke.mjs",
+    "balance": "node tests/balance.mjs"
+  }
+}

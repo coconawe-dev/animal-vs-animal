@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>동물 vs 동물 · 3D AI 배틀</title>
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="format-detection" content="telephone=no" />
+<meta name="theme-color" content="#0b0d12" />
+<meta name="description" content="사자·호랑이·코끼리·독수리… 12종 동물을 골라 AI가 스스로 싸우는 3D 배틀을 관전하세요. 사자 포효, 호랑이 급습, 코끼리 돌진까지 각자의 필살기." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%BE%3C/text%3E%3C/svg%3E" />
+<link rel="stylesheet" href="./styles.css" />
+</head>
+<body>
+<div id="app">
+  <canvas id="scene" aria-label="3D 동물 배틀 아레나"></canvas>
+  <div id="nameplates" class="nameplates" aria-hidden="true"></div>
+
+  <header id="topbar" class="topbar">
+    <div class="brand">
+      <span class="brand-mark">🐾</span>
+      <div class="brand-text"><b>동물 vs 동물</b><small>AI 배틀 아레나</small></div>
+    </div>
+    <div class="top-actions">
+      <button id="btn-sound" class="icon-btn" title="효과음" aria-label="효과음">🔊</button>
+      <button id="btn-help" class="icon-btn" title="도움말" aria-label="도움말">?</button>
+    </div>
+  </header>
+
+  <!-- ── 전투 HUD ── -->
+  <div id="battle-hud" class="battle-hud hidden">
+    <div class="score-bar">
+      <div class="team-score blue"><span class="team-dot"></span><b id="score-blue">3</b><small>블루</small></div>
+      <div class="clock-box"><span id="battle-clock">0:00</span><i id="battle-state">전투 중</i></div>
+      <div class="team-score red"><small>레드</small><b id="score-red">3</b><span class="team-dot"></span></div>
+    </div>
+    <div class="hud-actions">
+      <button id="btn-pause" class="chip-btn">⏸</button>
+      <button id="btn-speed" class="chip-btn speed">1×</button>
+      <button id="btn-follow" class="chip-btn on">🎥</button>
+      <button id="btn-log" class="chip-btn">📜</button>
+      <button id="btn-rebuild" class="chip-btn">⚙️</button>
+    </div>
+  </div>
+
+  <div id="team-strip" class="team-strip hidden">
+    <div class="strip" id="strip-blue"></div>
+    <div class="strip" id="strip-red"></div>
+  </div>
+
+  <aside id="battle-log" class="battle-log hidden">
+    <div class="log-head"><b>전투 기록</b><button id="btn-log-close" aria-label="닫기">✕</button></div>
+    <ul id="log-list"></ul>
+  </aside>
+
+  <!-- ── 편성 화면 ── -->
+  <section id="builder" class="builder">
+    <div class="builder-panel">
+      <div class="sheet-grab"><span></span></div>
+      <div class="builder-scroll">
+        <div class="builder-title">
+          <div>
+            <h1>동물 <em>vs</em> 동물</h1>
+            <p>12종 동물이 스스로 싸운다 · AI 배틀</p>
+          </div>
+          <button id="btn-random" class="btn tiny">🎲 랜덤 매치</button>
+        </div>
+
+        <div class="mode-row" id="mode-row">
+          <button class="mode-chip" data-mode="duel">1 : 1</button>
+          <button class="mode-chip active" data-mode="team">팀 배틀</button>
+          <button class="mode-chip" data-mode="free">자유 편성</button>
+        </div>
+
+        <div class="team-switch">
+          <button class="team-btn blue active" data-team="blue">
+            <span class="dot"></span>블루 팀 <b id="count-blue">3</b>
+          </button>
+          <button class="team-btn red" data-team="red">
+            <span class="dot"></span>레드 팀 <b id="count-red">3</b>
+          </button>
+        </div>
+
+        <div class="slots-wrap">
+          <div class="slots-row" data-team="blue" id="slots-blue"></div>
+          <div class="slots-row" data-team="red" id="slots-red"></div>
+        </div>
+
+        <div class="roster-head">
+          <h3>동물 도감</h3>
+          <span id="roster-hint">동물을 눌러 추가</span>
+        </div>
+        <div class="roster" id="roster"></div>
+        <div class="detail" id="detail">
+          <span class="detail-empty">동물을 선택하면 능력치와 필살기를 볼 수 있어요.</span>
+        </div>
+
+        <div class="section-label">빠른 매치</div>
+        <div class="preset-row" id="preset-row"></div>
+
+        <div class="section-label">전장</div>
+        <div class="arena-row" id="arena-row"></div>
+
+        <div class="power-row">
+          <span class="pw blue">🔵 전투력 <b id="power-blue">0</b></span>
+          <span class="pw vs">VS</span>
+          <span class="pw red">🔴 전투력 <b id="power-red">0</b></span>
+        </div>
+      </div>
+      <div class="builder-foot">
+        <button id="btn-fight" class="btn fight">⚔️ 배틀 시작</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ── 결과 배너 ── -->
+  <div id="banner" class="banner hidden">
+    <div class="banner-card">
+      <span class="banner-crown" id="banner-crown">👑</span>
+      <h2 id="banner-title">블루 팀 승리!</h2>
+      <p id="banner-sub"></p>
+      <div class="mvp" id="banner-mvp"></div>
+      <div class="banner-actions">
+        <button id="btn-rematch" class="btn primary">🔁 다시 배틀</button>
+        <button id="btn-back" class="btn ghost">⚙️ 편성 바꾸기</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <div id="help" class="modal hidden">
+    <div class="modal-card">
+      <h3>🐾 동물 vs 동물</h3>
+      <ul>
+        <li><b>동물 고르기</b> — 블루/레드 팀을 골라 동물을 탭하면 추가됩니다. 슬롯을 탭하면 빠져요.</li>
+        <li><b>배틀 시작</b> — 동물들이 알아서 적을 찾아 싸웁니다. 각자의 필살기는 쿨타임마다 자동 발동!</li>
+        <li><b>화면 조작</b> — 드래그로 카메라 회전, 두 손가락(휠)로 확대·축소.</li>
+        <li><b>관전 도구</b> — ⏸ 일시정지 · 1×/2× 배속 · 🎥 자동 추적 · 📜 전투 기록.</li>
+      </ul>
+      <button id="btn-help-close" class="btn primary">알겠어요</button>
+    </div>
+  </div>
+
+  <div id="loader" class="loader"><div class="loader-inner"><span>🐾</span><b>전장을 준비하는 중…</b></div></div>
+</div>
+
+<script>
+  window.addEventListener('error', function (e) {
+    var el = document.getElementById('loader');
+    if (!el || el.style.display === 'none') return;
+    el.innerHTML = '<div class="loader-inner"><span>😵</span><b>게임을 불러오지 못했어요</b><small>'
+      + String((e && e.message) || '').slice(0, 160) + '</small><small>새로고침 해 보세요.</small></div>';
+  });
+</script>
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
