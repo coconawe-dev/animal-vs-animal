@@ -79,9 +79,9 @@ let userZoomed = false;
 // 편성 패널이 열려 있을 때 3D 미리보기를 화면 위쪽에 보이게
 function previewDistance() {
   const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
-  if (aspect > 1.25) return 17;
-  if (aspect > 0.95) return 20;
-  return 26 * (aspect < 0.7 ? 1.1 : 1);
+  if (aspect > 1.25) return 20;
+  if (aspect > 0.95) return 23;
+  return 27 * (aspect < 0.7 ? 1.08 : 1);
 }
 
 function updatePreviewFraming() {
@@ -192,9 +192,9 @@ function layoutPreview() {
     const same = battle.units.filter((o) => o.team === u.team);
     const i = same.indexOf(u);
     const n = same.length;
-    const t = n === 1 ? 0 : (i / (n - 1) - 0.5) * 1.45;
+    const t = n === 1 ? 0 : (i / (n - 1) - 0.5) * 1.3;
     const side = u.team === 'blue' ? -1 : 1;
-    const rad = 7.2;
+    const rad = 5.2;
     u.x = side * Math.cos(t) * rad * 0.92;
     u.z = Math.sin(t) * rad;
     u.facing = Math.atan2(-u.x, -u.z);
@@ -253,7 +253,8 @@ function backToBuilder() {
   ui.showBuilder();
   refreshPreview();
   stage.camGoal.dist = previewDistance();
-  stage.camGoal.phi = 0.78;
+  stage.camGoal.phi = 0.7;
+  stage.camGoal.theta = 0.4;
   updatePreviewFraming();
 }
 
@@ -599,7 +600,8 @@ document.addEventListener('visibilitychange', () => {
 
 stage.setArena(ARENA_BY_ID[app.arenaId]);
 stage.camGoal.dist = previewDistance();
-stage.camGoal.phi = 0.95;
+stage.camGoal.phi = 0.7;
+stage.camGoal.theta = 0.4;
 refreshPreview();
 ui.setSound(true);
 updatePreviewFraming();
