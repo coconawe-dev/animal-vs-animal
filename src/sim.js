@@ -636,8 +636,16 @@ function tryCastSkill(state, u, target, d) {
     case 'pack':
     case 'chomp':
     case 'dive':
-    case 'flame': {
+    case 'flame':
+    case 'infect':
+    case 'frenzy':
+    case 'boneSlash':
+    case 'coil': {
       if (d > s.range || !target) return false;
+      break;
+    }
+    case 'drexCombo': {
+      if (d > s.range + 0.7 || !target) return false;
       break;
     }
     case 'evade': {
@@ -791,6 +799,59 @@ function tryCastSkill(state, u, target, d) {
         if (e.dead || e.team === u.team) continue;
         if (dist2(fx, fz, e.x, e.z) <= s.radius + 0.5) addBleed(state, e, u, s.burn, s.burnTime);
       }
+      break;
+    }
+    case 'infect': {
+      if (target) {
+        applyDamage(state, u, target, u.atk * s.power, {});
+        addBleed(state, target, u, s.bleed, s.bleedTime);
+        slowUnit(state, target, s.slow, s.slowTime);
+      }
+      u.hp = Math.min(u.maxHp, u.hp + (s.heal || 0));
+      emit(state, { type: 'heal', uid: u.uid, x: u.x, z: u.z, amount: s.heal || 0 });
+      break;
+    }
+    case 'boneSlash': {
+      if (target) {
+        for (let i = 0; i < (s.strikes || 3); i++) {
+          applyDamage(state, u, target, u.atk * s.power, { pierce: !!s.pierce });
+          emit(state, { type: 'slash', uid: u.uid, target: target.uid, x: target.x, z: target.z, i });
+        }
+        knock(state, target, target.x - u.x, target.z - u.z, 2);
+      }
+      break;
+    }
+    case 'coil': {
+      if (target) {
+        applyDamage(state, u, target, u.atk * s.power, {});
+        addBleed(state, target, u, s.bleed, s.bleedTime);
+        stunUnit(state, target, s.stun);
+        emit(state, { type: 'coil', uid: u.uid, target: target.uid, x: target.x, z: target.z });
+      }
+      break;
+    }
+    case 'frenzy': {
+      if (target) {
+        applyDamage(state, u, target, u.atk * s.power, {});
+        addBleed(state, target, u, s.bleed, s.bleedTime);
+        knock(state, target, target.x - u.x, target.z - u.z, 2.4);
+      }
+      for (const a of aliveUnits(state, u.team)) {
+        if (a === u || dist2(a.x, a.z, u.x, u.z) <= 9) {
+          haste(a, s.haste, s.hasteTime);
+          emit(state, { type: 'buff', uid: a.uid, kind: 'haste' });
+        }
+      }
+      emit(state, { type: 'aura', uid: u.uid, r: 9, kind: 'frenzy' });
+      break;
+    }
+    case 'drexCombo': {
+      // 1타: 거대한 턱으로 물어뜯기
+      coneBurst(state, u, s.radius * 0.72, Math.PI * 0.5, u.atk * s.power, { stun: s.stun, knock: s.knock * 0.5 });
+      // 2타: 주먹을 내리치는 광역 강타
+      areaBurst(state, u, u.x, u.z, s.radius, u.atk * s.power2, s.stun * 0.6, s.knock, null, { launch: true });
+      emit(state, { type: 'quake', x: u.x, z: u.z, r: s.radius, big: true });
+      emit(state, { type: 'drexCombo', uid: u.uid, x: u.x, z: u.z });
       break;
     }
     case 'dive': {

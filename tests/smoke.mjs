@@ -2,7 +2,7 @@
 // 실행: node tests/smoke.mjs
 import * as THREE from '../vendor/three.module.js';
 import {
-  ANIMALS, DINOS, CREATURES, CREATURE_IDS, CREATURE_BY_ID, ANIMAL_BY_ID,
+  ANIMALS, DINOS, MONSTERS, CREATURES, CREATURE_IDS, CREATURE_BY_ID, ANIMAL_BY_ID,
   ARENAS, ARENA_BY_ID, PRESETS, CHALLENGES, WEAPONS, WEAPON_BY_ID, TUNING,
   DEFAULT_PLACEMENTS, CATEGORIES, powerOf, placementCost, creaturesOf,
 } from '../src/config.js';
@@ -26,17 +26,23 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
 const P = (id, x, z, weapon = 'none') => ({ id, x, z, weapon });
 
 /* ─────────────── 1. 데이터 ─────────────── */
-check(ANIMALS.length === 12, `동물 12종 (현재 ${ANIMALS.length})`);
-check(DINOS.length === 6, `공룡·괴수 6종 (현재 ${DINOS.length})`);
-check(CREATURES.length === 18, `전체 18종 (현재 ${CREATURES.length})`);
+check(ANIMALS.length === 14, `동물 14종 (현재 ${ANIMALS.length})`);
+check(DINOS.length === 7, `공룡·거대종 7종 (현재 ${DINOS.length})`);
+check(MONSTERS.length === 2, `괴수·언데드 2종 (현재 ${MONSTERS.length})`);
+check(CREATURES.length === 23, `전체 23종 (현재 ${CREATURES.length})`);
 check(new Set(CREATURE_IDS).size === CREATURES.length, '유닛 id 중복 없음');
 check(CATEGORIES.length === 4, '카테고리 4개');
-check(creaturesOf('dino').length === 5 && creaturesOf('monster').length === 1, '카테고리별 분류');
-check(creaturesOf('all').length === 18, '전체 카테고리');
+check(creaturesOf('animal').length === 14 && creaturesOf('dino').length === 6 && creaturesOf('monster').length === 3, '카테고리별 분류 (14/6/3)');
+check(creaturesOf('all').length === 23, '전체 카테고리');
+for (const id of ['zombie', 'skeleton', 'snake', 'hyena', 'drex']) {
+  check(!!CREATURE_BY_ID[id], `신규 유닛 ${id} 등록`);
+}
+check(CREATURE_BY_ID.drex.cost === 10 && CREATURE_BY_ID.drex.hp >= 650, '디-렉스 보스급 능력치');
 
 const SKILL_KINDS = new Set([
   'roar', 'pounce', 'charge', 'slam', 'pack', 'dive', 'chomp', 'gore', 'evade', 'smash', 'sprint', 'gore2',
   'crunch', 'sailSlash', 'hornCharge', 'packPounce', 'flame', 'titanSlam',
+  'infect', 'boneSlash', 'coil', 'frenzy', 'drexCombo',
 ]);
 for (const a of CREATURES) {
   const tag = `[${a.id}]`;
@@ -53,7 +59,7 @@ for (const a of CREATURES) {
   }
   check(powerOf(a) > 0, `${tag} 전투력 계산`);
 }
-check(new Set(CREATURES.map((a) => a.skill.kind)).size === 18, '서로 다른 스킬 18가지');
+check(new Set(CREATURES.map((a) => a.skill.kind)).size === 23, '서로 다른 스킬 23가지');
 
 check(WEAPONS.length === 5, '무기 5종');
 check(WEAPON_BY_ID.none && WEAPON_BY_ID.gatling && WEAPON_BY_ID.rocket && WEAPON_BY_ID.laser && WEAPON_BY_ID.shield, '무기 id');
@@ -209,8 +215,8 @@ for (const blue of CREATURE_IDS) {
     pairCount++;
   }
 }
-check(pairCount === 18 * 18, '1:1 전 조합 324판 실행');
-check(skillSeen.size === 18, `모든 스킬 18종 발동 (미발동: ${[...SKILL_KINDS].filter((k) => !skillSeen.has(k)).join(',')})`);
+check(pairCount === 23 * 23, '1:1 전 조합 529판 실행');
+check(skillSeen.size === 23, `모든 스킬 23종 발동 (미발동: ${[...SKILL_KINDS].filter((k) => !skillSeen.has(k)).join(',')})`);
 
 // 프리셋 × 전장
 for (const p of PRESETS) {
@@ -426,10 +432,10 @@ for (const def of CREATURES) {
   const okBox = [box.min, box.max].every((v) => [v.x, v.y, v.z].every(Number.isFinite));
   check(okBox, `[${def.id}] 바운딩 박스 유효`);
   check(box.min.y > -0.2 && box.min.y < 0.25, `[${def.id}] 발이 지면에 닿음 (min.y=${box.min.y.toFixed(2)})`);
-  const tallMax = def.id === 'titan' ? 4.6 : 3.9;
+  const tallMax = def.size >= 1.6 ? 4.8 : 3.9;
   check(size.y > 0.6 && size.y < tallMax, `[${def.id}] 키 적정 (${size.y.toFixed(2)})`);
   check(size.x > 0.5 && size.x < 5.0, `[${def.id}] 폭 적정 (${size.x.toFixed(2)})`);
-  const lenMax = (def.size || 1) >= 1.4 ? 5.9 : 5.0;
+  const lenMax = (def.size || 1) >= 1.4 ? 6.6 : 5.0;
   check(size.z > 0.5 && size.z < lenMax, `[${def.id}] 길이 적정 (${size.z.toFixed(2)})`);
 
   triggerAttack(rig); triggerSkill(rig); triggerHurt(rig);
@@ -455,34 +461,40 @@ const STYLE_EXPECT = {
   gore: (m) => m.headMin < -0.3 && m.headMax > 0.2,
   smash: (m) => m.limbMin < -0.9 && m.limbMax > 0.2,
   swoop: (m) => m.wingMax > 0.8 && m.bodyMin < -0.2,
+  claw: (m) => (m.limbMax - m.limbMin) > 0.45,
+  slash: (m) => (m.limbMax - m.limbMin) > 0.45,
+  combo: (m) => m.jawMax > 0.5 && (m.limbMax - m.limbMin) > 0.45,
 };
 for (const def of CREATURES) {
   const rig = buildAnimalModel(def, 'blue');
-  triggerAttack(rig);
   const m = { jawMax: 0, headMin: 0, headMax: 0, headPush: 0, limbMin: 0, limbMax: 0, wingMax: 0, bodyMin: 0 };
   const hz = rig.headBaseZ;
-  for (let i = 0; i < 48; i++) {
-    animateRig(rig, { dt: 1 / 60, moving: false, speed: 0, attack: rig.attack, skill: 0, hurt: 0, dead: false });
-    if (rig.jaw) m.jawMax = Math.max(m.jawMax, rig.jaw.rotation.x);
-    if (rig.head) {
-      m.headMin = Math.min(m.headMin, rig.head.rotation.x);
-      m.headMax = Math.max(m.headMax, rig.head.rotation.x);
-      m.headPush = Math.max(m.headPush, rig.head.position.z - hz);
+  for (let cycle = 0; cycle < 2; cycle++) {
+    triggerAttack(rig);
+    for (let i = 0; i < 48; i++) {
+      animateRig(rig, { dt: 1 / 60, moving: false, speed: 0, attack: rig.attack, skill: 0, hurt: 0, dead: false });
+      if (rig.jaw) m.jawMax = Math.max(m.jawMax, rig.jaw.rotation.x);
+      if (rig.head) {
+        m.headMin = Math.min(m.headMin, rig.head.rotation.x);
+        m.headMax = Math.max(m.headMax, rig.head.rotation.x);
+        m.headPush = Math.max(m.headPush, rig.head.position.z - hz);
+      }
+      const limbs = rig.arms?.length ? rig.arms.map((a) => a.pivot) : (rig.legs || []).filter((l) => l.front).map((l) => l.pivot);
+      for (const p of limbs) {
+        m.limbMin = Math.min(m.limbMin, p.rotation.x);
+        m.limbMax = Math.max(m.limbMax, p.rotation.x);
+      }
+      for (const w of rig.wings || []) m.wingMax = Math.max(m.wingMax, Math.abs(w.pivot.rotation.z));
+      if (rig.body) m.bodyMin = Math.min(m.bodyMin, rig.body.rotation.x);
     }
-    const limbs = rig.arms?.length ? rig.arms.map((a) => a.pivot) : (rig.legs || []).filter((l) => l.front).map((l) => l.pivot);
-    for (const p of limbs) {
-      m.limbMin = Math.min(m.limbMin, p.rotation.x);
-      m.limbMax = Math.max(m.limbMax, p.rotation.x);
-    }
-    for (const w of rig.wings || []) m.wingMax = Math.max(m.wingMax, Math.abs(w.pivot.rotation.z));
-    if (rig.body) m.bodyMin = Math.min(m.bodyMin, rig.body.rotation.x);
   }
   const style = ATTACK_STYLE[def.id];
   check(!!style, `[${def.id}] 공격 스타일 분류`);
   check(Number.isFinite(rig.height) && rig.height > 0.6, `[${def.id}] 공격 중 높이 유효`);
   check(STYLE_EXPECT[style](m), `[${def.id}] ${style} 공격 모션 (${JSON.stringify(m)})`);
 }
-check(Object.keys(ATTACK_STYLE).length === CREATURES.length, '18종 모두 공격 스타일 지정');
+check(Object.keys(ATTACK_STYLE).length === CREATURES.length, '23종 모두 공격 스타일 지정');
+check(ATTACK_STYLE.drex === 'combo', '디-렉스는 물기+주먹 콤보');
 
 // 무기 발사는 근접 공격 모션을 쓰지 않는다
 triggerShoot(buildAnimalModel(CREATURE_BY_ID.lion, 'blue', { weapon: 'gatling' }));

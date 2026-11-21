@@ -67,9 +67,9 @@ function label(text, x, y, z) {
   scene.add(sp);
 }
 
-const cols = 9;
+const cols = 12;
 const rows = 2;
-const spacing = 3.6;
+const spacing = 3.5;
 const rigs = [];
 CREATURES.forEach((def, i) => {
   const col = i % cols;
@@ -88,9 +88,9 @@ CREATURES.forEach((def, i) => {
 
 const from = Number(new URLSearchParams(location.search).get('from') || 0);
 const fx = (from + 2.5 - (cols - 1) / 2) * spacing;
-camera.fov = 34;
-camera.position.set(fx, 4.4, 32);
-camera.lookAt(fx, 1.4, 0);
+camera.fov = 36;
+camera.position.set(fx, 4.8, 36);
+camera.lookAt(fx, 1.5, 0);
 camera.updateProjectionMatrix();
 
 let last = performance.now();

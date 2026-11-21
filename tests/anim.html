@@ -64,7 +64,15 @@ ids.forEach((id, i) => {
   scene.add(rig.group);
 
   // 목표 위상까지 고정 스텝으로 진행 → 결정론적 포즈
-  triggerAttack(rig);
+  const swings = Math.max(1, Math.min(4, Number(params.get('swings') || 1)));
+  for (let s = 0; s < swings; s++) {
+    triggerAttack(rig);
+    if (s < swings - 1) {
+      for (let f = 0; f < 32; f++) {
+        animateRig(rig, { dt: 1 / 60, moving: false, speed: 0, attack: rig.attack, skill: 0, hurt: 0, dead: false });
+      }
+    }
+  }
   const frames = Math.round((phase * 0.44) / (1 / 60));
   for (let f = 0; f < frames; f++) {
     animateRig(rig, { dt: 1 / 60, moving: false, speed: 0, attack: rig.attack, skill: 0, hurt: 0, dead: false });

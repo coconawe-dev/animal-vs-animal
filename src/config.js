@@ -161,6 +161,28 @@ const ANIMAL_LIST = [
     kbResist: 0.3,
     onHitBleed: { dps: 2, time: 3 },
   },
+  {
+    id: 'hyena', name: '하이에나', emoji: '🐕', cat: 'animal', tier: 2, cost: 3, role: '무리 사냥꾼',
+    hp: 140, atk: 16, spd: 4.8, range: 2.2, atkInterval: 0.8,
+    colors: { main: 0xb8a878, dark: 0x4a3a24, accent: 0x2a2018, belly: 0xe0d4b0 },
+    scale: 0.95, size: 0.95,
+    desc: '등이 기울어진 하이에나. 무리로 몰려 물어뜯는다.',
+    skill: { kind: 'frenzy', name: '광란의 물기', icon: '🩸', cd: 5.0, range: 2.9, power: 1.25, bleed: 3.2, bleedTime: 3.5, haste: 0.35, hasteTime: 4,
+      desc: '출혈 물기 + 무리 전체 공격속도 +35%' },
+    passive: '무리와 함께면 빨라진다',
+    evasion: 0.06,
+  },
+  {
+    id: 'snake', name: '거대 뱀', emoji: '🐍', cat: 'animal', tier: 3, cost: 5, role: '독사',
+    hp: 210, atk: 18, spd: 4.0, range: 3.2, atkInterval: 0.95,
+    colors: { main: 0x5a7a3a, dark: 0x2a3a18, accent: 0xe8d86a, belly: 0xa8b87a },
+    scale: 1.1, size: 1.05,
+    desc: '길게 몸을 늘어뜨리고 독니와 조이기로 옥죈다.',
+    skill: { kind: 'coil', name: '독니 조이기', icon: '🌀', cd: 6.2, range: 3.6, power: 1.15, bleed: 3.5, bleedTime: 4, stun: 1.2,
+      desc: '독니로 물고 몸을 조여 기절·중독시킨다' },
+    passive: '기본 회피 8%',
+    evasion: 0.08,
+  },
 ];
 
 /* ──────────────────────────── 공룡 · 괴수 (6종) ──────────────────────────── */
@@ -232,11 +254,50 @@ const DINO_LIST = [
     passive: '거대 체력 · 최강의 힘',
     armor: 0.16, kbResist: 0.85,
   },
+  {
+    id: 'drex', name: '디-렉스', short: '디-렉스', emoji: '🦖', cat: 'dino', tier: 4, cost: 10, role: '보스',
+    hp: 700, atk: 46, spd: 2.9, range: 3.8, atkInterval: 1.3,
+    colors: { main: 0x7a3a3a, dark: 0x2a1414, accent: 0xe8d8b0, belly: 0xb08a6a },
+    scale: 1.5, size: 1.65,
+    desc: '거대한 머리와 근육질 팔을 가진 돌연변이 렉스. 물어뜯고, 주먹으로 내리친다.',
+    skill: { kind: 'drexCombo', name: '포식 콤보', icon: '💥', cd: 8.0, range: 4.6, radius: 5.6, power: 1.7, power2: 1.35, stun: 1.1, knock: 15,
+      desc: '거대한 턱으로 물어뜯고 이어서 주먹으로 내리치는 연계기' },
+    passive: '거대 체력 · 넉백 저항',
+    armor: 0.14, kbResist: 0.8,
+  },
+];
+
+/* ──────────────────────────── 괴수 / 언데드 (2종) ──────────────────────────── */
+
+const MONSTER_LIST = [
+  {
+    id: 'zombie', name: '좀비', emoji: '🧟', cat: 'monster', tier: 2, cost: 3, role: '언데드',
+    hp: 200, atk: 15, spd: 2.2, range: 2.4, atkInterval: 1.2,
+    colors: { main: 0x6d7a4a, dark: 0x38402a, accent: 0xa8b080, belly: 0x8a9466 },
+    scale: 1.0, size: 1.0,
+    desc: '느리지만 끈질긴 언데드. 뻗은 두 팔로 할퀴고 감염시킨다.',
+    skill: { kind: 'infect', name: '감염 물기', icon: '🦠', cd: 5.6, range: 3.0, power: 1.45, bleed: 4, bleedTime: 5, slow: 0.35, slowTime: 3, heal: 18,
+      desc: '감염된 물기 — 지속 피해·둔화, 자신의 체력 회복' },
+    passive: '넉백 저항',
+    kbResist: 0.25,
+  },
+  {
+    id: 'skeleton', name: '스켈레톤', emoji: '💀', cat: 'monster', tier: 2, cost: 3, role: '해골 검사',
+    hp: 120, atk: 17, spd: 3.6, range: 2.5, atkInterval: 0.8,
+    colors: { main: 0xe8e2d0, dark: 0x8a8474, accent: 0xb8b09a, belly: 0xf2eee0 },
+    scale: 1.0, size: 1.0,
+    desc: '뼈칼을 든 해골 검사. 빠르게 베고, 뼈는 잘 부러진다.',
+    skill: { kind: 'boneSlash', name: '뼈칼 3연격', icon: '🗡️', cd: 4.8, range: 3.2, power: 0.75, strikes: 3, pierce: true,
+      desc: '방어를 무시하는 빠른 3연격' },
+    passive: '기본 회피 12%',
+    evasion: 0.12,
+  },
 ];
 
 export const ANIMALS = ANIMAL_LIST;
 export const DINOS = DINO_LIST;
-export const CREATURES = [...ANIMAL_LIST, ...DINO_LIST];
+export const MONSTERS = MONSTER_LIST;
+export const CREATURES = [...ANIMAL_LIST, ...DINO_LIST, ...MONSTER_LIST];
 export const CREATURE_BY_ID = Object.fromEntries(CREATURES.map((a) => [a.id, a]));
 export const CREATURE_IDS = CREATURES.map((a) => a.id);
 export const ANIMAL_BY_ID = Object.fromEntries(ANIMAL_LIST.map((a) => [a.id, a]));

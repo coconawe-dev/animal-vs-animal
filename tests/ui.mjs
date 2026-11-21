@@ -87,7 +87,7 @@ check(app.selected === 'raptor', '카드 탭 → 유닛 선택');
 check($('.ucard[data-id="raptor"]').classList.contains('sel'), '선택 카드 표시');
 $('#cat-row [data-cat="dino"]').click();
 check(app.activeCat === 'dino', '공룡 카테고리');
-check($$('#unit-bar .ucard:not(.hide)').length === 5, '공룡 5종만 표시');
+check($$('#unit-bar .ucard:not(.hide)').length === 6, '공룡 6종만 표시');
 $('#cat-row [data-cat="all"]').click();
 check($$('#unit-bar .ucard:not(.hide)').length === CREATURES.length, '전체 표시');
 
