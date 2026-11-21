@@ -122,6 +122,7 @@ export class Stage {
     this.cam = { theta: 0.75, phi: 0.92, dist: 40, target: new THREE.Vector3(0, 1.2, 0) };
     this.camGoal = { theta: 0.75, phi: 0.92, dist: 40, target: new THREE.Vector3(0, 1.2, 0) };
     this.shake = 0;
+    this.focusShift = 0;
     this.arenaGroup = null;
     this.time = 0;
     this.autoRotate = 0;
@@ -137,6 +138,23 @@ export class Stage {
     // 세로로 긴 화면에서는 시야각을 넓혀 좌우로 더 보이게
     this.camera.fov = aspect < 0.62 ? 62 : aspect < 0.85 ? 56 : 46;
     this.camera.updateProjectionMatrix();
+    this.applyFocusShift();
+  }
+
+  // 화면 아래 패널에 가리지 않도록 화면 중심을 위로 올린다 (0~0.45)
+  setFocusShift(frac) {
+    this.focusShift = Math.max(0, Math.min(0.45, frac || 0));
+    this.applyFocusShift();
+  }
+
+  applyFocusShift() {
+    const w = this.canvas.clientWidth || window.innerWidth;
+    const h = this.canvas.clientHeight || window.innerHeight;
+    if (this.focusShift > 0.004) {
+      this.camera.setViewOffset(w, h, 0, h * this.focusShift, w, h);
+    } else {
+      this.camera.clearViewOffset();
+    }
   }
 
   setArena(arena) {

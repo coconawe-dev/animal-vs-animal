@@ -76,6 +76,14 @@ let logSeen = 0;
 let fpsAccum = 0, fpsFrames = 0, downgraded = false;
 let userZoomed = false;
 
+// 편성 패널이 열려 있을 때 3D 미리보기를 화면 위쪽에 보이게
+function updatePreviewFraming() {
+  const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
+  const narrow = aspect < 1.0;
+  if (phase === 'preview' && narrow) stage.setFocusShift(0.3);
+  else stage.setFocusShift(0);
+}
+
 const SK_COLORS = {
   roar: 0xffd166, pounce: 0x7ee8ff, charge: 0xffb066, slam: 0xc98a52,
   smash: 0xff9a3c, pack: 0x8fe36a, dive: 0xbfe8ff, chomp: 0x9ee06a,
@@ -217,6 +225,7 @@ function startBattle() {
   syncLog();
   saveState();
   ui.toast(`⚔️ ${app.teams.blue.length} vs ${app.teams.red.length} 배틀 시작!`);
+  stage.setFocusShift(0);
 }
 
 function backToBuilder() {
@@ -228,6 +237,7 @@ function backToBuilder() {
   const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
   stage.camGoal.dist = 34 * (aspect < 0.7 ? 1.12 : 1);
   stage.camGoal.phi = 0.95;
+  updatePreviewFraming();
 }
 
 function togglePause() {
@@ -553,7 +563,7 @@ canvas.addEventListener('wheel', (e) => {
 });
 document.addEventListener('contextmenu', (e) => e.preventDefault());
 
-window.addEventListener('resize', () => stage.resize());
+window.addEventListener('resize', () => { stage.resize(); updatePreviewFraming(); });
 
 canvas.addEventListener('webglcontextlost', (e) => {
   e.preventDefault();
@@ -575,6 +585,7 @@ stage.camGoal.dist = 30;
 stage.camGoal.phi = 0.95;
 refreshPreview();
 ui.setSound(true);
+updatePreviewFraming();
 requestAnimationFrame((t) => {
   last = t;
   frame(t);
