@@ -84,9 +84,11 @@ ANIMALS.forEach((def, i) => {
   label(`${def.name}`, x, rig.height + 0.5, z);
 });
 
+const from = Number(new URLSearchParams(location.search).get('from') || 0);
+const fx = (from + 2.5 - (cols - 1) / 2) * spacing;
 camera.fov = 30;
-camera.position.set(0, 3.6, 46);
-camera.lookAt(0, 1.1, 0);
+camera.position.set(fx, 2.4, 24);
+camera.lookAt(fx, 1.15, 0);
 camera.updateProjectionMatrix();
 
 let last = performance.now();
