@@ -25,7 +25,7 @@ globalThis.Node = dom.window.Node;
 
 const { UI } = await import('../src/ui.js');
 const { createBattle } = await import('../src/sim.js');
-const { ANIMALS, ANIMAL_BY_ID } = await import('../src/config.js');
+const { ANIMALS, ANIMAL_BY_ID, PRESETS } = await import('../src/config.js');
 
 let pass = 0;
 const fails = [];
@@ -96,11 +96,12 @@ $('.card[data-id="bear"]').click();
 check(app.teams.red[0] === 'bear' && app.teams.red.length === 1, '1:1에서 다른 동물로 교체');
 
 /* ── 프리셋 · 전장 ── */
+const skyPreset = PRESETS.find((p) => p.id === 'sky-ground');
 $('#preset-row [data-preset="sky-ground"]').click();
-check(app.teams.blue.join() === 'eagle,cheetah,fox', '프리셋 블루 팀 적용');
-check(app.teams.red.join() === 'crocodile,boar,gorilla', '프리셋 레드 팀 적용');
-check(app.arenaId === 'canyon', '프리셋 전장 적용');
-check(calls.arena.includes('canyon'), '전장 변경 콜백');
+check(app.teams.blue.join() === skyPreset.blue.join(), '프리셋 블루 팀 적용');
+check(app.teams.red.join() === skyPreset.red.join(), '프리셋 레드 팀 적용');
+check(app.arenaId === skyPreset.arena, '프리셋 전장 적용');
+check(calls.arena.includes(skyPreset.arena), '전장 변경 콜백');
 $('#arena-row [data-arena="tundra"]').click();
 check(app.arenaId === 'tundra', '전장 탭 변경');
 

@@ -37,6 +37,7 @@ const viewByUid = new Map();
 let phase = 'preview';     // preview | battle | ended
 let logSeen = 0;
 let fpsAccum = 0, fpsFrames = 0, downgraded = false;
+let userZoomed = false;
 
 const SK_COLORS = {
   roar: 0xffd166, pounce: 0x7ee8ff, charge: 0xffb066, slam: 0xc98a52,
@@ -157,6 +158,7 @@ function startBattle() {
   logSeen = 0;
   phase = 'battle';
   app.paused = false;
+  userZoomed = false;
   app.speed = 1;
   ui.hideBanner();
   ui.hideBuilder();
@@ -258,6 +260,7 @@ function handleEvent(ev) {
       effects.ring(ev.x, ev.z, 0.7, def ? (def.skill.radius || 3) * 1.15 : 3.4, color, 0.5);
       effects.flash(ev.x, 1.5, ev.z, 1.5, color, 0.3);
       effects.burst(ev.x, 1.3, ev.z, color, 14, 4.2);
+      effects.text(ev.x, 2.9, ev.z, ev.name || '', { color: '#ffe3a0', size: 0.62, life: 1.1 });
       sfx.skill(ev.kind);
       if (target) {
         target.el.el.classList.add('skill');
@@ -377,6 +380,21 @@ function shortestAngle(a) {
   return a;
 }
 
+function fitDistance() {
+  const alive = battle.units.filter((u) => !u.dead);
+  if (alive.length < 2) return 26;
+  let maxD = 0;
+  for (const a of alive) {
+    for (const b of alive) {
+      const d = Math.hypot(a.x - b.x, a.z - b.z);
+      if (d > maxD) maxD = d;
+    }
+  }
+  const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
+  const narrow = aspect < 0.7 ? 1.25 : aspect < 0.95 ? 1.08 : 1;
+  return Math.max(20, Math.min(58, (maxD * 1.2 + 17) * narrow));
+}
+
 function focusPoint() {
   let x = 0, z = 0, n = 0;
   for (const u of battle.units) {
@@ -397,13 +415,15 @@ function frame(now) {
   last = now;
   const dt = Math.min(0.05, Math.max(0.0005, rawDt));
 
-  if (phase === 'battle' && !app.paused && battle && !battle.over) {
-    acc += dt * app.speed;
-    let guard = 0;
-    while (acc >= FIXED && guard < 14) {
-      step(battle, FIXED);
-      acc -= FIXED;
-      guard++;
+  if (battle && (phase === 'battle' || phase === 'ended')) {
+    if (phase === 'battle' && !app.paused && !battle.over) {
+      acc += dt * app.speed;
+      let guard = 0;
+      while (acc >= FIXED && guard < 14) {
+        step(battle, FIXED);
+        acc -= FIXED;
+        guard++;
+      }
     }
     const evs = drainEvents(battle);
     for (const ev of evs) handleEvent(ev);
@@ -416,6 +436,9 @@ function frame(now) {
   effects.update(app.paused ? 0 : dt * (phase === 'battle' ? app.speed : 1));
 
   const follow = phase === 'battle' && app.follow ? focusPoint() : null;
+  if (phase === 'battle' && !userZoomed && battle) {
+    stage.camGoal.dist += (fitDistance() - stage.camGoal.dist) * Math.min(1, dt * 0.9);
+  }
   stage.update(dt, { follow, autoRotate: phase === 'preview' });
 
   // 품질 자동 조정 (한 번만)
@@ -454,7 +477,7 @@ canvas.addEventListener('pointermove', (e) => {
     stage.orbit(dx, dy);
   } else if (pointers.size === 2) {
     const d = twoFingerDist();
-    if (pinchDist > 0 && d > 0) stage.zoom(pinchDist / d);
+    if (pinchDist > 0 && d > 0) { stage.zoom(pinchDist / d); userZoomed = true; }
     pinchDist = d;
   }
 }, { passive: true });
@@ -476,7 +499,14 @@ canvas.addEventListener('pointerleave', endPointer, { passive: true });
 canvas.addEventListener('wheel', (e) => {
   e.preventDefault();
   stage.zoom(e.deltaY > 0 ? 1.08 : 0.93);
+  userZoomed = true;
 }, { passive: false });
+
+// iOS 제스처(페이지 확대) · 길게 누르기 메뉴 차단
+['gesturestart', 'gesturechange', 'gestureend'].forEach((t) => {
+  document.addEventListener(t, (e) => e.preventDefault(), { passive: false });
+});
+document.addEventListener('contextmenu', (e) => e.preventDefault());
 
 window.addEventListener('resize', () => stage.resize());
 window.addEventListener('orientationchange', () => setTimeout(() => stage.resize(), 250));

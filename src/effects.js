@@ -100,8 +100,12 @@ export class Effects {
     const { canvas, texture, sprite } = slot;
     const ctx = canvas.getContext('2d');
     ctx.clearRect(0, 0, canvas.width, canvas.height);
-    const fs = crit ? 92 : 74;
-    ctx.font = `900 ${fs}px "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif`;
+    let fs = crit ? 92 : 74;
+    const font = (size2) => `900 ${size2}px "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif`;
+    ctx.font = font(fs);
+    const wide = ctx.measureText(text).width;
+    if (wide > 236) fs = Math.max(34, Math.floor(fs * 236 / wide));
+    ctx.font = font(fs);
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.lineJoin = 'round';
