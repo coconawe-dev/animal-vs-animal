@@ -390,7 +390,7 @@ export const PRESETS = [
   },
   {
     id: 'boss-raid', name: '거대 보스 레이드', emoji: '👹⚔️🐉',
-    desc: '무장한 동물 12마리 vs 거대 타이탄과 와이번',
+    desc: '무장한 동물 12마리 vs 거대 타이탄 2기와 와이번 2마리',
     blue: [
       ...lineup('blue', [
         { id: 'lion', weapon: 'gatling' }, { id: 'lion', weapon: 'gatling' },
@@ -399,9 +399,12 @@ export const PRESETS = [
         { id: 'eagle', weapon: 'laser' }, { id: 'eagle', weapon: 'laser' },
         { id: 'wolf', weapon: 'gatling' }, { id: 'wolf', weapon: 'gatling' },
         { id: 'crocodile', weapon: 'laser' }, { id: 'gorilla', weapon: 'rocket' },
-      ], { x0: 4.0, dx: 2.2, dz: 1.75 }),
+      ], { x0: 4.2, dx: 2.4, dz: 2.35 }),
     ],
-    red: [P('titan', 7.2, 0), P('wyvern', 5.6, -4.6), P('wyvern', 5.6, 4.6)],
+    red: [
+      P('titan', 7.2, -2.4), P('titan', 8.7, 2.4),
+      P('wyvern', 5.4, -5.4), P('wyvern', 5.4, 5.4), P('triceratops', 6.4, 0),
+    ],
     arena: 'tundra',
   },
   {

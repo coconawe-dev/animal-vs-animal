@@ -806,6 +806,13 @@ function frame(now) {
   effects.update(app.paused ? 0 : dt * (phase === 'battle' ? app.speed : 1));
 
   let follow = null;
+  if (app.focusUid) {
+    const fv = viewByUid.get(app.focusUid);
+    if (!fv || fv.u.dead) {
+      app.focusUid = null;
+      ui.setFocusTag(null);
+    }
+  }
   if (phase === 'battle' && app.follow) {
     const fv = app.focusUid ? viewByUid.get(app.focusUid) : null;
     follow = fv && !fv.u.dead ? tmpFocus2.set(fv.x, 1.4, fv.z) : focusPoint();
@@ -903,10 +910,10 @@ function handleTap(e) {
     const rect = canvas.getBoundingClientRect();
     const px = e.clientX - rect.left;
     const py = e.clientY - rect.top;
-    let best = null, bestD = 44;
+    let best = null, bestD = 78;
     for (const v of views) {
       if (v.u.dead) continue;
-      const p = tmpVec.set(v.x, v.u.y + 0.8, v.z).project(stage.camera);
+      const p = tmpVec.set(v.x, v.u.y + 0.9, v.z).project(stage.camera);
       if (p.z > 1 || p.z < -1) continue;
       const sx = (p.x * 0.5 + 0.5) * rect.width;
       const sy = (-p.y * 0.5 + 0.5) * rect.height;

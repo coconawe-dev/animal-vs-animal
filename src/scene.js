@@ -265,8 +265,7 @@ export class Stage {
       group.add(b);
     }
 
-    /* ── ARBS 진영 구분: 블루(서쪽) · 레드(동쪽) 반원 틴트 + 중앙선 ── */
-    const halfGeoRed = new THREE.CircleGeometry(R + 1.2, 64, -Math.PI / 2, Math.PI);
+    /* ── ARBS 진영 구분: 블루(서쪽) · 레드(동쪽) 반원 틴트 + 중앙선 ── */    const halfGeoRed = new THREE.CircleGeometry(R + 1.2, 64, -Math.PI / 2, Math.PI);
     const tintRed = new THREE.Mesh(halfGeoRed, new THREE.MeshBasicMaterial({
       color: arena.lineRed || 0xff5040, transparent: true, opacity: 0.13, depthWrite: false,
     }));
@@ -304,6 +303,13 @@ export class Stage {
     centerRing.rotation.x = -Math.PI / 2;
     centerRing.position.y = 0.045;
     group.add(centerRing);
+
+    // 낮은 담장 기단 — 블록이 공중에 뜬 것처럼 보이지 않게 바닥과 잇는다
+    const baseMat = new THREE.MeshStandardMaterial({ color: arena.rim, roughness: 0.95, flatShading: true, side: THREE.DoubleSide });
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(R + 3.6, R + 3.9, 0.5, 56, 1, true), baseMat);
+    base.position.y = 0.24;
+    base.receiveShadow = true;
+    group.add(base);
 
     // 장애물
     arena.obstacles.forEach((ob) => {

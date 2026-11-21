@@ -190,7 +190,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
   transition: transform .34s cubic-bezier(.22,.9,.28,1), opacity .25s;
   max-height: 62vh;
 }
-.dock.closed { transform: translateY(104%); opacity: 0; pointer-events: none; }
+.dock.closed { transform: translateY(104%); opacity: 0; pointer-events: none; visibility: hidden; transition: transform .34s cubic-bezier(.22,.9,.28,1), opacity .25s, visibility 0s .34s; }
 .dock-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 0 4px; }
 .mode-tabs { display: inline-flex; padding: 2px; background: rgba(255,255,255,.05); border-radius: 10px; }
 .mode-tabs button {
