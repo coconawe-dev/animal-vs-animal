@@ -54,5 +54,24 @@ for (let k = 0; k < 5; k++) {
   }
 }
 
-console.log(`\n${N}판 + 60마리 5판 — 실패 ${fails} · 최장 ${maxT.toFixed(1)}초 · 무승부 ${draws} · 시간초과 ${timeouts} · 최대 ${maxUnits}마리`);
+// 100마리(50 vs 50) · 비대칭(80 vs 10) 대난전
+for (let k = 0; k < 4; k++) {
+  const s = createBattle({ blue: side('blue', 50), red: side('red', 50), arenaId: pick(ARENAS).id, seed: 2000 + k });
+  simulate(s, 1 / 60, 360);
+  maxUnits = Math.max(maxUnits, s.units.length);
+  if (!s.over) { fails++; console.log('100마리 종료 안 됨'); }
+  for (const u of s.units) {
+    if (![u.x, u.z, u.y, u.hp, u.spin].every(Number.isFinite)) { fails++; console.log('100마리 NaN', u.id); }
+    if (Math.hypot(u.x, u.z) > TUNING.ARENA_RADIUS + 0.6) { fails++; console.log('100마리 이탈', u.id); }
+  }
+}
+for (let k = 0; k < 3; k++) {
+  const s = createBattle({ blue: side('blue', 80), red: side('red', 10), arenaId: pick(ARENAS).id, seed: 3000 + k });
+  simulate(s, 1 / 60, 360);
+  maxUnits = Math.max(maxUnits, s.units.length);
+  if (!s.over) { fails++; console.log('80 vs 10 종료 안 됨'); }
+  if (!s.units.every((u) => [u.x, u.z, u.hp].every(Number.isFinite))) { fails++; console.log('80 vs 10 NaN'); }
+}
+
+console.log(`\n${N}판 + 100마리/비대칭 난전 — 실패 ${fails} · 최장 ${maxT.toFixed(1)}초 · 무승부 ${draws} · 시간초과 ${timeouts} · 최대 ${maxUnits}마리`);
 if (fails) process.exit(1);

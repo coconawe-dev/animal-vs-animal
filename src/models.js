@@ -81,6 +81,11 @@ function buildLion(g, m, rig) {
   }
   add(head, G.sphere, m.main, [0, 0.02, 0.2], [0.3, 0.29, 0.3]);
   add(head, G.sphere, m.accent, [0, -0.06, 0.42], [0.17, 0.15, 0.2]);   // 주둥이
+  const lionJaw = new THREE.Group();
+  lionJaw.position.set(0, -0.13, 0.3);
+  head.add(lionJaw); rig.jaw = lionJaw;
+  add(lionJaw, G.sphereLow, m.belly, [0, 0, 0.12], [0.14, 0.06, 0.18], null, false);
+  add(lionJaw, G.box, m.accent, [0, 0.05, 0.22], [0.13, 0.03, 0.07], null, false);
   add(head, G.sphereLow, m.dark, [0, -0.02, 0.58], [0.07, 0.06, 0.06], null, false);
   add(head, G.sphereLow, m.eye, [0.14, 0.1, 0.36], [0.045, 0.05, 0.04], null, false);
   add(head, G.sphereLow, m.eye, [-0.14, 0.1, 0.36], [0.045, 0.05, 0.04], null, false);
@@ -122,6 +127,11 @@ function buildTiger(g, m, rig) {
   body.add(head); rig.head = head;
   add(head, G.sphere, m.main, [0, 0, 0], [0.31, 0.29, 0.3]);
   add(head, G.sphere, m.accent, [0, -0.08, 0.24], [0.2, 0.16, 0.2]);
+  const tigerJaw = new THREE.Group();
+  tigerJaw.position.set(0, -0.11, 0.14);
+  head.add(tigerJaw); rig.jaw = tigerJaw;
+  add(tigerJaw, G.sphereLow, m.belly, [0, 0, 0.1], [0.13, 0.06, 0.15], null, false);
+  add(tigerJaw, G.box, m.accent, [0, 0.04, 0.18], [0.12, 0.03, 0.06], null, false);
   add(head, G.sphereLow, m.belly, [0, -0.14, 0.34], [0.13, 0.1, 0.1], null, false);
   add(head, G.sphereLow, m.eye, [0.15, 0.08, 0.2], [0.045, 0.05, 0.04], null, false);
   add(head, G.sphereLow, m.eye, [-0.15, 0.08, 0.2], [0.045, 0.05, 0.04], null, false);
@@ -230,6 +240,10 @@ function buildWolf(g, m, rig) {
   body.add(head); rig.head = head;
   add(head, G.sphere, m.main, [0, 0, 0], [0.26, 0.25, 0.27]);
   add(head, G.cone, m.accent, [0, -0.06, 0.28], [0.16, 0.34, 0.13], [Math.PI / 2, 0, 0]);  // 주둥이
+  const wolfJaw = new THREE.Group();
+  wolfJaw.position.set(0, -0.1, 0.16);
+  head.add(wolfJaw); rig.jaw = wolfJaw;
+  add(wolfJaw, G.box, m.belly, [0, 0, 0.12], [0.11, 0.05, 0.2], null, false);
   add(head, G.sphereLow, m.eye, [0.13, 0.07, 0.16], [0.04, 0.045, 0.035], null, false);
   add(head, G.sphereLow, m.eye, [-0.13, 0.07, 0.16], [0.04, 0.045, 0.035], null, false);
   add(head, G.coneLow, m.main, [0.15, 0.26, -0.04], [0.09, 0.2, 0.07], [-0.1, 0, -0.25]);
@@ -274,6 +288,10 @@ function buildEagle(g, m, rig) {
   body.add(head); rig.head = head;
   add(head, G.sphere, m.accent, [0, 0, 0], [0.19, 0.19, 0.19]);          // 흰 머리
   add(head, G.cone, m.belly, [0, -0.02, 0.26], [0.09, 0.26, 0.09], [Math.PI / 2, 0, 0]);
+  const eagleBeak = new THREE.Group();
+  eagleBeak.position.set(0, -0.05, 0.12);
+  head.add(eagleBeak); rig.jaw = eagleBeak;
+  add(eagleBeak, G.coneLow, m.accent, [0, 0, 0.14], [0.07, 0.2, 0.07], [Math.PI / 2, 0, 0], false);
   add(head, G.sphereLow, m.eye, [0.1, 0.06, 0.12], [0.035, 0.04, 0.03], null, false);
   add(head, G.sphereLow, m.eye, [-0.1, 0.06, 0.12], [0.035, 0.04, 0.03], null, false);
 
@@ -375,6 +393,10 @@ function buildFox(g, m, rig) {
   body.add(head); rig.head = head;
   add(head, G.sphere, m.main, [0, 0, 0], [0.24, 0.22, 0.24]);
   add(head, G.cone, m.accent, [0, -0.06, 0.24], [0.14, 0.34, 0.12], [Math.PI / 2, 0, 0]);
+  const foxJaw = new THREE.Group();
+  foxJaw.position.set(0, -0.09, 0.12);
+  head.add(foxJaw); rig.jaw = foxJaw;
+  add(foxJaw, G.box, m.belly, [0, 0, 0.1], [0.09, 0.045, 0.17], null, false);
   add(head, G.sphereLow, m.eye, [0.11, 0.06, 0.15], [0.038, 0.045, 0.032], null, false);
   add(head, G.sphereLow, m.eye, [-0.11, 0.06, 0.15], [0.038, 0.045, 0.032], null, false);
   add(head, G.coneLow, m.main, [0.14, 0.26, -0.02], [0.1, 0.26, 0.07], [-0.15, 0, -0.2]);
@@ -452,6 +474,10 @@ function buildCheetah(g, m, rig) {
   body.add(head); rig.head = head;
   add(head, G.sphere, m.main, [0, 0, 0], [0.23, 0.22, 0.24]);
   add(head, G.sphere, m.accent, [0, -0.08, 0.2], [0.16, 0.13, 0.16]);
+  const cheetahJaw = new THREE.Group();
+  cheetahJaw.position.set(0, -0.1, 0.1);
+  head.add(cheetahJaw); rig.jaw = cheetahJaw;
+  add(cheetahJaw, G.box, m.belly, [0, 0, 0.1], [0.1, 0.04, 0.15], null, false);
   add(head, G.sphereLow, m.eye, [0.11, 0.06, 0.16], [0.038, 0.045, 0.03], null, false);
   add(head, G.sphereLow, m.eye, [-0.11, 0.06, 0.16], [0.038, 0.045, 0.03], null, false);
   add(head, G.box, m.dark, [0.12, 0.02, 0.19], [0.025, 0.16, 0.02], [0.3, 0, 0.15], false);   // 눈물 자국
@@ -857,6 +883,7 @@ function wmat(key, color, opts) {
 
 export function attachWeapon(rig, weaponId) {
   if (!weaponId || weaponId === 'none') return null;
+  if (rig.simple) return null;
   const body = rig.body;
   if (!body) return null;
   const size = Math.max(0.8, rig.def.size || 1);
@@ -927,6 +954,76 @@ const BUILDERS = {
 
 export const TEAM_TINTS = { blue: 0x3b7bff, red: 0xff4b3b };
 
+// 유닛별 공격 모션 (입 물기 · 뿔/엄니 위로 · 주먹 휘두르기 · 급강하)
+export const ATTACK_STYLE = {
+  lion: 'bite', tiger: 'bite', wolf: 'bite', fox: 'bite', cheetah: 'bite',
+  crocodile: 'bite', trex: 'bite', spino: 'bite', raptor: 'bite',
+  rhino: 'gore', triceratops: 'gore', boar: 'gore', elephant: 'gore',
+  gorilla: 'smash', titan: 'smash', bear: 'smash',
+  eagle: 'swoop', wyvern: 'swoop',
+};
+
+/* ─────────────────── 대량 난전용 초간단 모델 (드로우 콜 절약) ─────────────────── */
+
+function buildSimple(g, m, rig) {
+  const def = rig.def;
+  const size = Math.max(0.8, def.size || 1);
+  const long = def.cat === 'dino' ? 1.4 : 1.0;
+  const body = new THREE.Group();
+  body.position.y = 0.6 * size;
+  g.add(body); rig.body = body; rig.bodyY = body.position.y;
+
+  add(body, G.sphereLow, m.main, [0, 0, 0], [0.42 * size, 0.4 * size, 0.6 * size * long]);
+
+  const head = new THREE.Group();
+  head.position.set(0, 0.28 * size, 0.48 * size * long);
+  body.add(head); rig.head = head;
+  add(head, G.sphereLow, m.main, [0, 0, 0.06 * size], [0.26 * size, 0.23 * size, 0.26 * size]);
+  add(head, G.coneLow, m.accent, [0, -0.03 * size, 0.26 * size], [0.13 * size, 0.24 * size, 0.11 * size], [Math.PI / 2, 0, 0], false);
+
+  // 다리: 네 발은 앞/뒤 한 쌍씩, 두 발 공룡은 두 개
+  rig.legs = [];
+  const biped = def.cat === 'dino' && ['trex', 'spino', 'raptor', 'wyvern'].includes(def.id);
+  if (biped) {
+    [1, -1].forEach((side, i) => {
+      const pivot = new THREE.Group();
+      pivot.position.set(side * 0.22 * size, -0.02 * size, 0);
+      body.add(pivot);
+      add(pivot, G.leg, m.dark, [0, -0.29 * size, 0], [0.09 * size, 0.6 * size, 0.1 * size]);
+      rig.legs.push({ pivot, phase: i * Math.PI, front: false, left: side > 0 });
+    });
+  } else {
+    [1, -1].forEach((side, i) => {
+      const pivot = new THREE.Group();
+      pivot.position.set(0, -0.02 * size, side * 0.36 * size);
+      body.add(pivot);
+      add(pivot, G.box, m.dark, [0, -0.3 * size, 0], [0.68 * size, 0.56 * size, 0.13 * size]);
+      rig.legs.push({ pivot, phase: i * Math.PI, front: side > 0, left: false });
+    });
+  }
+
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.04 * size, -0.5 * size * long);
+  body.add(tail); rig.tail = tail;
+  add(tail, G.cone, m.main, [0, 0, -0.28 * size], [0.15 * size, 0.7 * size * long, 0.13 * size], [-Math.PI / 2, 0, 0], false);
+
+  if (def.airborne) {
+    rig.wings = [];
+    [1, -1].forEach((side) => {
+      const pivot = new THREE.Group();
+      pivot.position.set(side * 0.24 * size, 0.12 * size, 0);
+      body.add(pivot);
+      add(pivot, G.sphereLow, m.dark, [side * 0.5 * size, 0, -0.05 * size], [0.55 * size, 0.05 * size, 0.3 * size], null, false);
+      rig.wings.push({ pivot, side });
+    });
+  }
+
+  if (rig.weaponId && rig.weaponId !== 'none') {
+    add(body, G.box, wmat('simple', 0x3a3f4a, { metalness: 0.5, roughness: 0.4 }), [0, 0.34 * size, -0.12 * size], [0.3 * size, 0.16 * size, 0.4 * size], null, false);
+  }
+  rig.height = 1.6 * size;
+}
+
 export function buildAnimalModel(def, team = 'blue', opts = {}) {
   const C = def.colors;
   const mats = {
@@ -941,8 +1038,10 @@ export function buildAnimalModel(def, team = 'blue', opts = {}) {
     group, def, mats, matList: Object.values(mats), t: Math.random() * 6,
     walk: Math.random() * 6, bodyY: 0.8, legs: [], wings: [], arms: [], parts: {},
     hurt: 0, attack: 0, skill: 0, deadT: -1, height: 1.3, recoil: 0,
+    weaponId: opts.weapon || 'none', simple: !!opts.simple,
+    style: ATTACK_STYLE[def.id] || 'bite', attackT: 0, attackHold: 0,
   };
-  (BUILDERS[def.id] || buildLion)(group, mats, rig);
+  (opts.simple ? buildSimple : (BUILDERS[def.id] || buildLion))(group, mats, rig);
 
   // 발이 지면에 닿도록 몸통 높이를 보정한다 (다리 끝의 최저점 기준)
   group.updateMatrixWorld(true);
@@ -959,6 +1058,8 @@ export function buildAnimalModel(def, team = 'blue', opts = {}) {
   group.updateMatrixWorld(true);
   const box0 = new THREE.Box3().setFromObject(group);
   rig.height = Math.max(0.6, box0.max.y - Math.min(0, box0.min.y));
+  rig.headBaseZ = rig.head ? rig.head.position.z : 0;
+  rig.headBaseY = rig.head ? rig.head.position.y : 0;
 
   const s = def.scale || 1;
   group.scale.setScalar(s);
@@ -1104,6 +1205,62 @@ export function animateRig(rig, s) {
     rig.ears.forEach((e, i) => { e.rotation.y = (i ? -1 : 1) * (0.4 + Math.sin(rig.t * 2.2) * 0.12 + sk * 0.4); });
   }
 
+  /* ── 종족별 공격 모션 ── */
+  let wind = 0;
+  let hit = 0;
+  if (rig.attackHold > 0) {
+    rig.attackHold = Math.max(0, rig.attackHold - dt);
+    rig.attackT += dt;
+    const a = Math.min(1, rig.attackT / 0.44);
+    wind = a < 0.42 ? a / 0.42 : Math.max(0, 1 - (a - 0.42) / 0.28);
+    hit = a < 0.42 ? 0 : Math.sin(Math.min(1, (a - 0.42) / 0.58) * Math.PI);
+    const style = rig.style || 'bite';
+
+    if (style === 'bite') {
+      // 입을 크게 벌렸다가 목표물을 물어뜯으며 앞으로 돌진
+      if (rig.jaw) rig.jaw.rotation.x = wind * 1.2 + sk * 0.3;
+      if (rig.head) {
+        rig.head.rotation.x = -wind * 0.12 - hit * 0.6;
+        rig.head.position.z = rig.headBaseZ + hit * 0.24;
+      }
+      if (body) body.position.z = hit * 0.32;
+    } else if (style === 'gore') {
+      // 머리(뿔·엄니·코)를 아래로 숙였다가 위로 받아올린다
+      if (rig.head) {
+        rig.head.rotation.x = wind * 0.55 - hit * 0.95;
+        rig.head.position.y = rig.headBaseY + hit * 0.1;
+      }
+      if (body) body.rotation.x = wind * 0.2 - hit * 0.32;
+      if (rig.trunk) rig.trunk.rotation.x = wind * 0.8 - hit * 1.25;
+    } else if (style === 'smash') {
+      // 양팔(앞발)을 크게 들어 내리치는 강타
+      if (rig.arms && rig.arms.length) {
+        for (const ar of rig.arms) {
+          ar.pivot.rotation.x = -1.95 * wind + 0.95 * hit;
+          ar.pivot.rotation.z = ar.side * (0.38 * wind - 0.08 * hit);
+        }
+      } else {
+        for (const leg of rig.legs || []) {
+          if (leg.front) leg.pivot.rotation.x = -1.35 * wind + 0.85 * hit;
+        }
+      }
+      if (body) body.rotation.x = -0.14 * wind + 0.3 * hit;
+      if (rig.head) rig.head.rotation.x = -0.25 * wind + 0.4 * hit;
+    } else if (style === 'swoop') {
+      // 날개를 활짝 편 뒤 몸을 숙여 급강하 — 부리/발톱으로 낚아챈다
+      for (const w of rig.wings || []) {
+        w.pivot.rotation.z = w.side * (0.95 + wind * 0.55 - hit * 0.25);
+        w.pivot.rotation.y = w.side * (-0.45 * wind + 0.15 * hit);
+      }
+      if (body) body.rotation.x = -0.45 * wind + 0.58 * hit;
+      if (rig.head) rig.head.rotation.x = 0.38 * wind - 0.55 * hit;
+      if (rig.jaw) rig.jaw.rotation.x = wind * 0.9;
+      for (const leg of rig.legs || []) {
+        if (leg.front) leg.pivot.rotation.x = -0.85 * wind + 0.5 * hit;
+      }
+    }
+  }
+
   // 피격/스킬 발광
   const glow = rig.hurt * 0.9 + sk * 0.35;
   for (const m of rig.matList) {
@@ -1124,7 +1281,12 @@ function easeOut(k) { return 1 - Math.pow(1 - k, 3); }
 
 export function triggerAttack(rig) {
   rig.attack = 1;
+  rig.attackT = 0;
+  rig.attackHold = 0.46;
   if (rig.weaponId && rig.weaponId !== 'none') rig.recoil = 1;
+}
+export function triggerShoot(rig) {
+  rig.recoil = 1;
 }
 export function triggerSkill(rig) { rig.skill = 1; }
 export function triggerHurt(rig) { rig.hurt = 1; }

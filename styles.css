@@ -131,7 +131,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
 .wchip.on { background: rgba(255,194,71,.15); border-color: rgba(255,194,71,.6); color: var(--gold); }
 
 .count-row { padding: 2px; }
-.count-row > button { height: 26px; padding: 0 8px; font-size: 10.5px; }
+.count-row > button { height: 26px; padding: 0 7px; font-size: 10.5px; }
 
 .pb-hint { justify-content: space-between; gap: 6px; padding-top: 1px; }
 #place-hint { font-size: 9.5px; color: var(--muted); line-height: 1.25; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }

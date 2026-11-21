@@ -3,11 +3,11 @@
 // 이 파일은 THREE/DOM 에 의존하지 않는다. tests/smoke.mjs 가 그대로 불러 검증한다.
 
 export const TUNING = {
-  ARENA_RADIUS: 16.5,        // 전장 반경 (유닛 중심 이동 한계)
+  ARENA_RADIUS: 49.5,        // 전장 반경 (기존 16.5의 3배 — 거대한 3× 전장)
   DIVIDER: 0,                // 진영 구분선 (x = 0)
-  MAX_UNITS_PER_TEAM: 30,    // 한 팀 최대 배치 수
-  MAX_UNITS: 60,             // 전장 전체 최대 배치 수 (난전용)
-  MAX_TIME: 180,             // 배틀 제한 시간(초) — 초과 시 HP 비율 판정
+  MAX_UNITS_PER_TEAM: 100,   // 한 팀 최대 배치 수 (사실상 한도 없음 — 80 vs 10, 50 vs 50 모두 가능)
+  MAX_UNITS: 100,            // 전장 전체 최대 배치 수
+  MAX_TIME: 240,             // 배틀 제한 시간(초) — 초과 시 HP 비율 판정
   SIM_DT: 1 / 60,            // 고정 스텝
   SEPARATION: 1.85,          // 유닛끼리 겹침 방지 거리
   KNOCK_DECAY: 7.5,          // 넉백 감쇠
@@ -16,6 +16,11 @@ export const TUNING = {
   LOG_LIMIT: 40,
   CAM_FOVS: { phone: 62, tablet: 54, desktop: 46 },
 };
+
+// 전장·배치 좌표를 몇 배로 늘릴지 (데이터는 기존 좌표로 쓰고 내보낼 때 확대한다)
+export const WORLD_SCALE = 3;
+const S = (v) => v * WORLD_SCALE;
+const scaleList = (list) => list.map((p) => ({ ...p, x: S(p.x), z: S(p.z) }));
 
 export const CATEGORIES = [
   { id: 'all', name: '전체', emoji: '🎯' },
@@ -267,7 +272,7 @@ export function statsWithWeapon(def, weaponId) {
 
 /* ──────────────────────────────── 전장 ──────────────────────────────── */
 
-export const ARENAS = [
+const ARENA_DATA = [
   {
     id: 'savanna', name: '초원 아레나', emoji: '🌾', tag: '황금빛 초원',
     sky: { top: 0x1d3f6e, mid: 0xf0a860, bottom: 0xf7d9a0 },
@@ -323,6 +328,13 @@ export const ARENAS = [
   },
 ];
 
+export const ARENAS = ARENA_DATA.map((a) => ({
+  ...a,
+  fogNear: S(a.fogNear),
+  fogFar: S(a.fogFar),
+  obstacles: a.obstacles.map((o) => ({ ...o, x: S(o.x), z: S(o.z) })),
+}));
+
 export const ARENA_BY_ID = Object.fromEntries(ARENAS.map((a) => [a.id, a]));
 
 /* ─────────────────────── 배치 도우미 (프리셋용) ─────────────────────── */
@@ -360,7 +372,25 @@ function lineup(side, list, opts = {}) {
 
 /* ─────────────────────────────── 프리셋 ─────────────────────────────── */
 
-export const PRESETS = [
+// 100마리 난전용 편성 (한쪽 50마리)
+function swarmSide(side) {
+  const sx = side === 'blue' ? -1 : 1;
+  const ids = side === 'blue'
+    ? ['raptor', 'raptor', 'lion', 'wolf', 'raptor', 'bear', 'fox', 'raptor', 'lion', 'cheetah']
+    : ['raptor', 'raptor', 'tiger', 'boar', 'raptor', 'crocodile', 'raptor', 'wolf', 'rhino', 'raptor'];
+  const guns = ['gatling', 'rocket', 'laser', 'shield'];
+  const out = [];
+  for (let i = 0; i < 50; i++) {
+    const col = Math.floor(i / 13);
+    const row = i % 13;
+    const count = Math.min(13, 50 - col * 13);
+    out.push(P(ids[i % ids.length], sx * (4.4 + col * 2.5), (row - (count - 1) / 2) * 1.65,
+      i % 6 === 0 ? guns[i % guns.length] : 'none'));
+  }
+  return out;
+}
+
+const PRESET_DATA = [
   {
     id: 'trex-raptors', name: '티라노 vs 랩터 12마리', emoji: '🦖⚔️🦎',
     desc: '거대한 포식자 한 마리 vs 열두 마리 무리',
@@ -408,6 +438,11 @@ export const PRESETS = [
     arena: 'tundra',
   },
   {
+    id: 'mega-swarm', name: '100마리 대난전', emoji: '💥',
+    desc: '블루 50 vs 레드 50 — 전장 한도 100마리',
+    blue: swarmSide('blue'), red: swarmSide('red'), arena: 'savanna',
+  },
+  {
     id: 'duel', name: '1:1 라이벌', emoji: '🦁⚔️🐯',
     desc: '한 마리씩 맞붙는 단판 승부',
     blue: [P('lion', -5.2, 0)], red: [P('tiger', 5.2, 0)], arena: 'canyon',
@@ -428,27 +463,33 @@ export const PRESETS = [
   },
 ];
 
+export const PRESETS = PRESET_DATA.map((p) => ({
+  ...p,
+  blue: scaleList(p.blue),
+  red: scaleList(p.red),
+}));
+
 export const PRESET_BY_ID = Object.fromEntries(PRESETS.map((p) => [p.id, p]));
 
 /* ──────────────────────────── 기본 배치 (첫 화면) ──────────────────────────── */
 
 export const DEFAULT_PLACEMENTS = {
-  blue: [
+  blue: scaleList([
     P('trex', -6.4, 0),
     P('raptor', -3.4, -3.4), P('raptor', -3.4, 0), P('raptor', -3.4, 3.4),
     P('lion', -9.0, 2.4),
-  ],
-  red: [
+  ]),
+  red: scaleList([
     P('triceratops', 6.4, 0),
     P('raptor', 3.4, -3.4), P('raptor', 3.4, 0), P('raptor', 3.4, 3.4),
     P('rhino', 9.0, -2.4),
-  ],
+  ]),
   arena: 'savanna',
 };
 
 /* ─────────────────────────────── 챌린지 (6단계) ─────────────────────────────── */
 
-export const CHALLENGES = [
+const CHALLENGE_DATA = [
   {
     id: 1, name: '랩터의 습격', emoji: '🦎', budget: 10,
     desc: '랩터 다섯 마리가 진형을 노린다. 예산 10으로 막아내라.',
@@ -502,6 +543,8 @@ export const CHALLENGES = [
     hint: '타이탄은 넉백이 거의 통하지 않는다. 화력에 화력으로.',
   },
 ];
+
+export const CHALLENGES = CHALLENGE_DATA.map((c) => ({ ...c, red: scaleList(c.red) }));
 
 export const CHALLENGE_BY_ID = Object.fromEntries(CHALLENGES.map((c) => [c.id, c]));
 

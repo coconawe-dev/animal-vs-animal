@@ -43,20 +43,22 @@ function groundTexture(arena) {
   }
   const tex = new THREE.CanvasTexture(c);
   tex.wrapS = tex.wrapT = THREE.RepeatWrapping;
-  tex.repeat.set(7, 7);
+  const rep = Math.max(4, Math.round((TUNING.ARENA_RADIUS / 16.5) * 7));
+  tex.repeat.set(rep, rep);
   tex.anisotropy = 4;
   tex.colorSpace = THREE.SRGBColorSpace;
   return tex;
 }
 
 function gradientSky(top, mid, bottom) {
-  const geo = new THREE.SphereGeometry(300, 24, 16);
+  const SKY_R = 900;
+  const geo = new THREE.SphereGeometry(SKY_R, 24, 16);
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
   const cTop = new THREE.Color(top), cMid = new THREE.Color(mid), cBot = new THREE.Color(bottom);
   const tmp = new THREE.Color();
   for (let i = 0; i < pos.count; i++) {
-    const y = pos.getY(i) / 300;
+    const y = pos.getY(i) / SKY_R;
     const t = clamp(y, -1, 1);
     if (t >= 0) tmp.copy(cMid).lerp(cTop, Math.pow(t, 0.65));
     else tmp.copy(cMid).lerp(cBot, Math.pow(-t, 0.55));
@@ -118,7 +120,7 @@ export class Stage {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(46, 1, 0.1, 800);
+    this.camera = new THREE.PerspectiveCamera(46, 1, 0.1, 2400);
     this.cam = { theta: 0.75, phi: 0.92, dist: 40, target: new THREE.Vector3(0, 1.2, 0) };
     this.camGoal = { theta: 0.75, phi: 0.92, dist: 40, target: new THREE.Vector3(0, 1.2, 0) };
     this.shake = 0;
@@ -225,7 +227,7 @@ export class Stage {
     const rnd = rngFrom(arena.id.length * 7919 + arena.obstacles.length * 31);
 
     // 바깥 지형
-    const outerGeo = new THREE.CircleGeometry(190, 48);
+    const outerGeo = new THREE.CircleGeometry(620, 48);
     const outerMat = new THREE.MeshStandardMaterial({ color: arena.ground2, roughness: 1, flatShading: true });
     const outer = new THREE.Mesh(outerGeo, outerMat);
     outer.rotation.x = -Math.PI / 2;
@@ -254,7 +256,7 @@ export class Stage {
     group.add(rim);
 
     const wallMat = new THREE.MeshStandardMaterial({ color: arena.rim, roughness: 0.9, flatShading: true });
-    const seg = 30;
+    const seg = 96;
     for (let i = 0; i < seg; i++) {
       const a = (i / seg) * Math.PI * 2;
       const w = (Math.PI * 2 * (R + 2.4)) / seg * 0.86;
@@ -320,10 +322,10 @@ export class Stage {
     });
 
     // 경기장 밖 장식
-    const decorCount = arena.decor === 'canyon' ? 16 : 24;
+    const decorCount = (arena.decor === 'canyon' ? 16 : 24) * 3;
     for (let i = 0; i < decorCount; i++) {
       const a = rnd() * Math.PI * 2;
-      const rad = R + 6 + rnd() * 34;
+      const rad = R + 10 + rnd() * R * 2.2;
       const x = Math.sin(a) * rad, z = Math.cos(a) * rad;
       if (arena.decor === 'savanna') {
         if (rnd() < 0.45) {
@@ -375,11 +377,11 @@ export class Stage {
       color: arena.decor === 'savanna' ? 0xb9a24a : arena.decor === 'tundra' ? 0xeaf6ff : 0xc08f52,
       roughness: 1, flatShading: true,
     });
-    const tufts = new THREE.InstancedMesh(tuftGeo, tuftMat, 260);
+    const tufts = new THREE.InstancedMesh(tuftGeo, tuftMat, 700);
     const dummy = new THREE.Object3D();
-    for (let i = 0; i < 260; i++) {
+    for (let i = 0; i < 700; i++) {
       const a = rnd() * Math.PI * 2;
-      const rad = 4 + Math.sqrt(rnd()) * (R + 8);
+      const rad = R * 0.2 + Math.sqrt(rnd()) * (R + 10);
       dummy.position.set(Math.sin(a) * rad, 0.24, Math.cos(a) * rad);
       dummy.rotation.y = rnd() * 6;
       dummy.rotation.z = (rnd() - 0.5) * 0.5;
@@ -394,12 +396,12 @@ export class Stage {
 
     // 떠다니는 입자
     const dustGeo = new THREE.BufferGeometry();
-    const n = 180;
+    const n = 420;
     const arr = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
-      arr[i * 3] = (rnd() - 0.5) * 80;
-      arr[i * 3 + 1] = rnd() * 16;
-      arr[i * 3 + 2] = (rnd() - 0.5) * 80;
+      arr[i * 3] = (rnd() - 0.5) * R * 4.4;
+      arr[i * 3 + 1] = rnd() * 36;
+      arr[i * 3 + 2] = (rnd() - 0.5) * R * 4.4;
     }
     dustGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
     const dustMat = new THREE.PointsMaterial({
@@ -420,12 +422,13 @@ export class Stage {
     sun.position.set(arena.sunPos[0], arena.sunPos[1], arena.sunPos[2]);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    sun.shadow.camera.left = -24;
-    sun.shadow.camera.right = 24;
-    sun.shadow.camera.top = 24;
-    sun.shadow.camera.bottom = -24;
+    const half = R * 1.55;
+    sun.shadow.camera.left = -half;
+    sun.shadow.camera.right = half;
+    sun.shadow.camera.top = half;
+    sun.shadow.camera.bottom = -half;
     sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = 120;
+    sun.shadow.camera.far = 420;
     sun.shadow.bias = -0.0012;
     sun.shadow.normalBias = 0.03;
     this.scene.add(sun);
@@ -485,7 +488,7 @@ export class Stage {
     this.camGoal.phi = clamp(this.camGoal.phi - dy * 0.0045, 0.22, 1.42);
   }
   zoom(factor) {
-    this.camGoal.dist = clamp(this.camGoal.dist * factor, 13, 78);
+    this.camGoal.dist = clamp(this.camGoal.dist * factor, 13, 260);
   }
   setFollowTarget(t) { this.camGoal.target.copy(t); }
 

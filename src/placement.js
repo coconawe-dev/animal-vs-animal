@@ -53,15 +53,35 @@ export function autoPositions(list, team) {
   });
 }
 
-// 한 번 탭할 때 여러 마리를 놓기 위한 자리 (×1 · ×3 · ×5)
+// 한 번 탭할 때 여러 마리를 놓기 위한 자리 (×1 · ×3 · ×5 · ×10)
 export function clusterOffsets(count) {
-  if (count <= 1) return [[0, 0]];
-  const out = [];
-  const ring = count === 3 ? 1.7 : 2.05;
-  out.push([0, 0]);
-  for (let i = 1; i < count; i++) {
-    const a = ((i - 1) / (count - 1)) * Math.PI * 2 + Math.PI / 6;
-    out.push([Math.cos(a) * ring, Math.sin(a) * ring]);
+  const n = Math.max(1, count | 0);
+  if (n === 1) return [[0, 0]];
+  if (n === 2) return [[0, 0], [1.9, 0]];
+  if (n === 3) {
+    return [[0, 0], ...Array.from({ length: 2 }, (_, i) => {
+      const a = Math.PI / 2 + i * Math.PI;
+      return [Math.cos(a) * 1.9, Math.sin(a) * 1.9];
+    })];
+  }
+  if (n <= 5) {
+    return [[0, 0], ...Array.from({ length: n - 1 }, (_, i) => {
+      const a = (i / (n - 1)) * Math.PI * 2 + Math.PI / 6;
+      return [Math.cos(a) * 2.05, Math.sin(a) * 2.05];
+    })];
+  }
+  // 6마리 이상: 중심 + 고리들
+  const out = [[0, 0]];
+  let ring = 1;
+  while (out.length < n) {
+    const cap = ring * 6;
+    const take = Math.min(cap, n - out.length);
+    const r = 1.9 * ring;
+    for (let i = 0; i < take; i++) {
+      const a = (i / take) * Math.PI * 2 + ring * 0.45;
+      out.push([Math.cos(a) * r, Math.sin(a) * r]);
+    }
+    ring++;
   }
   return out;
 }
@@ -84,7 +104,7 @@ export function placeUnits(list, {
   if (!def) return { added: [], skipped: 'unknown' };
   const added = [];
   let skipped = null;
-  const offsets = clusterOffsets(Math.max(1, Math.min(5, count | 0)));
+  const offsets = clusterOffsets(Math.max(1, Math.min(20, count | 0)));
   for (const [ox, oz] of offsets) {
     if (list.length >= limit) { skipped = 'limit'; break; }
     let px = x + ox;

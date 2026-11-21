@@ -9,7 +9,7 @@ import {
   createBattle, step, drainEvents, battleSummary, mvpOf,
 } from './sim.js';
 import { placeUnits, removeNearest, mirrorTeam, nearestIndex, sanitizeList } from './placement.js';
-import { buildAnimalModel, animateRig, triggerAttack, triggerSkill, triggerHurt } from './models.js';
+import { buildAnimalModel, animateRig, triggerAttack, triggerShoot, triggerSkill, triggerHurt } from './models.js';
 import { Stage } from './scene.js';
 import { Effects } from './effects.js';
 import { UI } from './ui.js';
@@ -60,7 +60,7 @@ function loadSave() {
     if (!raw) return;
     const d = JSON.parse(raw);
     const blue = sanitizeList(d.blue);
-    const red = sanitizeList(d.red);
+    const red = sanitizeList(d.red).slice(0, Math.max(0, TUNING.MAX_UNITS - blue.length));
     if (blue.length) app.teams.blue = blue;
     if (red.length) app.teams.red = red;
     if (ARENA_BY_ID[d.arena]) app.arenaId = d.arena;
@@ -233,10 +233,17 @@ function createNameplate(u) {
 function buildViews(units) {
   clearViews();
   const many = units.length > 18;
+  const simple = units.length > 44;
   nameplateRoot.classList.toggle('many', many);
   if (many && stage.sun) stage.sun.shadow.mapSize.set(1024, 1024);
+  if (units.length > 60) {
+    stage.renderer.setPixelRatio(Math.min(1.4, window.devicePixelRatio || 1));
+    if (stage.sun) stage.sun.castShadow = false;
+  } else if (stage.sun) {
+    stage.sun.castShadow = true;
+  }
   for (const u of units) {
-    const rig = buildAnimalModel(u.def, u.team, { weapon: u.weaponId, lowDetail: many });
+    const rig = buildAnimalModel(u.def, u.team, { weapon: u.weaponId, lowDetail: many, simple });
     rig.group.position.set(u.x, 0, u.z);
     rig.group.rotation.y = u.facing;
     stage.scene.add(rig.group);
@@ -328,16 +335,19 @@ function placeAt(x, z) {
   }
 
   pushHistory();
+  const total = app.teams.blue.length + app.teams.red.length;
+  const room = Math.max(0, TUNING.MAX_UNITS - total);
+  const limit = Math.min(TUNING.MAX_UNITS_PER_TEAM, list.length + room);
   const res = placeUnits(list, {
     id: app.selected, team, x, z, weapon: app.weapon,
-    count, free: app.free, limit: TUNING.MAX_UNITS_PER_TEAM,
+    count, free: app.free, limit,
   });
   if (!res.added.length) {
     history.pop();
-    ui.toast(res.skipped === 'limit' ? `한 팀은 ${TUNING.MAX_UNITS_PER_TEAM}마리까지!` : '여기에 놓을 수 없습니다');
+    ui.toast(res.skipped === 'limit' ? `전장 한도는 ${TUNING.MAX_UNITS}마리입니다` : '여기에 놓을 수 없습니다');
     return;
   }
-  if (res.skipped === 'limit') ui.toast(`한 팀은 ${TUNING.MAX_UNITS_PER_TEAM}마리까지`);
+  if (res.skipped === 'limit') ui.toast(`전장 한도 ${TUNING.MAX_UNITS}마리 — 추가하지 못했습니다`);
   afterPlacementChange();
   sfx.ui();
   for (const p of res.added) effects.ring(p.x, p.z, 0.4, def.size > 1.3 ? 2.8 : 1.8, teamColor(team), 0.35);
@@ -577,12 +587,12 @@ function handleEvent(ev) {
       break;
     }
     case 'shot': {
-      if (target) { triggerAttack(target.rig); sfx.gun(ev.kind); }
+      if (target) { triggerShoot(target.rig); sfx.gun(ev.kind); }
       effects.flash(ev.x, ev.y, ev.z, 0.5, ev.color || 0xffe08a, 0.12);
       break;
     }
     case 'beam': {
-      if (target) { triggerAttack(target.rig); sfx.laser(); }
+      if (target) { triggerShoot(target.rig); sfx.laser(); }
       effects.beam(ev.x, ev.y, ev.z, ev.x2, ev.y - 0.2, ev.z2, ev.color || 0x6fe8ff, 0.24);
       effects.flash(ev.x, ev.y, ev.z, 0.8, ev.color || 0x6fe8ff, 0.18);
       stage.shake = Math.max(stage.shake, 0.08);
@@ -746,8 +756,13 @@ function updateViews(dt, adt) {
     if (u.y > 0) rig.group.position.y += u.y;
 
     const el = v.el.el;
+    const hidePlate = many && app.focusUid !== u.uid;
+    el.classList.toggle('hide', hidePlate);
     if (u.dead) {
       el.classList.add('dead');
+    } else if (hidePlate) {
+      el.classList.remove('dead');
+      continue;
     } else {
       el.classList.remove('dead');
       const tmp = tmpVec.set(u.x, u.y + hover + rig.height * 0.92 + 0.42, u.z).project(cam);
@@ -759,7 +774,6 @@ function updateViews(dt, adt) {
         el.style.top = `${(-tmp.y * 0.5 + 0.5) * h}px`;
         const ratio = Math.max(0, u.hp / u.maxHp);
         v.bar.style.width = `${(ratio * 100).toFixed(1)}%`;
-        el.classList.toggle('hide', many && focusUid !== u.uid);
       }
     }
   }

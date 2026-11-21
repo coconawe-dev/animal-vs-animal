@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>공격 모션 확인 — 동물 vs 동물</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #0e1118; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #hud { position: fixed; left: 12px; top: 10px; color: #cfd7e6; font: 12px system-ui, sans-serif; }
+  #hud b { color: #ffc247; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">공격 모션 — <b id="phase-label"></b></div>
+<script type="module">
+import * as THREE from '../vendor/three.module.js';
+import { CREATURE_BY_ID } from '../src/config.js';
+import { buildAnimalModel, animateRig, triggerAttack, ATTACK_STYLE } from '../src/models.js';
+
+const params = new URLSearchParams(location.search);
+const ids = (params.get('ids') || 'trex,rhino,titan,eagle,crocodile,gorilla').split(',');
+const phase = Math.max(0, Math.min(1, Number(params.get('phase') || 0.5)));
+document.getElementById('phase-label').textContent = `${phase} (${phase < 0.42 ? 'windup' : 'strike'})`;
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight, false);
+renderer.shadowMap.enabled = true;
+renderer.shadowMap.type = THREE.PCFSoftShadowMap;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1b2230);
+scene.fog = new THREE.Fog(0x1b2230, 30, 70);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 200);
+const hemi = new THREE.HemisphereLight(0xbfd4ff, 0x2a2f38, 1.2);
+scene.add(hemi);
+const sun = new THREE.DirectionalLight(0xfff2dd, 2.2);
+sun.position.set(8, 16, 14);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -20; sun.shadow.camera.right = 20;
+sun.shadow.camera.top = 16; sun.shadow.camera.bottom = -16;
+scene.add(sun);
+
+const ground = new THREE.Mesh(new THREE.CircleGeometry(24, 48), new THREE.MeshStandardMaterial({ color: 0x2b3446, roughness: 0.95 }));
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const gap = 4.6;
+ids.forEach((id, i) => {
+  const def = CREATURE_BY_ID[id];
+  if (!def) return;
+  const rig = buildAnimalModel(def, i % 2 ? 'red' : 'blue');
+  const x = (i - (ids.length - 1) / 2) * gap;
+  rig.group.position.set(x, 0, 0);
+  rig.group.rotation.y = 0.55;
+  scene.add(rig.group);
+
+  // 목표 위상까지 고정 스텝으로 진행 → 결정론적 포즈
+  triggerAttack(rig);
+  const frames = Math.round((phase * 0.44) / (1 / 60));
+  for (let f = 0; f < frames; f++) {
+    animateRig(rig, { dt: 1 / 60, moving: false, speed: 0, attack: rig.attack, skill: 0, hurt: 0, dead: false });
+  }
+
+  const c = document.createElement('canvas');
+  c.width = 512; c.height = 96;
+  const ctx = c.getContext('2d');
+  ctx.fillStyle = '#0e1118'; ctx.fillRect(0, 0, 512, 96);
+  ctx.fillStyle = '#ffc247'; ctx.font = '700 30px system-ui, sans-serif';
+  ctx.fillText(`${def.emoji} ${def.name}`, 10, 40);
+  ctx.fillStyle = '#9aa6ba'; ctx.font = '600 22px system-ui, sans-serif';
+  ctx.fillText(ATTACK_STYLE[def.id] || '', 10, 74);
+  const tex = new THREE.CanvasTexture(c);
+  tex.colorSpace = THREE.SRGBColorSpace;
+  const sp = new THREE.Sprite(new THREE.SpriteMaterial({ map: tex, transparent: true, depthWrite: false }));
+  sp.position.set(x, rig.height + 1.1, 0);
+  sp.scale.set(3.4, 0.64, 1);
+  scene.add(sp);
+});
+
+const w = window.innerWidth / window.innerHeight;
+camera.position.set(0, 4.2, ids.length > 4 ? 26 : 18);
+camera.lookAt(0, 1.6, 0);
+camera.updateProjectionMatrix();
+renderer.render(scene, camera);
+
+window.addEventListener('resize', () => {
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>

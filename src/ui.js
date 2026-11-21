@@ -264,7 +264,7 @@ export class UI {
     $$('[data-team]').forEach((b) => b.classList.toggle('on', b.dataset.team === a.activeTeam));
     this.el.countBlue.textContent = teams.blue.length;
     this.el.countRed.textContent = teams.red.length;
-    this.el.dockCount.textContent = `🔵 ${teams.blue.length} · 🔴 ${teams.red.length}`;
+    this.el.dockCount.textContent = `🔵 ${teams.blue.length} · 🔴 ${teams.red.length} · Σ ${teams.blue.length + teams.red.length}/${TUNING.MAX_UNITS}`;
 
     // 수량
     $$('[data-count]').forEach((b) => b.classList.toggle('on', Number(b.dataset.count) === a.count));

@@ -73,6 +73,7 @@ check($$('#challenge-list .stage').length === CHALLENGES.length, '챌린지 6단
 check($('#count-blue').textContent === '2', '블루 수 표시');
 check($('#count-red').textContent === '1', '레드 수 표시');
 check($('#dock-count').textContent.includes('2') && $('#dock-count').textContent.includes('1'), '독 인원 표시');
+check($('#dock-count').textContent.includes('Σ 3/100'), '전장 한도 100 표시');
 check(!$('#btn-fight').disabled, '양 팀 있으면 시작 가능');
 check($('#btn-fight').textContent.includes('2 vs 1'), '시작 버튼 인원 표시');
 check($('#place-hint').textContent.includes('블루'), '배치 힌트');
@@ -98,6 +99,10 @@ check($('#detail-line').textContent.includes('로켓'), '상세에 무기 표시
 $('#count-row [data-count="5"]').click();
 check(app.count === 5, '×5 선택');
 check($('#place-hint').textContent.includes('×5'), '힌트에 수량');
+$('#count-row [data-count="10"]').click();
+check(app.count === 10, '×10 선택');
+check($('#count-row [data-count="10"]').classList.contains('on'), '×10 표시');
+check($('#place-hint').textContent.includes('×10'), '힌트에 ×10');
 
 /* ── 팀 전환 · 도구 ── */
 $('#team-switch [data-team="red"]').click();
