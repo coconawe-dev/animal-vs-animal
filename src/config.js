@@ -17,6 +17,107 @@ export const TUNING = {
   CAM_FOVS: { phone: 62, tablet: 54, desktop: 46 },
 };
 
+/* ──────────────────────── 파티 멀티플레이 (최대 4인) ────────────────────────
+   파티를 열면 2~4명이 함께 싸운다. 인원수에 따라 진영(팀)도 2~4개로 나뉜다.
+   2명 → 블루/레드 (서/동 반원) · 3명 → 블루/레드/그린 (120° 3분할)
+   4명 → 블루/레드/그린/골드 (90° 4분할)
+   각자 1인당 예산 35 안에서 자기 진영에만 유닛을 놓는다.                */
+
+export const PARTY = {
+  MAX_PLAYERS: 4,
+  MIN_PLAYERS: 2,
+  BUDGET: 35,          // 1인당 배치 예산
+  MAX_UNITS_PER_PLAYER: 40,
+};
+
+// 팀 id · 이름 · 색 (진영 틴트/링/이름표에 그대로 쓴다)
+export const TEAM_ORDER = ['blue', 'red', 'green', 'gold'];
+
+export const TEAM_DEFS = {
+  blue: { id: 'blue', name: '블루', emoji: '🔵', color: 0x3f86ff, css: '#3f86ff', dark: '#1b3f8f' },
+  red: { id: 'red', name: '레드', emoji: '🔴', color: 0xff5040, css: '#ff5040', dark: '#7a2018' },
+  green: { id: 'green', name: '그린', emoji: '🟢', color: 0x35d47c, css: '#35d47c', dark: '#146b3d' },
+  gold: { id: 'gold', name: '골드', emoji: '🟡', color: 0xffbe3f, css: '#ffbe3f', dark: '#7a5410' },
+};
+
+export function teamDef(team) {
+  return TEAM_DEFS[team] || TEAM_DEFS.blue;
+}
+
+export function teamName(team) {
+  return teamDef(team).name;
+}
+
+// 인원수 → 진영 목록 (2명이면 2팀, 3명이면 3팀, 4명이면 4팀)
+export function partyTeams(count) {
+  const n = Math.max(PARTY.MIN_PLAYERS, Math.min(PARTY.MAX_PLAYERS, Math.round(count) || PARTY.MIN_PLAYERS));
+  return TEAM_ORDER.slice(0, n);
+}
+
+export function isTeamId(id) {
+  return TEAM_ORDER.indexOf(id) >= 0;
+}
+
+// 진영 부채꼴 경계 (라디안). 각도 a = atan2(x, z) 기준.
+// 블루는 언제나 서쪽(x<0)을 중심으로 하고, 시계/반시계 방향으로 360/n 씩 나눈다.
+//   n=2 → 블루 [-180°,0°) · 레드 [0°,180°)  (기존 좌/우 반원과 동일)
+//   n=3 → 블루 서쪽 · 레드 · 그린 120°씩
+//   n=4 → 블루 서쪽 · 레드 앞쪽 · 그린 동쪽 · 골드 뒤쪽 90°씩
+export const SECTOR_MARGIN = 0.06;   // 경계선에서 살짝 안쪽 (rad)
+
+export function sectorBounds(teams, team) {
+  const list = Array.isArray(teams) && teams.length ? teams : ['blue', 'red'];
+  const n = list.length;
+  const i = Math.max(0, list.indexOf(team));
+  const span = (Math.PI * 2) / n;
+  const center = -Math.PI / 2 + i * span;
+  return { center, span, lo: center - span / 2, hi: center + span / 2, index: i, count: n };
+}
+
+export function wrapAngle(a) {
+  let v = a;
+  while (v > Math.PI) v -= Math.PI * 2;
+  while (v <= -Math.PI) v += Math.PI * 2;
+  return v;
+}
+
+// 각도가 진영 안인지 (경계 여유 포함)
+export function angleInSector(teams, team, a, margin = SECTOR_MARGIN) {
+  const b = sectorBounds(teams, team);
+  const rel = wrapAngle(a - b.lo);          // 0 ~ 2π (lo 기준)
+  const t = rel < 0 ? rel + Math.PI * 2 : rel;
+  return t >= margin && t <= b.span - margin;
+}
+
+// 좌표를 자기 진영 부채꼴 안으로 밀어 넣는다 (가장 가까운 경계로)
+export function clampToSector(teams, team, x, z, margin = SECTOR_MARGIN) {
+  const list = Array.isArray(teams) && teams.length ? teams : ['blue', 'red'];
+  const at = list.indexOf(team);
+  let r = Math.hypot(x, z);
+  if (at < 0) return { x, z, angle: r < 1e-6 ? 0 : Math.atan2(x, z) };
+  const b = sectorBounds(list, team);
+  const a = r < 1e-6 ? b.center : Math.atan2(x, z);
+  let rel = wrapAngle(a - b.lo);
+  let t = rel < 0 ? rel + Math.PI * 2 : rel;   // 경계 lo 기준 0..2π
+  const lo = Math.min(margin, b.span / 2);
+  const hi = Math.max(lo, b.span - margin);
+  if (t < lo) {
+    // 앞쪽 lo 로 가는 거리 vs 뒤로 돌아 hi 로 가는 거리
+    t = (lo - t) <= (t + (Math.PI * 2 - hi)) ? lo : hi;
+  } else if (t > hi) {
+    t = (t - hi) <= ((Math.PI * 2 - t) + lo) ? hi : lo;
+  }
+  const angle = b.lo + t;
+  if (r < 1e-6) r = 1.5;
+  return { x: Math.sin(angle) * r, z: Math.cos(angle) * r, angle };
+}
+
+// 진영 중심 방향(단위 벡터) — 유닛이 바라볼 기본 방향
+export function sectorCenterDir(teams, team) {
+  const b = sectorBounds(teams, team);
+  return { x: Math.sin(b.center), z: Math.cos(b.center) };
+}
+
 // 전장·배치 좌표를 몇 배로 늘릴지 (데이터는 기존 좌표로 쓰고 내보낼 때 확대한다)
 export const WORLD_SCALE = 3;
 const S = (v) => v * WORLD_SCALE;

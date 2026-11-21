@@ -1,10 +1,16 @@
 // 동물 vs 동물 — ARBS 스타일 배틀 시뮬레이션 (순수 로직 · THREE/DOM 의존 없음)
 // 브라우저(main.js)와 노드(tests/smoke.mjs)가 똑같은 코드를 돌린다.
 
-import { CREATURE_BY_ID, WEAPON_BY_ID, ARENA_BY_ID, TUNING } from './config.js';
+import {
+  CREATURE_BY_ID, WEAPON_BY_ID, ARENA_BY_ID, TUNING,
+  TEAM_ORDER, teamDef, teamName, sectorCenterDir,
+} from './config.js';
 import { normalizePlacement, autoPositions, clampSide } from './placement.js';
 
-export const TEAMS = ['blue', 'red'];
+// 기본 2팀(샌드박스·챌린지) · 파티는 최대 4팀
+const TEAMS = ['blue', 'red'];
+export { TEAMS };
+export const PARTY_TEAMS = TEAM_ORDER;
 
 /* ─────────────────────────── 난수 (시드 고정) ─────────────────────────── */
 
@@ -29,19 +35,30 @@ function shortenAngle(a) {
 
 /* ─────────────────────────────── 배틀 생성 ─────────────────────────────── */
 
-function normalizeSide(list, team) {
+function normalizeSide(list, team, teams = null) {
   if (!Array.isArray(list)) return [];
   const cleaned = list.map(normalizePlacement).filter(Boolean).slice(0, TUNING.MAX_UNITS_PER_TEAM);
-  const placed = autoPositions(cleaned, team).map((p) => {
-    const c = clampSide(team, p.x, p.z, true);
+  const placed = autoPositions(cleaned, team, teams).map((p) => {
+    const c = clampSide(team, p.x, p.z, true, teams);
     return { ...p, x: c.x, z: c.z };
   });
   return placed;
 }
 
+// { blue, red } 또는 { sides: {blue, red, green, gold}, teams: [...] } 둘 다 받는다
+function resolveSides(opts) {
+  if (opts.sides && typeof opts.sides === 'object') return { ...opts.sides };
+  const out = {};
+  if (opts.blue !== undefined) out.blue = opts.blue;
+  if (opts.red !== undefined) out.red = opts.red;
+  return out;
+}
+
 export function createBattle(opts = {}) {
-  const blue = normalizeSide(opts.blue, 'blue');
-  const red = normalizeSide(opts.red, 'red');
+  const sidesIn = resolveSides(opts);
+  let teams = Array.isArray(opts.teams) && opts.teams.length ? opts.teams.slice() : Object.keys(sidesIn);
+  teams = teams.filter((t) => TEAM_ORDER.indexOf(t) >= 0);
+  if (!teams.length) teams = ['blue', 'red'];
   const arena = ARENA_BY_ID[opts.arenaId] || ARENA_BY_ID.savanna;
   const seed = opts.seed == null ? 20261121 : opts.seed >>> 0;
   const rng = mulberry32(seed);
@@ -54,36 +71,57 @@ export function createBattle(opts = {}) {
     stats: { skills: 0, hits: 0, crits: 0, dodges: 0, kills: 0, shots: 0, explosions: 0 },
     mode: opts.mode || 'sandbox',
     challengeId: opts.challengeId || null,
+    teams: teams.slice(),   // 이 전장에 참가한 진영 (2~4개)
+    teamOut: [],            // 전멸한 진영
+    sides: {},              // 진영별 배치 수
+    teamSize: teams.length,
   };
 
-  spawnTeam(state, blue, 'blue');
-  spawnTeam(state, red, 'red');
+  const counts = [];
+  for (const team of teams) {
+    const list = normalizeSide(sidesIn[team], team, teams);
+    state.sides[team] = list.length;
+    counts.push(`${teamDef(team).emoji}${list.length}`);
+    spawnTeam(state, list, team, teams);
+  }
 
-  if (!blue.length || !red.length) {
+  const present = teams.filter((t) => state.sides[t] > 0);
+  if (present.length <= 1) {
     state.over = true;
     state.endReason = 'empty';
-    state.winner = blue.length ? 'blue' : red.length ? 'red' : 'draw';
+    state.winner = present.length === 1 ? present[0] : 'draw';
   }
-  pushLog(state, { text: `${arena.emoji} ${arena.name} — ${blue.length} vs ${red.length}`, kind: 'system' });
+  pushLog(state, {
+    text: `${arena.emoji} ${arena.name} — ${teams.length > 2 ? counts.join(' vs ') : `${state.sides[teams[0]] || 0} vs ${state.sides[teams[1]] || 0}`}`,
+    kind: 'system',
+  });
   return state;
 }
 
-function spawnTeam(state, list, team) {
+function spawnTeam(state, list, team, teams = null) {
   for (const p of list) {
     const def = CREATURE_BY_ID[p.id];
     if (!def) continue;
-    state.units.push(makeUnit(state, def, team, p.x, p.z, p.weapon));
+    state.units.push(makeUnit(state, def, team, p.x, p.z, p.weapon, teams));
   }
 }
 
-function makeUnit(state, def, team, x, z, weaponId) {
+function makeUnit(state, def, team, x, z, weaponId, teams = null) {
   const uid = state.nextUid++;
   const w = WEAPON_BY_ID[weaponId] || WEAPON_BY_ID.none;
   const maxHp = Math.round(def.hp * (w.hpMul || 1));
+  // 시작 방향: 전장 중앙을 바라본다 (2팀이면 기존처럼 블루→동쪽, 레드→서쪽)
+  let facing = Math.atan2(-x, -z);
+  const tl = Array.isArray(teams) && teams.length ? teams : ['blue', 'red'];
+  if (tl.length <= 2) facing = team === 'blue' ? Math.PI / 2 : -Math.PI / 2;
+  else if (Math.hypot(x, z) < 0.5) {
+    const d = sectorCenterDir(tl, team);
+    facing = Math.atan2(d.x, d.z);
+  }
   return {
     uid, team, battle: state, id: def.id, def, emoji: def.emoji, name: def.name,
     x, z, y: 0, vx: 0, vz: 0, vy: 0, spin: 0, spinVel: 0,
-    facing: team === 'blue' ? Math.PI / 2 : -Math.PI / 2,
+    facing,
     hp: maxHp, maxHp,
     atk: def.atk, spd: def.spd,
     range: Math.max(def.range, w.range || 0),
@@ -1006,19 +1044,34 @@ export function step(state, dt) {
     resolveCollisions(state, u);
   }
 
-  const b = aliveCount(state, 'blue');
-  const r = aliveCount(state, 'red');
-  if (b === 0 || r === 0) {
+  // ── 승패: 마지막까지 살아남은 진영 하나 (2~4팀 공통) ──
+  const teams = state.teams || ['blue', 'red'];
+  const standing = [];
+  for (const t of teams) {
+    const n = aliveCount(state, t);
+    if (n > 0) standing.push(t);
+    else if (!state.teamOut.includes(t)) {
+      state.teamOut.push(t);
+      if (state.time > 0.2 && (state.sides[t] || 0) > 0) {
+        pushLog(state, { text: `${teamDef(t).emoji} ${teamName(t)} 팀 전멸`, kind: 'death', team: t });
+      }
+    }
+  }
+  if (standing.length <= 1) {
     state.over = true;
-    state.winner = b > 0 ? 'blue' : r > 0 ? 'red' : 'draw';
+    state.winner = standing.length === 1 ? standing[0] : 'draw';
     state.endReason = 'elimination';
     finish(state);
   } else if (state.time >= state.maxTime) {
-    const bh = teamHpRatio(state, 'blue');
-    const rh = teamHpRatio(state, 'red');
+    const ranked = standing
+      .map((t) => ({ t, r: teamHpRatio(state, t) }))
+      .sort((a, b) => b.r - a.r);
+    const top = ranked[0];
+    const second = ranked[1];
     state.over = true;
     state.endReason = 'timeout';
-    state.winner = Math.abs(bh - rh) < 0.03 ? 'draw' : bh > rh ? 'blue' : 'red';
+    state.winner = !top ? 'draw'
+      : (second && Math.abs(top.r - second.r) < 0.03) ? 'draw' : top.t;
     finish(state);
   }
   return state;
@@ -1040,9 +1093,10 @@ function tickDead(u, dt) {
 
 function finish(state) {
   const w = state.winner;
+  const def = w && w !== 'draw' ? teamDef(w) : null;
   emit(state, { type: 'end', winner: w, reason: state.endReason });
   pushLog(state, {
-    text: w === 'draw' ? '⚖️ 무승부' : `${w === 'blue' ? '🔵 블루' : '🔴 레드'} 팀 승리!`,
+    text: (w === 'draw' || !def) ? '⚖️ 무승부' : `${def.emoji} ${def.name} 팀 승리!`,
     kind: 'end', team: w,
   });
 }
@@ -1057,12 +1111,19 @@ export function simulate(state, dt = TUNING.SIM_DT, maxSeconds = 400) {
 /* ───────────────────────────── 테스트/UI 도우미 ───────────────────────────── */
 
 export function battleSummary(state) {
-  return {
+  const teams = state.teams || ['blue', 'red'];
+  const out = {
     winner: state.winner, reason: state.endReason, time: Math.round(state.time * 10) / 10,
+    teams: teams.slice(), teamSize: teams.length,
     blue: state.units.filter((u) => u.team === 'blue').map(summarizeUnit),
     red: state.units.filter((u) => u.team === 'red').map(summarizeUnit),
     stats: { ...state.stats },
   };
+  out.byTeam = {};
+  for (const t of teams) {
+    out.byTeam[t] = state.units.filter((u) => u.team === t).map(summarizeUnit);
+  }
+  return out;
 }
 
 function summarizeUnit(u) {

@@ -1,6 +1,6 @@
 // 동물 vs 동물 — 무대(렌더러·조명·전장·카메라)
 import * as THREE from '../vendor/three.module.js';
-import { TUNING } from './config.js';
+import { TUNING, sectorBounds, teamDef } from './config.js';
 
 const clamp = (v, a, b) => Math.max(a, Math.min(b, v));
 
@@ -126,6 +126,9 @@ export class Stage {
     this.shake = 0;
     this.focusShift = 0;
     this.arenaGroup = null;
+    this.zoneGroup = null;
+    this.teamList = ['blue', 'red'];
+    this.myTeam = null;
     this.time = 0;
     this.autoRotate = 0;
     this.raycaster = new THREE.Raycaster();
@@ -267,37 +270,12 @@ export class Stage {
       group.add(b);
     }
 
-    /* ── ARBS 진영 구분: 블루(서쪽) · 레드(동쪽) 반원 틴트 + 중앙선 ── */    const halfGeoRed = new THREE.CircleGeometry(R + 1.2, 64, -Math.PI / 2, Math.PI);
-    const tintRed = new THREE.Mesh(halfGeoRed, new THREE.MeshBasicMaterial({
-      color: arena.lineRed || 0xff5040, transparent: true, opacity: 0.13, depthWrite: false,
-    }));
-    tintRed.rotation.x = -Math.PI / 2;
-    tintRed.position.y = 0.035;
-    group.add(tintRed);
+    /* ── 진영 구분 (2 / 3 / 4팀 부채꼴) ── */
+    const zones = new THREE.Group();
+    this.zoneGroup = zones;
+    group.add(zones);
+    this.buildZones();
 
-    const halfGeoBlue = new THREE.CircleGeometry(R + 1.2, 64, Math.PI / 2, Math.PI);
-    const tintBlue = new THREE.Mesh(halfGeoBlue, new THREE.MeshBasicMaterial({
-      color: arena.lineBlue || 0x3f86ff, transparent: true, opacity: 0.13, depthWrite: false,
-    }));
-    tintBlue.rotation.x = -Math.PI / 2;
-    tintBlue.position.y = 0.036;
-    group.add(tintBlue);
-
-    // 중앙 구분선
-    const lineMat = new THREE.MeshBasicMaterial({
-      color: 0xffffff, transparent: true, opacity: 0.42, depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, R * 2.05), lineMat);
-    line.rotation.x = -Math.PI / 2;
-    line.position.y = 0.045;
-    group.add(line);
-    const lineGlow = new THREE.Mesh(new THREE.PlaneGeometry(0.7, R * 2.05), new THREE.MeshBasicMaterial({
-      color: arena.rim, transparent: true, opacity: 0.1, depthWrite: false, blending: THREE.AdditiveBlending,
-    }));
-    lineGlow.rotation.x = -Math.PI / 2;
-    lineGlow.position.y = 0.04;
-    group.add(lineGlow);
     // 중앙 원
     const centerRing = new THREE.Mesh(new THREE.RingGeometry(1.6, 1.75, 40), new THREE.MeshBasicMaterial({
       color: 0xffffff, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false,
@@ -439,6 +417,78 @@ export class Stage {
     fill.position.set(-20, 18, -22);
     this.scene.add(fill);
     this.fill = fill;
+  }
+
+  /* ── 진영 구분: 2 / 3 / 4팀 부채꼴 + 경계선 ── */
+  setTeams(teams) {
+    const list = Array.isArray(teams) && teams.length ? teams.slice(0, 4) : ['blue', 'red'];
+    const same = list.length === this.teamList.length && list.every((t, i) => t === this.teamList[i]);
+    this.teamList = list;
+    if (!same && this.zoneGroup) this.buildZones();
+  }
+
+  // 내 진영만 밝게 강조 (파티 배치 화면)
+  setMyTeam(team) {
+    const next = team || null;
+    if (next === this.myTeam) return;
+    this.myTeam = next;
+    if (this.zoneGroup) this.buildZones();
+  }
+
+  buildZones() {
+    const g = this.zoneGroup;
+    if (!g) return;
+    while (g.children.length) {
+      const c = g.children.pop();
+      c.geometry?.dispose?.();
+      const mats = Array.isArray(c.material) ? c.material : (c.material ? [c.material] : []);
+      mats.forEach((m) => m.dispose?.());
+    }
+    const arena = this.arena || { lineBlue: 0x3f86ff, lineRed: 0xff5040 };
+    const R = TUNING.ARENA_RADIUS;
+    const teams = this.teamList;
+    const n = teams.length;
+
+    for (const team of teams) {
+      const b = sectorBounds(teams, team);
+      const color = n === 2
+        ? (team === 'blue' ? (arena.lineBlue || 0x3f86ff) : (arena.lineRed || 0xff5040))
+        : teamDef(team).color;
+      const mine = this.myTeam === team;
+      const geo = new THREE.CircleGeometry(R + 1.2, 72, b.lo - Math.PI / 2, b.span);
+      const mat = new THREE.MeshBasicMaterial({
+        color, transparent: true, opacity: n === 2 ? 0.13 : (mine ? 0.3 : 0.15), depthWrite: false,
+      });
+      const m = new THREE.Mesh(geo, mat);
+      m.rotation.x = -Math.PI / 2;
+      m.position.y = 0.035;
+      m.renderOrder = 1;
+      g.add(m);
+
+      // 내 진영 외곽 호
+      if (mine && n > 2) {
+        const arcGeo = new THREE.RingGeometry(R + 0.5, R + 1.4, 64, 1, b.lo - Math.PI / 2, b.span);
+        const arc = new THREE.Mesh(arcGeo, new THREE.MeshBasicMaterial({
+          color, transparent: true, opacity: 0.85, side: THREE.DoubleSide, depthWrite: false,
+        }));
+        arc.rotation.x = -Math.PI / 2;
+        arc.position.y = 0.06;
+        g.add(arc);
+      }
+    }
+
+    // 부채꼴 경계선 — 중심에서 가장자리로 뻗는 선 (2팀이면 중앙선, 3팀이면 Y자)
+    for (const team of teams) {
+      const b = sectorBounds(teams, team);
+      const len = R * 1.02;
+      const line = new THREE.Mesh(
+        new THREE.BoxGeometry(0.17, 0.02, len),
+        new THREE.MeshBasicMaterial({ color: 0xffffff, transparent: true, opacity: 0.34, depthWrite: false }),
+      );
+      line.position.set(Math.sin(b.lo) * (len / 2), 0.046, Math.cos(b.lo) * (len / 2));
+      line.rotation.y = b.lo;
+      g.add(line);
+    }
   }
 
   makeObstacle(ob, arena, rnd) {

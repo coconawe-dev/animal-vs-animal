@@ -1216,7 +1216,7 @@ const BUILDERS = {
   hyena: buildHyena, drex: buildDRex,
 };
 
-export const TEAM_TINTS = { blue: 0x3b7bff, red: 0xff4b3b };
+export const TEAM_TINTS = { blue: 0x3b7bff, red: 0xff4b3b, green: 0x35d47c, gold: 0xffbe3f };
 
 // 유닛별 공격 모션 (입 물기 · 뿔/엄니 위로 · 주먹 휘두르기 · 급강하)
 export const ATTACK_STYLE = {
@@ -1359,6 +1359,7 @@ export function buildAnimalModel(def, team = 'blue', opts = {}) {
     color: TEAM_TINTS[team] || 0xffffff, transparent: true, opacity: 0.75,
     side: THREE.DoubleSide, depthWrite: false,
   });
+  rig.team = team;
   const ring = new THREE.Mesh(ringGeo, ringMat);
   ring.rotation.x = -Math.PI / 2;
   ring.position.y = 0.03;

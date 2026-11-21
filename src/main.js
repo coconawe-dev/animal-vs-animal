@@ -4,11 +4,14 @@ import * as THREE from '../vendor/three.module.js';
 import {
   CREATURE_BY_ID, ARENA_BY_ID, PRESETS, PRESET_BY_ID, CHALLENGES, CHALLENGE_BY_ID,
   DEFAULT_PLACEMENTS, TUNING, placementCost, WEAPON_BY_ID,
+  PARTY, TEAM_ORDER, teamDef, partyTeams,
 } from './config.js';
 import {
   createBattle, step, drainEvents, battleSummary, mvpOf,
 } from './sim.js';
-import { placeUnits, removeNearest, mirrorTeam, nearestIndex, sanitizeList } from './placement.js';
+import { placeUnits, removeNearest, mirrorTeam, nearestIndex, sanitizeList, clampSide } from './placement.js';
+import { PartySession, PHASE } from './party.js';
+import { inviteLink } from './net.js';
 import { buildAnimalModel, animateRig, triggerAttack, triggerShoot, triggerSkill, triggerHurt } from './models.js';
 import { Stage } from './scene.js';
 import { Effects } from './effects.js';
@@ -22,10 +25,18 @@ const nameplateRoot = document.getElementById('nameplates');
 const clone = (p) => ({ id: p.id, x: p.x, z: p.z, weapon: p.weapon || 'none' });
 
 const app = {
-  teams: { blue: DEFAULT_PLACEMENTS.blue.map(clone), red: DEFAULT_PLACEMENTS.red.map(clone) },
+  teams: {
+    blue: DEFAULT_PLACEMENTS.blue.map(clone), red: DEFAULT_PLACEMENTS.red.map(clone),
+    green: [], gold: [],
+  },
   arenaId: DEFAULT_PLACEMENTS.arena,
   mode: 'sandbox',
   activeTeam: 'blue',
+  // ── 파티 멀티 ──
+  party: null,          // PartySession
+  partyNick: '',
+  partyTeamCount: 2,
+  partyInRoom: false,
   activeCat: 'all',
   selected: 'trex',
   weapon: 'none',
@@ -73,10 +84,10 @@ function saveState() {
     const prev = JSON.parse(localStorage.getItem(SAVE_KEY) || 'null') || {};
     const data = {
       maxCleared: app.maxCleared,
-      arena: app.mode === 'challenge' ? (prev.arena || DEFAULT_PLACEMENTS.arena) : app.arenaId,
+      arena: (app.mode === 'challenge' || app.mode === 'party') ? (prev.arena || DEFAULT_PLACEMENTS.arena) : app.arenaId,
     };
-    // 챌린지 중에는 챌린지용 배치가 샌드박스 저장을 덮어쓰지 않게 한다
-    if (app.mode === 'challenge') {
+    // 챌린지·파티 중에는 그 배치가 샌드박스 저장을 덮어쓰지 않게 한다
+    if (app.mode === 'challenge' || app.mode === 'party') {
       if (Array.isArray(prev.blue)) data.blue = prev.blue;
       if (Array.isArray(prev.red)) data.red = prev.red;
     } else {
@@ -115,8 +126,21 @@ loadSave();
 
 const ui = new UI(app, {
   onStart: () => startBattle(),
-  onRematch: () => startBattle(),
-  onRebuild: () => backToBuilder(),
+  onRematch: () => {
+    if (app.mode === 'party' && app.party && app.party.active) {
+      if (app.party.isHost) { app.party.rematch(); backToBuilder(); }
+      else ui.toast('방장이 다시 시작하기를 기다립니다');
+      return;
+    }
+    startBattle();
+  },
+  onRebuild: () => {
+    if (app.mode === 'party' && app.party && app.party.phase === PHASE.BATTLE) {
+      ui.toast('파티 배틀 중에는 방장이 다시 시작할 때까지 기다려 주세요');
+      return;
+    }
+    backToBuilder();
+  },
   onPause: () => togglePause(),
   onSpeed: () => {
     app.speed = app.speed === 2 ? 1 : 2;
@@ -150,21 +174,28 @@ const ui = new UI(app, {
   onUndo: () => {
     if (!history.length) { ui.toast('되돌릴 배치가 없습니다'); return; }
     const snap = history.pop();
-    app.teams.blue = snap.blue;
-    app.teams.red = snap.red;
+    for (const k of Object.keys(snap)) app.teams[k] = snap[k];
+    if (app.mode === 'party' && app.party && app.party.active) {
+      app.party.setPlacements(app.teams[app.party.myTeam] || []);
+    }
     afterPlacementChange(false);
     ui.toast('↩️ 되돌림');
   },
   onClear: (team) => {
     if (app.mode === 'challenge' && team !== 'blue') { ui.toast('챌린지에서는 블루 팀만 편집합니다'); return; }
-    if (!app.teams[team].length) return;
+    if (app.mode === 'party' && app.party && app.party.active) {
+      if (team !== app.party.myTeam) { ui.toast('파티에서는 내 진영만 비울 수 있습니다'); return; }
+    }
+    if (!app.teams[team] || !app.teams[team].length) return;
     pushHistory();
     app.teams[team] = [];
+    if (app.mode === 'party' && app.party && app.party.active) app.party.setPlacements([]);
     afterPlacementChange(false);
-    ui.toast(`${team === 'blue' ? '🔵 블루' : '🔴 레드'} 팀을 비웠습니다`);
+    ui.toast(`${teamDef(team).emoji} ${teamDef(team).name} 팀을 비웠습니다`);
   },
   onMirror: (team) => {
     if (app.mode === 'challenge') { ui.toast('챌린지에서는 대칭 복사를 쓸 수 없습니다'); return; }
+    if (app.mode === 'party') { ui.toast('파티에서는 대칭 복사를 쓸 수 없습니다'); return; }
     const target = team === 'blue' ? 'red' : 'blue';
     if (!app.teams[team].length) { ui.toast('복사할 배치가 없습니다'); return; }
     pushHistory();
@@ -176,9 +207,31 @@ const ui = new UI(app, {
     if (mode === 'challenge') {
       app.showChallenges = true;
       ui.openChallenges();
+      if (app.party && app.party.active) leaveParty(true);
+    } else if (mode === 'party') {
+      openPartyMode();
     } else {
+      if (app.party && app.party.active) leaveParty(false);
       leaveChallenge();
     }
+  },
+  // ── 파티 멀티 ──
+  onPartyHost: (nick) => hostParty(nick),
+  onPartyJoin: (code, nick) => joinParty(code, nick),
+  onPartyLeave: () => leaveParty(true),
+  onPartyCopy: () => copyInviteLink(),
+  onPartyReady: () => {
+    const s = app.party;
+    if (!s || !s.active) return;
+    const on = !s.me?.ready;
+    if (on && !(s.me?.placements || []).length) { ui.toast('먼저 유닛을 배치하세요'); return; }
+    s.setReady(on);
+    ui.toast(on ? '✅ 준비 완료' : '준비를 취소했습니다');
+  },
+  onPartyStart: () => {
+    const s = app.party;
+    if (!s || !s.active) return;
+    if (!s.requestStart()) ui.toast('모든 참가자가 준비되어야 시작할 수 있습니다');
   },
   onChallenge: (stageDef) => enterChallenge(stageDef),
   onLeaveChallenge: () => leaveChallenge(),
@@ -194,6 +247,10 @@ const ui = new UI(app, {
   onArena: (id) => {
     app.arenaId = id;
     stage.setArena(ARENA_BY_ID[id] || ARENA_BY_ID.savanna);
+    if (partyActive()) {
+      if (!app.party.isHost) { ui.toast('전장은 방장이 고릅니다'); }
+      else { app.party.arenaId = id; app.party.broadcastRoster(); }
+    }
     saveState();
     if (phase === 'preview') { refreshPreview(); ui.render(); }
   },
@@ -258,10 +315,30 @@ function buildViews(units) {
   }
 }
 
+function partyActive() {
+  return !!(app.mode === 'party' && app.party && app.party.active);
+}
+
+// 지금 화면에 보여줄 진영 목록 (파티면 2~4팀)
+function previewTeams() {
+  if (partyActive()) return app.party.teams;
+  return ['blue', 'red'];
+}
+
+// 지금 화면에 보여줄 진영별 배치
+function previewSides() {
+  if (partyActive()) return app.party.sidesForBattle();
+  return { blue: app.teams.blue, red: app.teams.red };
+}
+
 function refreshPreview() {
   if (phase !== 'preview') return;
+  const teams = previewTeams();
+  stage.setTeams(teams);
+  if (partyActive()) stage.setMyTeam(app.party.myTeam);
+  else stage.setMyTeam(null);
   battle = createBattle({
-    blue: app.teams.blue, red: app.teams.red, arenaId: app.arenaId, seed: 1,
+    sides: previewSides(), teams, arenaId: app.arenaId, seed: 1, mode: app.mode,
   });
   buildViews(battle.units);
   effects.clear();
@@ -278,17 +355,203 @@ function afterPlacementChange(refresh = true) {
   ui.render();
 }
 
+/* ───────────────────────────── 파티 멀티 ───────────────────────────── */
+
+let partyPreviewDirty = false;
+let partyPreviewAt = 0;
+
+function ensureParty() {
+  if (!app.party) {
+    app.party = new PartySession({
+      arenaId: app.arenaId,
+      onChange: onPartyChange,
+      onStatus: (text) => ui.setPartyStatus(text),
+      onBattle: (b) => enterPartyBattle(b),
+      onClosed: (reason) => onPartyClosed(reason),
+    });
+  }
+  return app.party;
+}
+
+function openPartyMode() {
+  app.mode = 'party';
+  ui.openParty();
+  const s = app.party;
+  if (s && s.active) {
+    app.partyTeamCount = s.teams.length;
+    app.partyInRoom = true;
+    app.activeTeam = s.myTeam;
+    ui.renderParty(s.snapshotState());
+  } else {
+    app.partyInRoom = false;
+    ui.setPartyStatus('파티를 열면 초대 링크를 복사해 친구에게 보낼 수 있습니다.');
+  }
+  ui.render();
+}
+
+async function hostParty(nick) {
+  const s = ensureParty();
+  app.mode = 'party';
+  app.partyNick = nick;
+  ui.setPartyStatus('파티를 여는 중…');
+  try {
+    await s.host(nick);
+    app.activeTeam = s.myTeam;
+    ui.toast(`🌐 파티를 열었습니다 — 방 코드 ${s.roomCode}`);
+  } catch (e) {
+    ui.setPartyStatus(`⚠️ ${e.message}`);
+    ui.toast('파티를 열지 못했습니다');
+  }
+}
+
+async function joinParty(code, nick) {
+  if (!code || !String(code).trim()) { ui.toast('방 코드를 입력하세요'); return; }
+  const s = ensureParty();
+  app.mode = 'party';
+  app.partyNick = nick;
+  ui.setPartyStatus('방을 찾는 중…');
+  try {
+    await s.join(code, nick);
+    app.activeTeam = s.myTeam;
+    ui.toast(`🌐 ${s.roomCode} 방에 참가했습니다`);
+  } catch (e) {
+    ui.setPartyStatus(`⚠️ ${e.message}`);
+    ui.toast(e.message.slice(0, 40));
+  }
+}
+
+function leaveParty(backToSandbox = false) {
+  const s = app.party;
+  if (s) s.leave();
+  app.partyInRoom = false;
+  app.partyTeamCount = 2;
+  app.teams.green = [];
+  app.teams.gold = [];
+  app.activeTeam = 'blue';
+  ui.setPartyStatus('파티에서 나왔습니다');
+  if (backToSandbox && app.mode === 'party') {
+    app.mode = 'sandbox';
+    if (phase !== 'preview') backToBuilder();
+    refreshPreview();
+  }
+  ui.render();
+}
+
+async function copyInviteLink() {
+  const s = app.party;
+  if (!s || !s.roomCode) return;
+  const link = inviteLink(s.roomCode);
+  let ok = false;
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(link);
+      ok = true;
+    }
+  } catch (e) { ok = false; }
+  if (!ok) {
+    try {
+      const ta = document.createElement('textarea');
+      ta.value = link;
+      ta.style.position = 'fixed';
+      ta.style.opacity = '0';
+      document.body.appendChild(ta);
+      ta.select();
+      ok = document.execCommand('copy');
+      ta.remove();
+    } catch (e) { ok = false; }
+  }
+  ui.toast(ok ? `🔗 초대 링크 복사됨 — ${link}` : `초대 링크: ${link}`);
+}
+
+// 세션 상태가 바뀔 때마다 화면·미리보기를 맞춘다
+function onPartyChange(state) {
+  if (!state) return;
+  app.partyTeamCount = state.teamCount;
+  app.partyInRoom = !!state.roomCode;
+  if (state.myTeam) app.activeTeam = state.myTeam;
+  if (state.arenaId && state.arenaId !== app.arenaId && ARENA_BY_ID[state.arenaId]) {
+    app.arenaId = state.arenaId;
+    stage.setArena(ARENA_BY_ID[state.arenaId]);
+  }
+
+  if (app.party && app.party.active) {
+    const teams = app.party.teams;
+    const sides = app.party.sidesForBattle();
+    for (const t of TEAM_ORDER) {
+      app.teams[t] = teams.includes(t) ? (sides[t] || []).map(clone) : [];
+    }
+  }
+
+  ui.renderParty(state);
+  ui.render();
+
+  // 배치 단계로 돌아오면 배치 화면으로
+  if (state.phase === PHASE.PLACE && (phase === 'battle' || phase === 'ended')) {
+    backToBuilder();
+  } else if (state.phase === PHASE.PLACE && phase === 'preview') {
+    partyPreviewDirty = true;
+  }
+}
+
+function onPartyClosed(reason) {
+  app.mode = 'sandbox';
+  app.partyInRoom = false;
+  app.teams.green = [];
+  app.teams.gold = [];
+  app.activeTeam = 'blue';
+  ui.toast(reason === 'host-left' ? '방장이 나가서 파티가 닫혔습니다' : '파티 연결이 끊겼습니다');
+  if (phase !== 'preview') backToBuilder();
+  refreshPreview();
+  ui.render();
+}
+
+// 방장이 배틀을 시작했거나(start 메시지) 손님이 시작 신호를 받았을 때
+function enterPartyBattle(b) {
+  sfx.init();
+  battle = b;
+  stage.setTeams(battle.teams);
+  stage.setMyTeam(app.party ? app.party.myTeam : null);
+  buildViews(battle.units);
+  effects.clear();
+  logSeen = 0;
+  phase = 'battle';
+  app.paused = false;
+  app.focusUid = null;
+  userZoomed = false;
+  app.speed = 1;
+  ui.hideBanner();
+  ui.hideBuilder();
+  ui.hideParty();
+  stage.setFocusShift(0, 0);
+  ui.showBattleUI();
+  ui.setPaused(false);
+  ui.setSpeed(1);
+  ui.setFollow(app.follow);
+  ui.setFocusTag(null);
+  ui.buildBattle(battle);
+  stage.camGoal.dist = fitDistance();
+  stage.camGoal.phi = 0.7;
+  stage.camGoal.target.set(0, 1.1, 0);
+  syncLog();
+  const names = battle.teams.map((t) => teamDef(t).name).join(' · ');
+  ui.toast(`🌐 ${battle.teams.length}팀 배틀 시작! (${names})`);
+}
+
 /* ───────────────────────────── 배치 ───────────────────────────── */
 
 function pushHistory() {
-  history.push({
+  const snap = {
     blue: app.teams.blue.map(clone),
     red: app.teams.red.map(clone),
-  });
+  };
+  if (partyActive()) {
+    for (const t of app.party.teams) snap[t] = (app.teams[t] || []).map(clone);
+  }
+  history.push(snap);
   if (history.length > 40) history.shift();
 }
 
-function teamColor(team) { return team === 'blue' ? 0x3f86ff : 0xff5040; }
+function teamColor(team) { return teamDef(team).color; }
 
 function updateGhostColor() {
   const color = app.eraser ? 0xff8a3a : teamColor(app.activeTeam);
@@ -319,9 +582,12 @@ function challengeLeft() {
 function placeAt(x, z) {
   const def = CREATURE_BY_ID[app.selected];
   if (!def) return;
-  const team = app.activeTeam;
+  const party = partyActive();
+  if (party && app.party.phase !== PHASE.PLACE) { ui.toast('지금은 배치 단계가 아닙니다'); return; }
+  const team = party ? app.party.myTeam : app.activeTeam;
   if (app.mode === 'challenge' && team !== 'blue') { ui.toast('챌린지에서는 블루 팀만 배치합니다'); return; }
-  const list = app.teams[team];
+  const teams = party ? app.party.teams : null;
+  const list = app.teams[team] || (app.teams[team] = []);
   let count = app.count;
 
   if (app.mode === 'challenge' && team === 'blue') {
@@ -333,21 +599,38 @@ function placeAt(x, z) {
       ui.toast(`예산상 ${count}마리만 배치합니다`);
     }
   }
+  if (party) {
+    // 1인당 예산 35 — 넘으면 토스트로 막는다
+    const left = PARTY.BUDGET - placementCost(list);
+    const affordable = Math.floor(left / def.cost);
+    if (affordable <= 0) {
+      ui.toast(`💸 예산이 부족합니다 (남은 ${Math.max(0, left)} / ${PARTY.BUDGET})`);
+      return;
+    }
+    if (count > affordable) {
+      count = affordable;
+      ui.toast(`예산 35 안에서 ${count}마리만 배치합니다`);
+    }
+  }
 
   pushHistory();
-  const total = app.teams.blue.length + app.teams.red.length;
+  const total = (party ? partyTeams(app.partyTeamCount) : ['blue', 'red'])
+    .reduce((s, t) => s + (app.teams[t] || []).length, 0);
   const room = Math.max(0, TUNING.MAX_UNITS - total);
   const limit = Math.min(TUNING.MAX_UNITS_PER_TEAM, list.length + room);
   const res = placeUnits(list, {
     id: app.selected, team, x, z, weapon: app.weapon,
-    count, free: app.free, limit,
+    count, free: party ? false : app.free, limit, teams,
+    budget: party ? PARTY.BUDGET : null,
   });
   if (!res.added.length) {
     history.pop();
-    ui.toast(res.skipped === 'limit' ? `전장 한도는 ${TUNING.MAX_UNITS}마리입니다` : '여기에 놓을 수 없습니다');
+    if (res.skipped === 'budget') ui.toast(`💸 예산 35를 넘을 수 없습니다 (남은 ${Math.max(0, res.left || 0)})`);
+    else ui.toast(res.skipped === 'limit' ? `전장 한도는 ${TUNING.MAX_UNITS}마리입니다` : '여기에 놓을 수 없습니다');
     return;
   }
   if (res.skipped === 'limit') ui.toast(`전장 한도 ${TUNING.MAX_UNITS}마리 — 추가하지 못했습니다`);
+  if (party) app.party.setPlacements(list);
   afterPlacementChange();
   sfx.ui();
   for (const p of res.added) effects.ring(p.x, p.z, 0.4, def.size > 1.3 ? 2.8 : 1.8, teamColor(team), 0.35);
@@ -355,6 +638,7 @@ function placeAt(x, z) {
 
 function eraseAt(x, z) {
   const challenge = app.mode === 'challenge';
+  if (partyActive()) { eraseOwnAt(x, z); return; }
   const bi = nearestIndex(app.teams.blue, x, z, 2.0);
   const ri = challenge ? -1 : nearestIndex(app.teams.red, x, z, 2.0);
   let removed = null;
@@ -368,6 +652,20 @@ function eraseAt(x, z) {
   if (!removed) { history.pop(); return; }
   afterPlacementChange();
   effects.dust(x, z, 8);
+  ui.toast('🧽 지움');
+}
+
+// 파티: 내 진영의 유닛만 지운다
+function eraseOwnAt(x, z) {
+  const my = app.party.myTeam;
+  const list = app.teams[my] || [];
+  const i = nearestIndex(list, x, z, 2.2);
+  if (i < 0) { ui.toast('내 진영에 지울 유닛이 없습니다'); return; }
+  pushHistory();
+  const removed = list.splice(i, 1)[0];
+  app.party.setPlacements(list);
+  afterPlacementChange();
+  effects.dust(removed.x, removed.z, 8);
   ui.toast('🧽 지움');
 }
 
@@ -475,6 +773,12 @@ function previewFit() {
 }
 
 function startBattle() {
+  // 파티: 방장만 시작할 수 있고, 모두 준비해야 한다
+  if (app.mode === 'party' && app.party && app.party.active) {
+    if (!app.party.isHost) { ui.toast('방장이 배틀을 시작합니다'); return; }
+    if (!app.party.requestStart()) ui.toast('모든 참가자가 준비되어야 시작할 수 있습니다');
+    return;
+  }
   if (!app.teams.blue.length || !app.teams.red.length) return;
   if (app.mode === 'challenge' && app.challenge) {
     const left = challengeLeft();
@@ -516,6 +820,7 @@ function backToBuilder() {
   ui.hideBanner();
   ui.hideBattleUI();
   ui.showBuilder();
+  if (app.mode === 'party' && app.party && app.party.active) ui.renderParty(app.party.snapshotState());
   refreshPreview();
   fitPreviewCamera();
   updateFraming();
@@ -534,7 +839,9 @@ function endBattle() {
   sfx.victory();
 
   let opts = {};
-  if (app.mode === 'challenge' && app.challenge) {
+  if (app.mode === 'party') {
+    opts = { party: true };
+  } else if (app.mode === 'challenge' && app.challenge) {
     const won = summary.winner === 'blue';
     const id = app.challenge.id;
     if (won && id > app.maxCleared) {
@@ -726,7 +1033,7 @@ function updateViews(dt, adt) {
   const w = canvas.clientWidth || 1;
   const h = canvas.clientHeight || 1;
   const cam = stage.camera;
-  const many = views.length > 18;
+  const many = views.length > 42;
   const focusUid = app.focusUid;
   for (const v of views) {
     const u = v.u;
@@ -799,7 +1106,10 @@ function frame(now) {
   const dt = Math.min(0.05, Math.max(0.0005, rawDt));
 
   if (battle && (phase === 'battle' || phase === 'ended')) {
-    if (phase === 'battle' && !app.paused && !battle.over) {
+    const partySession = (app.mode === 'party' && app.party && app.party.active) ? app.party : null;
+    const guestBattle = !!(partySession && !partySession.isHost);
+    // 파티 손님은 시뮬레이션을 돌리지 않고 방장 스냅샷만 그린다
+    if (phase === 'battle' && !app.paused && !battle.over && !guestBattle) {
       acc += dt * app.speed;
       let guard = 0;
       while (acc >= FIXED && guard < 20) {
@@ -808,6 +1118,7 @@ function frame(now) {
         guard++;
       }
     }
+    if (partySession) partySession.tick(dt);
     const evs = drainEvents(battle);
     for (const ev of evs) handleEvent(ev);
     effects.syncProjectiles(battle.projectiles || []);
@@ -818,6 +1129,17 @@ function frame(now) {
   const adt = app.paused ? 0 : dt * (phase === 'battle' ? app.speed : 1);
   updateViews(dt, adt);
   effects.update(app.paused ? 0 : dt * (phase === 'battle' ? app.speed : 1));
+
+  // 파티 로비·배치 단계에서도 연결을 유지한다
+  if (phase === 'preview' && app.mode === 'party' && app.party && app.party.active) {
+    app.party.tick(dt);
+    if (partyPreviewDirty && performance.now() - partyPreviewAt > 110) {
+      partyPreviewDirty = false;
+      partyPreviewAt = performance.now();
+      refreshPreview();
+      ui.render();
+    }
+  }
 
   let follow = null;
   if (app.focusUid) {
@@ -886,7 +1208,10 @@ canvas.addEventListener('pointermove', (e) => {
     if (g) {
       const def = CREATURE_BY_ID[app.selected];
       let x = g.x, z = g.z;
-      if (!app.free && !app.eraser) {
+      if (partyActive() && !app.eraser) {
+        const c = clampSide(app.party.myTeam, x, z, false, app.party.teams);
+        x = c.x; z = c.z;
+      } else if (!app.free && !app.eraser) {
         if (app.activeTeam === 'blue' && x > -1) x = -1;
         if (app.activeTeam === 'red' && x < 1) x = 1;
       }
@@ -994,7 +1319,8 @@ canvas.addEventListener('webglcontextlost', (e) => {
 window.addEventListener('orientationchange', () => setTimeout(() => stage.resize(), 250));
 
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && phase === 'battle' && !app.paused) {
+  // 파티에서는 방장이 전투를 계산하므로 화면을 벗어나도 멈추지 않는다 (손님은 그리기만 하니까 그대로)
+  if (document.hidden && phase === 'battle' && !app.paused && app.mode !== 'party') {
     app.paused = true;
     ui.setPaused(true);
   }
@@ -1002,7 +1328,21 @@ document.addEventListener('visibilitychange', () => {
 
 /* ───────────────────────────── 시작 ───────────────────────────── */
 
+// ?room=XXXX 초대 링크로 들어온 경우 — 방 코드를 채우고 참가만 누르면 된다
+try {
+  const params = new URLSearchParams(location.search);
+  const room = params.get('room');
+  if (room) {
+    app.mode = 'party';
+    ui.openParty();
+    if (ui.el.partyCodeInput) ui.el.partyCodeInput.value = String(room).toUpperCase();
+    ui.setPartyStatus(`초대 링크로 들어왔어요 · 방 <b>${String(room).toUpperCase()}</b> — 닉네임을 정하고 <b>참가하기</b>를 누르세요`);
+    ui.render();
+  }
+} catch (e) { /* 주소 분석 실패는 무시 */ }
+
 stage.setArena(ARENA_BY_ID[app.arenaId]);
+stage.setTeams(previewTeams());
 refreshPreview();
 fitPreviewCamera();
 updateFraming();
@@ -1019,7 +1359,9 @@ setTimeout(() => ui.hideLoader(), 350);
 // 디버그용 (콘솔에서 확인)
 window.__game = {
   app, stage, ui, effects,
+  get party() { return app.party; },
   get battle() { return battle; },
   get phase() { return phase; },
   placeAt, eraseAt,
+  hostParty, joinParty, leaveParty, copyInviteLink,
 };

@@ -2,6 +2,7 @@
 import {
   CREATURES, CREATURE_BY_ID, CATEGORIES, WEAPONS, WEAPON_BY_ID,
   ARENAS, PRESETS, CHALLENGES, TUNING, animalTierStars, placementCost,
+  PARTY, TEAM_ORDER, teamDef, partyTeams,
 } from './config.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -44,7 +45,21 @@ export class UI {
       bannerMvp: $('#banner-mvp'), bannerCrown: $('#banner-crown'),
       bannerActions: $('.banner-actions'),
       toast: $('#toast'), help: $('#help'), loader: $('#loader'), sound: $('#btn-sound'),
+      // 파티 멀티
+      partyPanel: $('#party-panel'), partySetup: $('#party-setup'), partyRoom: $('#party-room'),
+      partyNick: $('#party-nick'), partyCodeInput: $('#party-code'),
+      partyHost: $('#btn-party-host'), partyJoin: $('#btn-party-join'),
+      partyClose: $('#btn-party-close'), partyStatus: $('#party-status'),
+      partyRoomCode: $('#party-room-code'), partyRoster: $('#party-roster'),
+      partyCopy: $('#btn-party-copy'), partyLeave: $('#btn-party-leave'),
+      partyReady: $('#btn-party-ready'), partyStart: $('#btn-party-start'),
+      partyRoomStatus: $('#party-room-status'),
+      scoreBar: $('#score-bar'), hpRow: $('#team-hp-row'),
     };
+    this._hud = { score: {}, hp: {} };
+    this._switchSig = '';
+    this._hudSig = '';;
+    this._cacheHudRefs();
 
     this.buildCategories();
     this.buildUnitBar();
@@ -152,6 +167,10 @@ export class UI {
         this.toast('챌린지에서는 블루 팀만 배치합니다');
         return;
       }
+      if (this.app.mode === 'party' && b.dataset.team !== this.app.activeTeam) {
+        this.toast('파티에서는 내 진영에만 배치합니다');
+        return;
+      }
       this.app.activeTeam = b.dataset.team;
       this.app.eraser = false;
       this.render();
@@ -196,9 +215,14 @@ export class UI {
       if (mode === 'challenge') {
         this.app.showChallenges = true;
         this.openChallenges();
+      } else if (mode === 'party') {
+        this.app.showChallenges = false;
+        this.openParty();
+        this.render();
       } else {
         this.app.showChallenges = false;
         this.el.challengePanel.classList.add('hidden');
+        this.hideParty();
         this.render();
       }
       this.hooks.onMode?.(mode);
@@ -238,9 +262,67 @@ export class UI {
     $('#btn-log-close').addEventListener('click', () => this.toggleLog(false));
     this.el.rebuild.addEventListener('click', () => this.hooks.onRebuild?.());
 
+    // ── 파티 멀티 ──
+    this.el.partyClose.addEventListener('click', () => {
+      this.hideParty();
+      if (this.app.mode === 'party' && !this.app.partyInRoom) this.hooks.onMode?.('sandbox');
+    });
+    this.el.partyNick?.addEventListener('input', () => { this.app.partyNick = this.el.partyNick.value; });
+    this.el.partyHost.addEventListener('click', () => {
+      const nick = (this.el.partyNick?.value || '').trim() || '플레이어';
+      this.app.partyNick = nick;
+      this.hooks.onPartyHost?.(nick);
+    });
+    this.el.partyJoin.addEventListener('click', () => {
+      const nick = (this.el.partyNick?.value || '').trim() || '플레이어';
+      this.app.partyNick = nick;
+      this.hooks.onPartyJoin?.(this.el.partyCodeInput.value, nick);
+    });
+    this.el.partyLeave.addEventListener('click', () => this.hooks.onPartyLeave?.());
+    this.el.partyCopy.addEventListener('click', () => this.hooks.onPartyCopy?.());
+    this.el.partyReady.addEventListener('click', () => this.hooks.onPartyReady?.());
+    this.el.partyStart.addEventListener('click', () => this.hooks.onPartyStart?.());
+
     $('#btn-help').addEventListener('click', () => this.el.help.classList.remove('hidden'));
     $('#btn-help-close').addEventListener('click', () => this.el.help.classList.add('hidden'));
     this.el.sound.addEventListener('click', () => this.hooks.onToggleSound?.());
+  }
+
+  /* ───────────── HUD 참조 캐시 ───────────── */
+
+  _cacheHudRefs() {
+    this.el.clock = $('#battle-clock');
+    this.el.state = $('#battle-state');
+    this._hud = { score: {}, hp: {} };
+    for (const t of TEAM_ORDER) {
+      const s = $(`#score-${t}`);
+      const h = $(`#hp-${t}`);
+      if (s) this._hud.score[t] = s;
+      if (h) this._hud.hp[t] = h;
+    }
+  }
+
+  // 전투 HUD 점수 바를 진영 수에 맞춰 다시 그린다 (2~4팀)
+  buildScoreBar(teams) {
+    const list = Array.isArray(teams) && teams.length ? teams : ['blue', 'red'];
+    const sig = list.join(',');
+    if (sig === this._hudSig) { this._cacheHudRefs(); return; }
+    this._hudSig = sig;
+    const half = Math.ceil(list.length / 2);
+    const left = list.slice(0, half);
+    const right = list.slice(half);
+    const chip = (team, flip) => {
+      const def = teamDef(team);
+      const dot = '<span class="team-dot"></span>';
+      return `<div class="team-score ${team}">${flip ? '' : dot}`
+        + `<b id="score-${team}">0</b><small>${def.name}</small>${flip ? dot : ''}</div>`;
+    };
+    this.el.scoreBar.innerHTML = `<div class="score-side">${left.map((t) => chip(t, false)).join('')}</div>`
+      + '<div class="clock-box"><span id="battle-clock">0:00</span><i id="battle-state">전투 중</i></div>'
+      + `<div class="score-side">${right.slice().reverse().map((t) => chip(t, true)).join('')}</div>`;
+    this.el.scoreBar.classList.toggle('multi', list.length > 2);
+    this.el.hpRow.innerHTML = list.map((t) => `<div class="team-hp ${t}"><i id="hp-${t}"></i></div>`).join('');
+    this._cacheHudRefs();
   }
 
   /* ───────────── 렌더 ───────────── */
@@ -255,16 +337,23 @@ export class UI {
     const a = this.app;
     const teams = a.teams;
     const budgetInfo = this.budgetState();
+    const party = a.mode === 'party';
 
     // 모드
     $$('[data-mode]').forEach((b) => b.classList.toggle('active', b.dataset.mode === a.mode));
     this.el.challengePanel.classList.toggle('hidden', !(a.mode === 'challenge' && a.showChallenges));
 
-    // 팀
+    // 진영 스위치 (파티에서는 내 진영 하나만)
+    this.renderTeamSwitch();
     $$('[data-team]').forEach((b) => b.classList.toggle('on', b.dataset.team === a.activeTeam));
-    this.el.countBlue.textContent = teams.blue.length;
-    this.el.countRed.textContent = teams.red.length;
-    this.el.dockCount.textContent = `🔵 ${teams.blue.length} · 🔴 ${teams.red.length} · Σ ${teams.blue.length + teams.red.length}/${TUNING.MAX_UNITS}`;
+    if (this.el.countBlue) this.el.countBlue.textContent = teams.blue.length;
+    if (this.el.countRed) this.el.countRed.textContent = teams.red.length;
+    const teamLine = party
+      ? `${partyTeams(a.partyTeamCount || 2).map((t) => `${teamDef(t).emoji}${(teams[t] || []).length}`).join(' · ')}`
+      : `🔵 ${teams.blue.length} · 🔴 ${teams.red.length}`;
+    const totalUnits = (party ? partyTeams(a.partyTeamCount || 2) : ['blue', 'red'])
+      .reduce((s, t) => s + (teams[t] || []).length, 0);
+    this.el.dockCount.textContent = `${teamLine} · Σ ${totalUnits}/${TUNING.MAX_UNITS}`;
 
     // 수량
     $$('[data-count]').forEach((b) => b.classList.toggle('on', Number(b.dataset.count) === a.count));
@@ -284,19 +373,24 @@ export class UI {
     this.el.free.classList.toggle('on', !!a.free);
 
     // 힌트
-    const teamTxt = a.activeTeam === 'blue' ? '🔵 블루' : '🔴 레드';
+    const teamTxt = `${teamDef(a.activeTeam).emoji} ${teamDef(a.activeTeam).name}`;
     if (a.eraser) this.el.hint.textContent = `${teamTxt} 지우개 — 지울 유닛을 탭하세요`;
     else {
       const def = CREATURE_BY_ID[a.selected];
       this.el.hint.textContent = `${teamTxt} · ${def ? def.emoji + ' ' + shortName(def) : '유닛'} ${a.count > 1 ? `×${a.count}` : ''} — 땅을 탭해 배치`;
     }
 
-    // 예산 (챌린지)
+    // 예산 (챌린지 · 파티 35)
     if (a.mode === 'challenge' && a.challenge) {
       this.el.budget.classList.remove('hidden');
       this.el.budget.innerHTML = `예산 <b class="${budgetInfo.left < 0 ? 'over' : ''}">${budgetInfo.left}</b> / ${budgetInfo.budget}`;
       this.el.leaveChallenge.classList.remove('hidden');
       this.el.dockTitle.textContent = `${a.challenge.id}. ${a.challenge.name}`;
+    } else if (party) {
+      this.el.budget.classList.remove('hidden');
+      this.el.budget.innerHTML = `🏳️ ${teamDef(a.activeTeam).name} · 예산 <b class="${budgetInfo.left < 0 ? 'over' : ''}">${budgetInfo.left}</b> / ${PARTY.BUDGET}`;
+      this.el.leaveChallenge.classList.add('hidden');
+      this.el.dockTitle.textContent = `🌐 파티 · ${partyTeams(a.partyTeamCount || 2).length}팀`;
     } else {
       this.el.budget.classList.add('hidden');
       this.el.leaveChallenge.classList.add('hidden');
@@ -314,14 +408,16 @@ export class UI {
         + `<span class="d-skill">${def.skill.desc}${a.weapon !== 'none' ? ` · <i>${w.emoji} ${w.name}</i>` : ''}</span>`;
     }
 
-    // 시작 버튼
+    // 시작 버튼 (파티에서는 패널의 준비/시작 버튼을 쓴다)
     const b = teams.blue.length;
     const r = teams.red.length;
     const overBudget = budgetInfo.left < 0;
     const noStage = a.mode === 'challenge' && !a.challenge;
     const ok = b > 0 && r > 0 && !overBudget && !noStage;
+    this.el.fight.classList.toggle('hidden', party);
     this.el.fight.disabled = !ok;
-    if (noStage) this.el.fight.textContent = '챌린지 단계를 선택하세요';
+    if (party) this.el.fight.textContent = '파티 준비';
+    else if (noStage) this.el.fight.textContent = '챌린지 단계를 선택하세요';
     else if (!b || !r) this.el.fight.textContent = '두 팀 모두 유닛을 배치하세요';
     else if (overBudget) this.el.fight.textContent = `예산 초과 · ${-budgetInfo.left} 줄이세요`;
     else this.el.fight.textContent = `⚔️ ${b} vs ${r} 배틀 시작`;
@@ -332,6 +428,10 @@ export class UI {
 
   budgetState() {
     const a = this.app;
+    if (a.mode === 'party') {
+      const used = placementCost(a.teams[a.activeTeam] || []);
+      return { budget: PARTY.BUDGET, used, left: PARTY.BUDGET - used };
+    }
     if (a.mode === 'challenge' && a.challenge) {
       const budget = a.challenge.budget;
       const used = placementCost(a.teams.blue);
@@ -365,6 +465,95 @@ export class UI {
     this.el.topbar.classList.add('battle');
   }
 
+  /* ───────────── 진영 스위치 ───────────── */
+
+  renderTeamSwitch() {
+    const a = this.app;
+    const party = a.mode === 'party';
+    const sig = party ? `party:${a.activeTeam}` : 'duo';
+    if (sig !== this._switchSig) {
+      this._switchSig = sig;
+      if (party) {
+        const def = teamDef(a.activeTeam);
+        this.el.teamSwitch.innerHTML = `<button data-team="${a.activeTeam}" class="on">`
+          + `<span class="dot" style="background:${def.css};box-shadow:0 0 7px ${def.css}"></span>`
+          + `내 진영 ${def.name} <b id="count-${a.activeTeam}">0</b></button>`;
+      } else {
+        this.el.teamSwitch.innerHTML = '<button data-team="blue" class="on"><span class="dot blue"></span>블루 <b id="count-blue">0</b></button>'
+          + '<button data-team="red"><span class="dot red"></span>레드 <b id="count-red">0</b></button>';
+      }
+      this.el.countBlue = $('#count-blue');
+      this.el.countRed = $('#count-red');
+    }
+  }
+
+  /* ───────────── 파티 멀티 패널 ───────────── */
+
+  openParty() {
+    this.el.partyPanel.classList.remove('hidden');
+    this.el.challengePanel.classList.add('hidden');
+    this.el.presetPanel?.classList.add('hidden');
+    this.app.showPresets = false;
+    if (this.app.partyNick && this.el.partyNick) this.el.partyNick.value = this.app.partyNick;
+  }
+
+  hideParty() { this.el.partyPanel.classList.add('hidden'); }
+
+  setPartyStatus(text) {
+    if (this.el.partyStatus) this.el.partyStatus.innerHTML = text || '';
+    if (this.el.partyRoomStatus) this.el.partyRoomStatus.innerHTML = text || '';
+  }
+
+  // p = PartySession.snapshotState()
+  renderParty(p) {
+    this.openParty();
+    if (!p) return;
+    const inRoom = !!p.roomCode && p.phase && p.phase !== 'idle';
+    this.el.partySetup.classList.toggle('hidden', inRoom);
+    this.el.partyRoom.classList.toggle('hidden', !inRoom);
+    if (!inRoom) {
+      this.setPartyStatus(p.status || '파티를 열면 초대 링크를 복사해 친구에게 보낼 수 있습니다.');
+      return;
+    }
+    this.el.partyRoomCode.textContent = p.roomCode;
+    this.el.partyCopy.classList.toggle('hidden', !p.isHost);
+
+    const rows = [];
+    for (const pl of p.players) {
+      const def = teamDef(pl.team);
+      const label = pl.me ? `${pl.nick} (나)` : pl.nick;
+      const tags = `${def.emoji} ${def.name} · 유닛 ${pl.count} · 예산 ${pl.used}/${pl.budget}`;
+      const state = pl.ready ? '<span class="pr-state ready">준비</span>'
+        : '<span class="pr-state wait">배치 중</span>';
+      rows.push(`<div class="pr-row ${pl.me ? 'me' : ''}" style="--tc:${def.css}">`
+        + '<span class="pr-dot"></span>'
+        + `<div class="pr-body"><b>${this._esc(label)}${pl.host ? ' 👑' : ''}</b><small>${tags}</small></div>`
+        + state + '</div>');
+    }
+    for (let i = p.players.length; i < p.maxPlayers; i++) {
+      rows.push('<div class="pr-empty">친구를 기다리는 중…</div>');
+    }
+    this.el.partyRoster.innerHTML = rows.join('');
+
+    this.el.partyReady.textContent = p.myReady ? '✅ 준비됨 · 취소' : '✅ 준비 완료';
+    this.el.partyReady.classList.toggle('on', !!p.myReady);
+    this.el.partyReady.disabled = p.phase === 'battle' || p.phase === 'end';
+
+    this.el.partyStart.classList.toggle('hidden', !p.isHost);
+    this.el.partyStart.disabled = !p.canStart;
+    this.el.partyStart.textContent = p.canStart
+      ? `⚔️ ${p.teamCount}팀 배틀 시작`
+      : (p.players.length < 2 ? '친구를 기다리는 중' : '모두 준비되면 시작');
+
+    this.setPartyStatus(p.status || `${p.players.length}/${p.maxPlayers}명 · ${p.teamCount}팀 · 1인당 예산 ${p.budget}`);
+  }
+
+  _esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, (c) => (
+      { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+  }
+
   setTeam(team) { this.app.activeTeam = team; this.render(); }
   setSelected(id) { this.app.selected = id; this.render(); }
   setWeapon(id) { this.app.weapon = id; this.render(); }
@@ -384,41 +573,48 @@ export class UI {
     this.el.logList.innerHTML = '';
   }
 
-  buildBattle() {
+  buildBattle(state) {
     this.el.logList.innerHTML = '';
     this.logCount = 0;
+    const teams = state && state.teams && state.teams.length ? state.teams : ['blue', 'red'];
+    this.buildScoreBar(teams);
   }
 
   updateBattle(state) {
-    const b = state.units.filter((u) => u.team === 'blue' && !u.dead).length;
-    const r = state.units.filter((u) => u.team === 'red' && !u.dead).length;
-    if (this.el.scoreBlue.textContent !== String(b)) this.el.scoreBlue.textContent = b;
-    if (this.el.scoreRed.textContent !== String(r)) this.el.scoreRed.textContent = r;
+    const teams = state.teams && state.teams.length ? state.teams : ['blue', 'red'];
+    this.buildScoreBar(teams);
+    const hpPct = (team) => {
+      let hp = 0, max = 0;
+      for (const u of state.units) {
+        if (u.team !== team) continue;
+        hp += Math.max(0, u.hp); max += u.maxHp;
+      }
+      return max ? Math.round((hp / max) * 100) : 0;
+    };
+    for (const team of teams) {
+      const alive = state.units.filter((u) => u.team === team && !u.dead).length;
+      const sEl = this._hud.score[team];
+      if (sEl && sEl.textContent !== String(alive)) sEl.textContent = alive;
+      const hEl = this._hud.hp[team];
+      if (hEl) hEl.style.width = `${hpPct(team)}%`;
+    }
 
     const t = Math.floor(state.time);
     const clock = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
-    if (this.el.clock.textContent !== clock) this.el.clock.textContent = clock;
-
-    const hpPct = (list) => {
-      let hp = 0, max = 0;
-      list.forEach((u) => { hp += Math.max(0, u.hp); max += u.maxHp; });
-      return max ? Math.round((hp / max) * 100) : 0;
-    };
-    this.el.hpBlue.style.width = `${hpPct(state.units.filter((u) => u.team === 'blue'))}%`;
-    this.el.hpRed.style.width = `${hpPct(state.units.filter((u) => u.team === 'red'))}%`;
+    if (this.el.clock && this.el.clock.textContent !== clock) this.el.clock.textContent = clock;
   }
 
   setPaused(paused) {
     this.el.pause.textContent = paused ? '▶' : '⏸';
     this.el.pause.classList.toggle('warn', paused);
-    this.el.state.textContent = paused ? '일시정지' : '전투 중';
+    if (this.el.state) this.el.state.textContent = paused ? '일시정지' : '전투 중';
   }
 
   setSpeed(speed) {
     this.el.speed.textContent = `${speed}×`;
     this.el.speed.classList.toggle('on', speed > 1);
     this.el.slow.classList.toggle('on', speed < 1);
-    this.el.state.textContent = speed < 1 ? '슬로우 모션' : speed > 1 ? '배속' : '전투 중';
+    if (this.el.state) this.el.state.textContent = speed < 1 ? '슬로우 모션' : speed > 1 ? '배속' : '전투 중';
   }
 
   setFollow(on) { this.el.follow.classList.toggle('on', on); }
@@ -475,13 +671,16 @@ export class UI {
         $('#btn-rematch').textContent = '🔁 다시 도전';
       }
     } else {
+      const def = win && win !== 'draw' ? teamDef(win) : null;
+      const multi = (summary.teams && summary.teams.length > 2) || !!opts.party;
       this.el.bannerCrown.textContent = win === 'draw' ? '⚖️' : '👑';
-      this.el.bannerTitle.textContent = win === 'draw' ? '무승부!' : `${win === 'blue' ? '🔵 블루' : '🔴 레드'} 팀 승리!`;
+      this.el.bannerTitle.textContent = win === 'draw' ? '무승부!'
+        : (multi ? `${def.emoji} ${def.name} 팀 최후의 승리!` : `${def.emoji} ${def.name} 팀 승리!`);
       const secs = summary.time;
       this.el.bannerSub.textContent = summary.reason === 'timeout'
         ? `시간 종료 · 남은 체력으로 판정 (${secs.toFixed(1)}초)`
         : `${secs.toFixed(1)}초 만에 전투 종료`;
-      $('#btn-rematch').textContent = '🔁 다시 배틀';
+      $('#btn-rematch').textContent = opts.party ? '🔁 다시 배치' : '🔁 다시 배틀';
     }
 
     this.el.bannerMvp.innerHTML = mvp

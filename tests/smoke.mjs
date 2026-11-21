@@ -5,6 +5,7 @@ import {
   ANIMALS, DINOS, MONSTERS, CREATURES, CREATURE_IDS, CREATURE_BY_ID, ANIMAL_BY_ID,
   ARENAS, ARENA_BY_ID, PRESETS, CHALLENGES, WEAPONS, WEAPON_BY_ID, TUNING,
   DEFAULT_PLACEMENTS, CATEGORIES, powerOf, placementCost, creaturesOf,
+  PARTY, TEAM_ORDER, TEAM_DEFS, teamDef, partyTeams, sectorBounds, clampToSector,
 } from '../src/config.js';
 import {
   createBattle, step, simulate, battleSummary, mvpOf, applyDamage, aliveCount,
@@ -13,7 +14,10 @@ import {
 import {
   placeUnits, removeNearest, nearestIndex, mirrorTeam, clampArena, clampSide,
   normalizePlacement, sanitizeList, clusterOffsets, autoPositions,
+  costOf, affordableCount, reclampList,
 } from '../src/placement.js';
+import { PartySession, PHASE, SNAPSHOT_HZ, packEvent, unpackEvent, makeLoopback, sleep } from '../src/party.js';
+import { MemoryHub, Net, makeRoomCode, normalizeRoomCode, isValidRoomCode, encodeMsg, decodeMsg } from '../src/net.js';
 import { buildAnimalModel, animateRig, triggerAttack, triggerShoot, triggerSkill, triggerHurt, ATTACK_STYLE } from '../src/models.js';
 
 let pass = 0;
@@ -556,6 +560,321 @@ check(blueRig.ring.material.color.getHex() !== redRig.ring.material.color.getHex
   }
   const ms = Date.now() - t0;
   check(ms < 9000, `프리셋 40판 빠름 (${ms}ms)`);
+}
+
+/* ─────────────── 6. 파티 멀티 (2~4팀 · 예산 35 · 4인 루프백) ─────────────── */
+
+// 진영 데이터
+check(PARTY.MAX_PLAYERS === 4 && PARTY.BUDGET === 35, '파티 최대 4명 · 1인당 예산 35');
+check(TEAM_ORDER.length === 4, '진영 4종');
+for (const t of TEAM_ORDER) {
+  const d = TEAM_DEFS[t];
+  check(!!d && d.color >= 0 && d.color <= 0xffffff && !!d.name && !!d.css, `[${t}] 진영 색/이름`);
+  check(/^#[0-9a-f]{6}$/i.test(d.css), `[${t}] css 색상`);
+}
+check(new Set(TEAM_ORDER.map((t) => TEAM_DEFS[t].color)).size === 4, '진영 색 4가지 모두 다름');
+check(partyTeams(2).length === 2 && partyTeams(3).length === 3 && partyTeams(4).length === 4, '2명→2팀 · 3명→3팀 · 4명→4팀');
+check(partyTeams(1).length === 2 && partyTeams(9).length === 4, '인원 범위 보정 (2~4팀)');
+check(partyTeams(3).join(',') === 'blue,red,green' && partyTeams(4).join(',') === 'blue,red,green,gold', '진영 순서');
+
+// 부채꼴 경계 — 블루는 언제나 서쪽(x<0)
+for (const n of [2, 3, 4]) {
+  const teams = partyTeams(n);
+  teams.forEach((t) => {
+    const b = sectorBounds(teams, t);
+    check(Math.abs(b.span - (Math.PI * 2) / n) < 1e-9, `${n}팀 [${t}] 부채꼴 각도 ${(360 / n).toFixed(0)}°`);
+    const cx = Math.sin(b.center), cz = Math.cos(b.center);
+    const p = clampToSector(teams, t, cx * 20, cz * 20);
+    check(Math.hypot(p.x - cx * 20, p.z - cz * 20) < 0.2, `${n}팀 [${t}] 중심 방향은 진영 안`);
+  });
+  const blue = sectorBounds(teams, 'blue');
+  check(Math.abs(Math.sin(blue.center) + 1) < 1e-9, `${n}팀 블루 중심 = 서쪽`);
+}
+{
+  // 경계를 넘은 좌표는 가장 가까운 자기 진영으로 밀린다
+  const teams3 = partyTeams(3);
+  const p = clampToSector(teams3, 'green', -30, 0);
+  const b = sectorBounds(teams3, 'green');
+  const ang = Math.atan2(p.x, p.z);
+  let rel = ang - b.lo;
+  while (rel < 0) rel += Math.PI * 2;
+  check(rel >= 0 && rel <= b.span + 1e-9, '3팀 그린 진영 밖 좌표 → 경계로 이동');
+  check(Math.hypot(p.x, p.z) > 20, '경계로 밀 때 거리 유지');
+}
+{
+  // 3팀 모드에서 자기 진영 밖에는 놓을 수 없다
+  const teams4 = partyTeams(4);
+  const list = [];
+  const byTeam = {};
+  for (const t of teams4) {
+    const own = [];
+    const r = placeUnits(own, {
+      id: 'lion', team: t, x: 0, z: 0, count: 5, teams: teams4, budget: PARTY.BUDGET,
+    });
+    check(r.added.length === 5, `[${t}] 4팀 진영에 5마리 배치`);
+    byTeam[t] = own;
+    list.push(...own);
+  }
+  check(list.length === 20, '4팀 × 5마리 = 20마리');
+  for (const t of teams4) {
+    const mine = byTeam[t];
+    const b = sectorBounds(teams4, t);
+    mine.forEach((q) => {
+      let rel = Math.atan2(q.x, q.z) - b.lo;
+      while (rel < 0) rel += Math.PI * 2;
+      check(rel >= -1e-6 && rel <= b.span + 1e-6, `[${t}] 놓인 유닛이 자기 부채꼴 안`);
+    });
+  }
+  check(list.every((q) => Math.hypot(q.x, q.z) <= TUNING.ARENA_RADIUS), '4팀 배치가 경기장 안');
+}
+
+// 예산 35
+{
+  const list = [];
+  const r = placeUnits(list, { id: 'lion', team: 'blue', x: -10, z: 0, count: 20, budget: PARTY.BUDGET, limit: 99 });
+  // 사자 코스트 4 → 35 안에서 8마리
+  check(r.added.length === 8, `예산 35 → 사자 8마리 (${r.added.length})`);
+  check(costOf(list) === 32, `사용 예산 32 (${costOf(list)})`);
+  check(r.skipped === 'budget', '예산 초과분은 놓지 않고 알림');
+  check(affordableCount(list, 'lion', PARTY.BUDGET) === 0, '남은 3 으로는 사자 불가');
+  check(affordableCount(list, 'fox', PARTY.BUDGET) === 1, '남은 3 으로 여우 1마리');
+  const over = placeUnits(list, { id: 'titan', team: 'blue', x: -10, z: 5, budget: PARTY.BUDGET });
+  check(over.added.length === 0 && over.skipped === 'budget', '예산 밖 타이탄 거부');
+  check(costOf(list) <= PARTY.BUDGET, '예산 초과 없음');
+}
+
+// 3팀 · 4팀 전투
+for (const n of [3, 4]) {
+  const teams = partyTeams(n);
+  const sides = {};
+  teams.forEach((t, i) => {
+    const b = sectorBounds(teams, t);
+    const dx = Math.sin(b.center), dz = Math.cos(b.center);
+    sides[t] = [];
+    for (let k = 0; k < 6; k++) {
+      const id = CREATURE_IDS[(i * 5 + k) % CREATURE_IDS.length];
+      sides[t].push(P(id, dx * (8 + k * 1.6), dz * (8 + k * 1.6), k === 0 ? 'gatling' : 'none'));
+    }
+  });
+  const s = createBattle({ sides, teams, arenaId: 'savanna', seed: 900 + n });
+  check(s.teams.length === n, `${n}팀 전투 진영 기록`);
+  check(s.units.length === n * 6, `${n}팀 × 6마리 = ${s.units.length}마리`);
+  simulate(s, TUNING.SIM_DT, 400);
+  check(s.over, `${n}팀 전투 종료`);
+  check(teams.includes(s.winner) || s.winner === 'draw', `${n}팀 전투 승자 판정 (${s.winner})`);
+  check(s.units.every(finiteUnit), `${n}팀 전투 NaN 없음`);
+  check(s.units.every((u) => Math.hypot(u.x, u.z) <= TUNING.ARENA_RADIUS + 0.6), `${n}팀 전투 경기장 이탈 없음`);
+  const dmgTeams = new Set(s.units.filter((u) => u.dmgDealt > 0).map((u) => u.team));
+  check(dmgTeams.size >= 2, `${n}팀 모두 공격에 참여`);
+  const hitTeams = new Set(s.units.filter((u) => u.dmgTaken > 0).map((u) => u.team));
+  check(hitTeams.size >= 2, `${n}팀 모두 피해를 받음`);
+  const survivors = teams.filter((t) => aliveCount(s, t) > 0);
+  check(s.endReason !== 'elimination' || survivors.length <= 1, `${n}팀 전멸 판정 정합`);
+  if (s.winner !== 'draw') check(aliveCount(s, s.winner) > 0 || s.endReason === 'timeout', '승리 팀은 살아 있음');
+  const sum = battleSummary(s);
+  check(sum.teams.length === n && Object.keys(sum.byTeam).length === n, `${n}팀 요약에 진영별 결과`);
+  check(teams.every((t) => Array.isArray(sum.byTeam[t]) && sum.byTeam[t].length === 6), `${n}팀 요약 유닛 수`);
+  check(!!mvpOf(s), `${n}팀 MVP 산출`);
+}
+
+// 3팀 진영은 서로 다른 두 팀을 함께 공격한다 (진짜 3파전)
+{
+  const teams = partyTeams(3);
+  const s = createBattle({
+    sides: {
+      blue: [P('lion', -12, 0)], red: [P('lion', 8, 6)], green: [P('lion', 8, -6)],
+    },
+    teams, seed: 31,
+  });
+  const seen = new Set();
+  for (let i = 0; i < 900 && !s.over; i++) {
+    step(s, TUNING.SIM_DT);
+    for (const u of s.units) {
+      if (u.dead || !u.targetId) continue;
+      const t = s.units.find((x) => x.uid === u.targetId);
+      if (t && t.team !== u.team) seen.add(`${u.team}>${t.team}`);
+    }
+  }
+  check(seen.size >= 2, `3팀이 서로 다른 팀을 노린다 (${[...seen].join(',')})`);
+}
+
+// 3팀 시간 초과 판정 (남은 체력 1위)
+{
+  const teams = partyTeams(3);
+  const s = createBattle({
+    sides: { blue: [P('elephant', -14, 0)], red: [P('fox', 12, 8)], green: [P('fox', 12, -8)] },
+    teams, seed: 5, maxTime: 2,
+  });
+  s.units.forEach((u) => { u.atk = 0; u.skillTimer = 99; });
+  s.units.forEach((u) => { if (u.team !== 'blue') u.hp = u.maxHp * 0.4; });
+  simulate(s, TUNING.SIM_DT, 10);
+  check(s.endReason === 'timeout', '3팀 시간 초과 판정');
+  check(s.winner === 'blue', '3팀 시간 초과 — 체력 우세 팀 승리');
+  check(teamHpRatio(s, 'blue') >= teamHpRatio(s, 'red'), '체력 비율 1위가 승자');
+}
+
+// 진영이 바뀌어도 배치는 진영 안으로 다시 모인다
+{
+  const list = [{ id: 'lion', x: 20, z: 0, weapon: 'none' }, { id: 'fox', x: 3, z: 3, weapon: 'none' }];
+  const moved = reclampList(list, 'green', partyTeams(4));
+  const b = sectorBounds(partyTeams(4), 'green');
+  moved.forEach((q) => {
+    let rel = Math.atan2(q.x, q.z) - b.lo;
+    while (rel < 0) rel += Math.PI * 2;
+    check(rel >= -1e-6 && rel <= b.span + 1e-6, '진영 변경 후 재배치');
+  });
+}
+
+// 넷 — 방 코드 · 패킷
+{
+  const code = makeRoomCode();
+  check(code.length === 4 && isValidRoomCode(code), `방 코드 4자리 (${code})`);
+  check(normalizeRoomCode(' ab-cd ') === 'ABCD', '방 코드 정리');
+  check(normalizeRoomCode('O0I1') === '', '헷갈리는 문자 제외');
+  const m = decodeMsg(encodeMsg('join', { pid: 'x' }));
+  check(m && m.t === 'join' && m.p.pid === 'x', '메시지 인코딩/디코딩');
+  check(decodeMsg('nope') === null, '깨진 메시지 무시');
+}
+{
+  const ev = { type: 'hit', uid: 3, x: 12.345, z: -4.5, y: 1.1, dmg: 21.5, crit: true, dot: false };
+  const back = unpackEvent(packEvent(ev));
+  check(back.type === 'hit' && back.uid === 3 && Math.abs(back.x - 12.35) < 0.02 && back.crit === true && back.dot === false, '이벤트 압축 왕복');
+  check(packEvent({ type: 'nope' }) === null, '모르는 이벤트는 보내지 않음');
+}
+
+/* ── 4인 파티 루프백 ── */
+{
+  const hub = new MemoryHub();
+  const S = makeLoopback(4, { hub });
+  const [host, g2, g3, g4] = S;
+  check(host.phase === PHASE.IDLE, '시작 전에는 대기 상태');
+
+  const code = await host.host('지우');
+  check(host.phase === PHASE.PLACE && host.isHost, '파티 열기 → 배치 단계');
+  check(host.playerCount === 1 && host.myTeam === 'blue', '방장은 혼자 시작 (블루)');
+
+  await g2.join(code, '친구2');
+  await sleep(40);
+  check(host.playerCount === 2 && host.teams.length === 2, '2명 → 2팀');
+  check(host.players.get(g2.myPid).team === 'red', '2번째 참가자 = 레드');
+
+  await g3.join(code, '친구3');
+  await sleep(40);
+  check(host.playerCount === 3 && host.teams.join(',') === 'blue,red,green', '3명 → 3팀');
+  check(g3.myTeam === 'green', '3번째 참가자 = 그린');
+
+  await g4.join(code, '친구4');
+  await sleep(60);
+  check(host.playerCount === 4, '4명 참가');
+  check(host.teams.join(',') === 'blue,red,green,gold' && g4.myTeam === 'gold', '4명 → 4팀 (4번째 = 골드)');
+  check(g4.playerCount === 4 && g4.teams.length === 4, '손님도 4팀을 본다');
+
+  // 5번째는 거절된다
+  const g5 = makeLoopback(1, { hub })[0];
+  let joinErr = null;
+  try { await g5.join(code, '5번째'); } catch (e) { joinErr = e.message; }
+  check(!!joinErr && joinErr.includes('가득'), `5번째 참가 거절 (${joinErr})`);
+  check(host.playerCount === 4, '거절 후에도 4명 유지');
+  check(g2.net.active && g3.net.active && g4.net.active, '가득 참 거절이 다른 참가자 연결을 끊지 않는다');
+  check(g5.net.role === null, '거절당한 참가자는 연결 정리');
+
+  // 예산 35 — 모두 자기 진영에만 놓는다
+  const pool = ['lion', 'tiger', 'bear', 'wolf', 'eagle', 'boar'];
+  S.forEach((s, i) => {
+    const list = [];
+    for (let k = 0; k < 9; k++) list.push({ id: pool[(i + k) % pool.length], x: 0, z: 0, weapon: k === 0 ? 'rocket' : 'none' });
+    s.setPlacements(list);
+  });
+  await sleep(80);
+  for (const s of S) {
+    check(s.playerCount === 4, '모두 4명을 본다');
+    check(s.order.every((pid) => s.players.get(pid).placements.length > 0), '모두 배치를 공유');
+    check(costOf(s.me.placements) <= PARTY.BUDGET, `[${s.myTeam}] 예산 35 이내 (${costOf(s.me.placements)})`);
+  }
+  const hostCounts = host.order.map((pid) => host.players.get(pid).placements.length);
+  const guestCounts = g4.order.map((pid) => g4.players.get(pid).placements.length);
+  check(hostCounts.join(',') === guestCounts.join(','), '배치가 모든 참가자에게 동일하게 보인다');
+
+  check(!host.canStart(), '준비 전에는 시작 불가');
+  S.forEach((s) => s.setReady(true));
+  await sleep(80);
+  check(host.canStart(), '모두 준비 → 시작 가능');
+  check(g4.me.ready === true, '손님 준비 상태 전달');
+
+  // 예산을 넘기면 잘라 낸다
+  host.setPlacements([...host.me.placements, { id: 'titan', x: 0, z: 0, weapon: 'none' }]);
+  await sleep(40);
+  check(costOf(host.me.placements) <= PARTY.BUDGET, '예산 초과분은 자동 제거');
+
+  const started = host.requestStart();
+  await sleep(60);
+  check(started, '방장이 배틀 시작');
+  check(host.phase === PHASE.BATTLE && g4.phase === PHASE.BATTLE, '모두 배틀 단계');
+  check(!!host.battle && !!g4.battle, '모두 배틀 상태를 받음');
+  check(host.battle.units.length === g4.battle.units.length, '유닛 수 동일');
+  check(host.battle.units.every((u, i) => u.uid === g4.battle.units[i].uid), '유닛 순서/uid 동일');
+  check(host.battle.teams.length === 4, '4팀 전투');
+
+  // 방장이 시뮬레이션 → 손님은 스냅샷으로 따라온다
+  let guard = 0;
+  while (!host.battle.over && guard < 20000) {
+    simulate(host.battle, 1 / 60, 1 / 60);
+    host.tick(1 / 60);
+    g4.battle.events.length = 0;
+    guard++;
+  }
+  await sleep(150);
+  host.tick(1 / 60);
+  await sleep(60);
+  check(host.battle.over, '4팀 배틀 종료');
+  check(g4.battle.over, '손님도 종료 상태를 받음');
+  check(g4.battle.winner === host.battle.winner, `승자가 동일 (${host.battle.winner})`);
+  const mismatch = host.battle.units.filter((u, i) => {
+    const v = g4.battle.units[i];
+    return !v || Math.hypot(u.x - v.x, u.z - v.z) > 0.25 || u.dead !== v.dead;
+  });
+  check(mismatch.length === 0, `손님 화면 위치/사망 동기화 (${mismatch.length} 불일치)`);
+  host.teams.forEach((t) => {
+    check(aliveCount(host.battle, t) === aliveCount(g4.battle, t), `[${t}] 생존 수 동기화`);
+  });
+  const hostMvp = mvpOf(host.battle);
+  const guestMvp = g4.battle.units.find((u) => u.uid === hostMvp.uid);
+  check(Math.round(guestMvp.dmgDealt) === Math.round(hostMvp.dmgDealt), 'MVP 피해량 동기화');
+  check(g4.battle.log.length > 1, '손님도 전투 기록을 받는다');
+
+  // 다시 배치
+  const ok = host.rematch();
+  await sleep(60);
+  check(ok && host.phase === PHASE.PLACE && g4.phase === PHASE.PLACE, '다시 배치 단계로');
+  check(S.every((s) => s.me.ready === false), '재대결 시 준비 초기화');
+
+  // 중복 메시지 걸러내기 (중계 서버 2개 → 같은 메시지 2번 도착)
+  let got = 0;
+  host.net.onMessage = () => { got++; };
+  const text = encodeMsg('place', { list: [] });
+  const stamped = text.slice(0, -1) + ',"f":"OTHER1","s":1}';
+  host.net._dispatch(stamped);
+  host.net._dispatch(stamped);
+  check(got === 1, `같은 메시지 중복 제거 (${got}회 처리)`);
+  host.net.onMessage = (m) => host.handle(m);
+
+  // 나가기
+  g4.leave();
+  await sleep(80);
+  check(host.playerCount >= 3, '손님이 나가면 인원이 줄어든다');
+  host.leave();
+}
+
+// 2인 파티는 2팀으로 돌아간다
+{
+  const hub = new MemoryHub();
+  const [host, g2] = makeLoopback(2, { hub });
+  const code = await host.host('호스트');
+  await g2.join(code, '손님');
+  await sleep(50);
+  check(host.teams.length === 2 && g2.teams.length === 2, '2인 파티 = 2팀');
+  check(host.players.get(g2.myPid).team === 'red', '2인 파티 손님 = 레드');
+  host.leave();
 }
 
 const avgTime = totalTime / pairCount;
