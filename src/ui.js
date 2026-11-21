@@ -1,328 +1,411 @@
-// 동물 vs 동물 — DOM UI (편성 · HUD · 기록 · 결과)
-import { ANIMALS, ANIMAL_BY_ID, ARENAS, ARENA_BY_ID, PRESETS, TUNING, animalTierStars, powerOf } from './config.js';
+// 동물 vs 동물 — ARBS 스타일 DOM UI (배치 도구 · 유닛 바 · 챌린지 · 전투 HUD)
+import {
+  CREATURES, CREATURE_BY_ID, CATEGORIES, WEAPONS, WEAPON_BY_ID,
+  ARENAS, PRESETS, CHALLENGES, TUNING, animalTierStars, placementCost,
+} from './config.js';
 
 const $ = (sel) => document.querySelector(sel);
-const MAX_TEAM = TUNING.MAX_TEAM;
+const $$ = (sel) => [...document.querySelectorAll(sel)];
+const shortName = (def) => def.short || def.name;
 
 export class UI {
   constructor(app, hooks = {}) {
     this.app = app;
     this.hooks = hooks;
-    this.activeTeam = 'blue';
     this.logCount = 0;
-    this.units = [];
-    this.lastDetail = null;
+    this.bannerNext = null;
 
     this.el = {
-      builder: $('#builder'), roster: $('#roster'), detail: $('#detail'),
-      slotsBlue: $('#slots-blue'), slotsRed: $('#slots-red'),
+      topbar: $('#topbar'),
+      placeBar: $('#place-bar'),
+      dock: $('#dock'),
+      teamSwitch: $('#team-switch'),
       countBlue: $('#count-blue'), countRed: $('#count-red'),
-      powerBlue: $('#power-blue'), powerRed: $('#power-red'),
-      presetRow: $('#preset-row'), arenaRow: $('#arena-row'), modeRow: $('#mode-row'),
-      fight: $('#btn-fight'), random: $('#btn-random'),
-      hud: $('#battle-hud'), strip: $('#team-strip'), stripBlue: $('#strip-blue'), stripRed: $('#strip-red'),
-      scoreBlue: $('#score-blue'), scoreRed: $('#score-red'), clock: $('#battle-clock'), state: $('#battle-state'),
-      pause: $('#btn-pause'), speed: $('#btn-speed'), follow: $('#btn-follow'), logBtn: $('#btn-log'),
-      log: $('#battle-log'), logList: $('#log-list'), rebuild: $('#btn-rebuild'),
+      weaponRow: $('#weapon-row'), countRow: $('#count-row'),
+      eraser: $('#btn-eraser'), undo: $('#btn-undo'), mirror: $('#btn-mirror'),
+      clear: $('#btn-clear'), free: $('#btn-free'),
+      hint: $('#place-hint'), budget: $('#budget'),
+      leaveChallenge: $('#btn-leave-challenge'),
+      catRow: $('#cat-row'), unitBar: $('#unit-bar'), detail: $('#detail-line'),
+      modeTabs: $('#mode-tabs'), random: $('#btn-random'),
+      dockCount: $('#dock-count'), dockTitle: $('#dock-title'), fight: $('#btn-fight'),
+      challengePanel: $('#challenge-panel'), challengeList: $('#challenge-list'),
+      challengeClose: $('#btn-challenge-close'),
+      presetPanel: $('#preset-panel'), presetList: $('#preset-list'),
+      presetClose: $('#btn-preset-close'), arenaRow: $('#arena-row'),
+      hud: $('#battle-hud'), scoreBlue: $('#score-blue'), scoreRed: $('#score-red'),
+      clock: $('#battle-clock'), state: $('#battle-state'),
+      hpBlue: $('#hp-blue'), hpRed: $('#hp-red'),
+      pause: $('#btn-pause'), speed: $('#btn-speed'), slow: $('#btn-slow'),
+      follow: $('#btn-follow'), logBtn: $('#btn-log'), rebuild: $('#btn-rebuild'),
+      focusTag: $('#focus-tag'),
+      log: $('#battle-log'), logList: $('#log-list'),
       banner: $('#banner'), bannerTitle: $('#banner-title'), bannerSub: $('#banner-sub'),
       bannerMvp: $('#banner-mvp'), bannerCrown: $('#banner-crown'),
+      bannerActions: $('.banner-actions'),
       toast: $('#toast'), help: $('#help'), loader: $('#loader'), sound: $('#btn-sound'),
     };
 
-    this.buildRoster();
+    this.buildCategories();
+    this.buildUnitBar();
+    this.buildWeapons();
+    this.buildChallenges();
     this.buildPresets();
     this.buildArenas();
     this.bind();
     this.render();
   }
 
-  /* ───────────── 편성 화면 ───────────── */
+  /* ───────────── 배치 도구 ───────────── */
 
-  buildRoster() {
-    const html = ANIMALS.map((a) => {
-      const c = '#' + a.colors.main.toString(16).padStart(6, '0');
-      return `<button class="card" data-id="${a.id}" style="--accent:${c}" aria-label="${a.name}">
-        <span class="card-emoji">${a.emoji}</span>
-        <span class="card-name">${a.name}</span>
-        <span class="card-tier">${animalTierStars(a.tier)}</span>
-        <span class="card-stats"><i>HP ${a.hp}</i><i>ATK ${a.atk}</i></span>
-        <span class="card-badge hidden"></span>
+  buildCategories() {
+    this.el.catRow.innerHTML = CATEGORIES.map((c) => (
+      `<button class="cat" data-cat="${c.id}">${c.emoji} ${c.name}</button>`
+    )).join('');
+  }
+
+  buildUnitBar() {
+    this.el.unitBar.innerHTML = CREATURES.map((a) => {
+      const color = '#' + a.colors.main.toString(16).padStart(6, '0');
+      return `<button class="ucard" data-id="${a.id}" data-cat="${a.cat}" style="--accent:${color}" aria-label="${a.name}">
+        <span class="u-cost">${a.cost}</span>
+        <span class="u-emoji">${a.emoji}</span>
+        <span class="u-name">${shortName(a)}</span>
+        <span class="u-stars">${animalTierStars(a.tier)}</span>
       </button>`;
     }).join('');
-    this.el.roster.innerHTML = html;
+  }
+
+  buildWeapons() {
+    this.el.weaponRow.innerHTML = WEAPONS.map((w) => (
+      `<button class="wchip" data-weapon="${w.id}" title="${w.desc}">${w.emoji} ${w.name}</button>`
+    )).join('');
+  }
+
+  buildChallenges() {
+    const maxCleared = this.app.maxCleared || 0;
+    this.el.challengeList.innerHTML = CHALLENGES.map((c) => {
+      const locked = c.id > maxCleared + 1;
+      const cleared = c.id <= maxCleared;
+      return `<button class="stage ${locked ? 'locked' : ''} ${cleared ? 'cleared' : ''}" data-stage="${c.id}">
+        <span class="st-emoji">${locked ? '🔒' : c.emoji}</span>
+        <span class="st-body"><b>${c.id}. ${c.name}</b><small>예산 ${c.budget} · 레드 ${c.red.length}마리</small></span>
+        <span class="st-state">${cleared ? '✓' : locked ? '' : '▶'}</span>
+      </button>`;
+    }).join('');
   }
 
   buildPresets() {
-    this.el.presetRow.innerHTML = PRESETS.map((p) => (
-      `<button class="chip" data-preset="${p.id}">${p.emoji} ${p.name}</button>`
+    if (!this.el.presetList) return;
+    this.el.presetList.innerHTML = PRESETS.map((p) => (
+      `<button class="stage" data-preset="${p.id}">
+        <span class="st-emoji">${p.emoji}</span>
+        <span class="st-body"><b>${p.name}</b><small>${p.desc || ''} · 🔵${p.blue.length} 🔴${p.red.length}</small></span>
+        <span class="st-state">▶</span>
+      </button>`
     )).join('');
   }
 
   buildArenas() {
+    if (!this.el.arenaRow) return;
     this.el.arenaRow.innerHTML = ARENAS.map((a) => (
-      `<button class="chip" data-arena="${a.id}">${a.emoji} ${a.name}</button>`
+      `<button class="chip arena" data-arena="${a.id}">${a.emoji} ${a.name}</button>`
     )).join('');
   }
 
   bind() {
-    this.el.roster.addEventListener('click', (e) => {
-      const card = e.target.closest('.card');
+    this.el.unitBar.addEventListener('click', (e) => {
+      const card = e.target.closest('.ucard');
       if (!card) return;
-      this.addAnimal(card.dataset.id);
+      this.app.selected = card.dataset.id;
+      this.app.eraser = false;
+      this.render();
+      this.hooks.onSelectUnit?.(card.dataset.id);
     });
 
-    [this.el.slotsBlue, this.el.slotsRed].forEach((row) => {
-      row.addEventListener('click', (e) => {
-        const slot = e.target.closest('.slot');
-        if (!slot) return;
-        const team = row.dataset.team;
-        this.app.activeTeam = team;
-        const idx = Number(slot.dataset.idx);
-        if (slot.classList.contains('filled')) {
-          this.app.teams[team].splice(idx, 1);
-          this.hooks.onTeamsChange?.();
-          this.render();
-        }
-      });
-    });
-
-    document.querySelectorAll('.team-btn').forEach((btn) => {
-      btn.addEventListener('click', () => {
-        this.activeTeam = btn.dataset.team;
-        this.app.activeTeam = this.activeTeam;
-        this.render();
-      });
-    });
-
-    this.el.modeRow.addEventListener('click', (e) => {
-      const b = e.target.closest('.mode-chip');
+    this.el.catRow.addEventListener('click', (e) => {
+      const b = e.target.closest('.cat');
       if (!b) return;
-      this.setMode(b.dataset.mode);
+      this.app.activeCat = b.dataset.cat;
+      this.render();
     });
 
-    this.el.presetRow.addEventListener('click', (e) => {
+    this.el.weaponRow.addEventListener('click', (e) => {
+      const b = e.target.closest('.wchip');
+      if (!b) return;
+      this.app.weapon = b.dataset.weapon;
+      this.render();
+      this.hooks.onWeapon?.(b.dataset.weapon);
+    });
+
+    this.el.countRow.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-count]');
+      if (!b) return;
+      this.app.count = Number(b.dataset.count);
+      this.render();
+    });
+
+    this.el.teamSwitch.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-team]');
+      if (!b) return;
+      if (this.app.mode === 'challenge' && b.dataset.team !== 'blue') {
+        this.toast('챌린지에서는 블루 팀만 배치합니다');
+        return;
+      }
+      this.app.activeTeam = b.dataset.team;
+      this.app.eraser = false;
+      this.render();
+      this.hooks.onTeamChange?.(b.dataset.team);
+    });
+
+    this.el.eraser.addEventListener('click', () => {
+      this.app.eraser = !this.app.eraser;
+      this.render();
+    });
+    this.el.free.addEventListener('click', () => {
+      this.app.free = !this.app.free;
+      this.render();
+      this.toast(this.app.free ? '자유 배치 켜짐 — 중앙선을 넘어도 됩니다' : '진영 배치로 돌아갑니다');
+    });
+    this.el.undo.addEventListener('click', () => this.hooks.onUndo?.());
+    this.el.clear.addEventListener('click', () => this.hooks.onClear?.(this.app.activeTeam));
+    this.el.mirror.addEventListener('click', () => this.hooks.onMirror?.(this.app.activeTeam));
+
+    this.el.presetList?.addEventListener('click', (e) => {
       const b = e.target.closest('[data-preset]');
       if (!b) return;
-      const p = PRESETS.find((x) => x.id === b.dataset.preset);
-      if (!p) return;
-      this.app.teams.blue = p.blue.slice(0, MAX_TEAM);
-      this.app.teams.red = p.red.slice(0, MAX_TEAM);
-      this.app.arenaId = p.arena;
-      this.app.mode = Math.max(p.blue.length, p.red.length) === 1 ? 'duel' : 'team';
-      this.hooks.onTeamsChange?.();
-      this.hooks.onArenaChange?.(p.arena);
-      this.toast(`${p.emoji} ${p.name}`);
-      this.render();
+      this.el.presetPanel.classList.add('hidden');
+      this.app.showPresets = false;
+      this.hooks.onPreset?.(b.dataset.preset);
     });
-
-    this.el.arenaRow.addEventListener('click', (e) => {
+    this.el.presetClose?.addEventListener('click', () => {
+      this.el.presetPanel.classList.add('hidden');
+      this.app.showPresets = false;
+    });
+    this.el.arenaRow?.addEventListener('click', (e) => {
       const b = e.target.closest('[data-arena]');
       if (!b) return;
-      this.app.arenaId = b.dataset.arena;
-      this.hooks.onArenaChange?.(b.dataset.arena);
-      this.render();
+      this.hooks.onArena?.(b.dataset.arena);
     });
 
-    this.el.random.addEventListener('click', () => this.randomMatch());
+    this.el.modeTabs.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-mode]');
+      if (!b) return;
+      const mode = b.dataset.mode;
+      this.app.mode = mode;
+      if (mode === 'challenge') {
+        this.app.showChallenges = true;
+        this.openChallenges();
+      } else {
+        this.app.showChallenges = false;
+        this.el.challengePanel.classList.add('hidden');
+        this.render();
+      }
+      this.hooks.onMode?.(mode);
+    });
+    this.el.random.addEventListener('click', () => {
+      this.app.showPresets = !this.app.showPresets;
+      this.el.presetPanel?.classList.toggle('hidden', !this.app.showPresets);
+      this.hooks.onRandom?.();
+    });
+
+    this.el.challengeList.addEventListener('click', (e) => {
+      const b = e.target.closest('.stage');
+      if (!b) return;
+      const stage = CHALLENGES.find((c) => c.id === Number(b.dataset.stage));
+      if (!stage) return;
+      if (b.classList.contains('locked')) { this.toast('🔒 이전 단계를 먼저 클리어하세요'); return; }
+      this.hooks.onChallenge?.(stage);
+    });
+    this.el.challengeClose.addEventListener('click', () => this.closeChallenges());
+    this.el.leaveChallenge.addEventListener('click', () => this.hooks.onLeaveChallenge?.());
+
     this.el.fight.addEventListener('click', () => {
       if (this.el.fight.disabled) return;
       this.hooks.onStart?.();
     });
-    this.el.rebuild.addEventListener('click', () => this.hooks.onRebuild?.());
-    $('#btn-rematch').addEventListener('click', () => this.hooks.onRematch?.());
+    $('#btn-rematch').addEventListener('click', () => {
+      if (this.bannerNext != null) { this.hooks.onNextStage?.(this.bannerNext); this.bannerNext = null; return; }
+      this.hooks.onRematch?.();
+    });
     $('#btn-back').addEventListener('click', () => this.hooks.onRebuild?.());
 
     this.el.pause.addEventListener('click', () => this.hooks.onPause?.());
-    $('#btn-restart').addEventListener('click', () => {
-      this.hideBanner();
-      this.hooks.onRematch?.();
-    });
     this.el.speed.addEventListener('click', () => this.hooks.onSpeed?.());
+    this.el.slow.addEventListener('click', () => this.hooks.onSlow?.());
     this.el.follow.addEventListener('click', () => this.hooks.onFollow?.());
     this.el.logBtn.addEventListener('click', () => this.toggleLog());
     $('#btn-log-close').addEventListener('click', () => this.toggleLog(false));
+    this.el.rebuild.addEventListener('click', () => this.hooks.onRebuild?.());
 
     $('#btn-help').addEventListener('click', () => this.el.help.classList.remove('hidden'));
     $('#btn-help-close').addEventListener('click', () => this.el.help.classList.add('hidden'));
     this.el.sound.addEventListener('click', () => this.hooks.onToggleSound?.());
   }
 
-  setMode(mode) {
+  /* ───────────── 렌더 ───────────── */
+
+  setMode(mode, challenge = null) {
     this.app.mode = mode;
-    if (mode === 'duel') {
-      this.app.teams.blue = this.app.teams.blue.slice(0, 1);
-      this.app.teams.red = this.app.teams.red.slice(0, 1);
-    }
-    this.hooks.onTeamsChange?.();
+    this.app.challenge = challenge;
     this.render();
-  }
-
-  addAnimal(id) {
-    const team = this.app.activeTeam;
-    const list = this.app.teams[team];
-    const max = this.app.mode === 'duel' ? 1 : MAX_TEAM;
-    const at = list.indexOf(id);
-    if (at >= 0) {
-      list.splice(at, 1);
-    } else {
-      if (list.length >= max) {
-        if (max === 1) list.length = 0;
-        else { this.toast(`한 팀은 최대 ${max}마리까지!`); return; }
-      }
-      list.push(id);
-    }
-    const def = ANIMAL_BY_ID[id];
-    this.showDetail(def);
-    this.hooks.onTeamsChange?.();
-    this.render();
-  }
-
-  randomMatch() {
-    const ids = ANIMALS.map((a) => a.id);
-    const pick = (n) => {
-      const pool = ids.slice();
-      const out = [];
-      for (let i = 0; i < n; i++) out.push(pool.splice(Math.floor(Math.random() * pool.length), 1)[0]);
-      return out;
-    };
-    const n = this.app.mode === 'duel' ? 1 : 2 + Math.floor(Math.random() * 3);
-    const n2 = this.app.mode === 'duel' ? 1 : 2 + Math.floor(Math.random() * 3);
-    this.app.teams.blue = pick(n);
-    this.app.teams.red = pick(n2);
-    this.app.arenaId = ARENAS[Math.floor(Math.random() * ARENAS.length)].id;
-    this.hooks.onArenaChange?.(this.app.arenaId);
-    this.hooks.onTeamsChange?.();
-    this.toast('🎲 랜덤 매치!');
-    this.render();
-  }
-
-  showDetail(def) {
-    if (!def) return;
-    this.lastDetail = def.id;
-    const s = def.skill;
-    this.el.detail.innerHTML = `
-      <b>${def.emoji} ${def.name} <span style="color:var(--muted);font-weight:600;font-size:9.5px">${def.role} · ${animalTierStars(def.tier)} · 코스트 ${def.cost}</span></b>
-      <span class="stat-line">
-        <i>❤️ ${def.hp}</i><i>⚔️ ${def.atk}</i><i>💨 ${def.spd}</i><i>🎯 ${def.range}</i>
-      </span>
-      <span class="skill-line">${s.icon} ${s.name}</span>
-      <span>${s.desc} <span style="color:var(--muted-2)">· ${s.cd}초</span></span>`;
   }
 
   render() {
-    const { teams, mode, arenaId } = this.app;
-    // 모드 칩
-    document.querySelectorAll('.mode-chip').forEach((b) => b.classList.toggle('active', b.dataset.mode === mode));
-    // 팀 버튼
-    document.querySelectorAll('.team-btn').forEach((b) => b.classList.toggle('active', b.dataset.team === this.activeTeam));
-    this.el.slotsBlue.classList.toggle('active', this.activeTeam === 'blue');
-    this.el.slotsRed.classList.toggle('active', this.activeTeam === 'red');
+    const a = this.app;
+    const teams = a.teams;
+    const budgetInfo = this.budgetState();
 
-    // 슬롯
-    const max = mode === 'duel' ? 1 : MAX_TEAM;
-    [['blue', this.el.slotsBlue, teams.blue], ['red', this.el.slotsRed, teams.red]].forEach(([team, row, list]) => {
-      let html = '';
-      for (let i = 0; i < max; i++) {
-        const def = ANIMAL_BY_ID[list[i]];
-        html += def
-          ? `<button class="slot filled" data-idx="${i}" aria-label="${def.name} 빼기">
-               <span class="slot-emoji">${def.emoji}</span>
-               <span class="slot-name">${def.name}</span>
-               <span class="slot-x">✕</span>
-             </button>`
-          : `<button class="slot" data-idx="${i}" aria-label="빈 슬롯"><span class="slot-plus">+</span></button>`;
-      }
-      row.innerHTML = html;
-    });
+    // 모드
+    $$('[data-mode]').forEach((b) => b.classList.toggle('active', b.dataset.mode === a.mode));
+    this.el.challengePanel.classList.toggle('hidden', !(a.mode === 'challenge' && a.showChallenges));
 
+    // 팀
+    $$('[data-team]').forEach((b) => b.classList.toggle('on', b.dataset.team === a.activeTeam));
     this.el.countBlue.textContent = teams.blue.length;
     this.el.countRed.textContent = teams.red.length;
-    this.el.powerBlue.textContent = teams.blue.reduce((s, id) => s + powerOf(ANIMAL_BY_ID[id]), 0);
-    this.el.powerRed.textContent = teams.red.reduce((s, id) => s + powerOf(ANIMAL_BY_ID[id]), 0);
+    this.el.dockCount.textContent = `🔵 ${teams.blue.length} · 🔴 ${teams.red.length}`;
 
-    // 카드 선택 표시
-    document.querySelectorAll('.card').forEach((card) => {
-      const id = card.dataset.id;
-      const inBlue = teams.blue.includes(id);
-      const inRed = teams.red.includes(id);
-      card.classList.toggle('selected-blue', inBlue && !inRed);
-      card.classList.toggle('selected-red', inRed && !inBlue);
-      card.classList.toggle('selected-both', inBlue && inRed);
-      const badge = card.querySelector('.card-badge');
-      badge.classList.remove('hidden', 'blue', 'red', 'both');
-      if (inBlue && inRed) { badge.textContent = '🔵🔴'; badge.classList.add('both'); }
-      else if (inBlue) { badge.textContent = '블루'; badge.classList.add('blue'); }
-      else if (inRed) { badge.textContent = '레드'; badge.classList.add('red'); }
-      else badge.classList.add('hidden');
+    // 수량
+    $$('[data-count]').forEach((b) => b.classList.toggle('on', Number(b.dataset.count) === a.count));
+    // 무기
+    $$('[data-weapon]').forEach((b) => b.classList.toggle('on', b.dataset.weapon === a.weapon));
+    // 카테고리
+    $$('.cat').forEach((b) => b.classList.toggle('on', b.dataset.cat === a.activeCat));
+    $$('.ucard').forEach((c) => {
+      const show = a.activeCat === 'all' || c.dataset.cat === a.activeCat;
+      c.classList.toggle('hide', !show);
+      c.classList.toggle('sel', c.dataset.id === a.selected);
     });
-
     // 전장
-    document.querySelectorAll('[data-arena]').forEach((b) => b.classList.toggle('active', b.dataset.arena === arenaId));
+    $$('[data-arena]').forEach((b) => b.classList.toggle('on', b.dataset.arena === a.arenaId));
+    // 도구
+    this.el.eraser.classList.toggle('on', !!a.eraser);
+    this.el.free.classList.toggle('on', !!a.free);
+
+    // 힌트
+    const teamTxt = a.activeTeam === 'blue' ? '🔵 블루' : '🔴 레드';
+    if (a.eraser) this.el.hint.textContent = `${teamTxt} 지우개 — 지울 유닛을 탭하세요`;
+    else {
+      const def = CREATURE_BY_ID[a.selected];
+      this.el.hint.textContent = `${teamTxt} · ${def ? def.emoji + ' ' + shortName(def) : '유닛'} ${a.count > 1 ? `×${a.count}` : ''} — 땅을 탭해 배치`;
+    }
+
+    // 예산 (챌린지)
+    if (a.mode === 'challenge' && a.challenge) {
+      this.el.budget.classList.remove('hidden');
+      this.el.budget.innerHTML = `예산 <b class="${budgetInfo.left < 0 ? 'over' : ''}">${budgetInfo.left}</b> / ${budgetInfo.budget}`;
+      this.el.leaveChallenge.classList.remove('hidden');
+      this.el.dockTitle.textContent = `${a.challenge.id}. ${a.challenge.name}`;
+    } else {
+      this.el.budget.classList.add('hidden');
+      this.el.leaveChallenge.classList.add('hidden');
+      this.el.dockTitle.textContent = a.free ? '자유 배치' : '진영 배치';
+    }
+
+    // 상세
+    const def = CREATURE_BY_ID[a.selected];
+    if (def) {
+      const w = WEAPON_BY_ID[a.weapon];
+      const hp = Math.round(def.hp * (w.hpMul || 1));
+      const range = Math.max(def.range, w.range || 0);
+      this.el.detail.innerHTML = `<b>${def.emoji} ${def.name}</b> · ${def.role} · 코스트 ${def.cost}`
+        + `<span class="d-stats">❤️ ${hp} · ⚔️ ${def.atk} · 🎯 ${range} · ${def.skill.icon} ${def.skill.name}</span>`
+        + `<span class="d-skill">${def.skill.desc}${a.weapon !== 'none' ? ` · <i>${w.emoji} ${w.name}</i>` : ''}</span>`;
+    }
 
     // 시작 버튼
-    const ok = teams.blue.length > 0 && teams.red.length > 0;
+    const b = teams.blue.length;
+    const r = teams.red.length;
+    const overBudget = budgetInfo.left < 0;
+    const noStage = a.mode === 'challenge' && !a.challenge;
+    const ok = b > 0 && r > 0 && !overBudget && !noStage;
     this.el.fight.disabled = !ok;
-    this.el.fight.textContent = ok
-      ? `⚔️ ${teams.blue.length} vs ${teams.red.length} 배틀 시작`
-      : '두 팀 모두 동물을 골라 주세요';
+    if (noStage) this.el.fight.textContent = '챌린지 단계를 선택하세요';
+    else if (!b || !r) this.el.fight.textContent = '두 팀 모두 유닛을 배치하세요';
+    else if (overBudget) this.el.fight.textContent = `예산 초과 · ${-budgetInfo.left} 줄이세요`;
+    else this.el.fight.textContent = `⚔️ ${b} vs ${r} 배틀 시작`;
 
-    if (!this.lastDetail) {
-      const first = ANIMAL_BY_ID[teams.blue[0]] || ANIMALS[0];
-      this.showDetail(first);
+    // 챌린지 목록 갱신
+    this.buildChallenges();
+  }
+
+  budgetState() {
+    const a = this.app;
+    if (a.mode === 'challenge' && a.challenge) {
+      const budget = a.challenge.budget;
+      const used = placementCost(a.teams.blue);
+      return { budget, used, left: budget - used };
     }
+    return { budget: 0, used: 0, left: 0 };
+  }
+
+  setBudgetVisible(v) { this.el.budget.classList.toggle('hidden', !v); }
+
+  openChallenges() {
+    this.app.mode = 'challenge';
+    this.app.showChallenges = true;
+    this.render();
+  }
+
+  closeChallenges() {
+    this.app.showChallenges = false;
+    this.render();
   }
 
   showBuilder() {
-    this.el.builder.classList.remove('closed');
-    document.body.classList.add('builder-open');
+    this.el.placeBar.classList.remove('hidden');
+    this.el.dock.classList.remove('closed');
+    this.el.topbar.classList.remove('battle');
   }
+
   hideBuilder() {
-    this.el.builder.classList.add('closed');
-    document.body.classList.remove('builder-open');
+    this.el.placeBar.classList.add('hidden');
+    this.el.dock.classList.add('closed');
+    this.el.topbar.classList.add('battle');
   }
+
+  setTeam(team) { this.app.activeTeam = team; this.render(); }
+  setSelected(id) { this.app.selected = id; this.render(); }
+  setWeapon(id) { this.app.weapon = id; this.render(); }
+  setCount(n) { this.app.count = n; this.render(); }
 
   /* ───────────── 전투 HUD ───────────── */
 
-  buildStrips(state) {
-    this.units = state.units.slice();
-    const make = (u) => `<div class="unit-card ${u.team}" data-uid="${u.uid}">
-        <div class="unit-card-top"><span class="unit-card-emoji">${u.emoji}</span><span class="unit-card-name">${u.name}</span></div>
-        <div class="hp-track"><i class="hp-fill" style="width:100%"></i></div>
-        <div class="unit-card-skill">필살기</div>
-      </div>`;
-    this.el.stripBlue.innerHTML = this.units.filter((u) => u.team === 'blue').map(make).join('');
-    this.el.stripRed.innerHTML = this.units.filter((u) => u.team === 'red').map(make).join('');
-    this.cards = new Map();
-    [...this.el.stripBlue.children, ...this.el.stripRed.children].forEach((el) => {
-      this.cards.set(Number(el.dataset.uid), { el, hp: el.querySelector('.hp-fill'), skill: el.querySelector('.unit-card-skill') });
-    });
+  showBattleUI() {
+    this.el.hud.classList.remove('hidden');
+  }
+
+  hideBattleUI() {
+    this.el.hud.classList.add('hidden');
+    this.el.log.classList.add('hidden');
+    this.el.focusTag.classList.add('hidden');
+    this.logCount = 0;
+    this.el.logList.innerHTML = '';
+  }
+
+  buildBattle() {
+    this.el.logList.innerHTML = '';
+    this.logCount = 0;
   }
 
   updateBattle(state) {
     const b = state.units.filter((u) => u.team === 'blue' && !u.dead).length;
     const r = state.units.filter((u) => u.team === 'red' && !u.dead).length;
-    this.el.scoreBlue.textContent = b;
-    this.el.scoreRed.textContent = r;
-    const t = Math.floor(state.time);
-    this.el.clock.textContent = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+    if (this.el.scoreBlue.textContent !== String(b)) this.el.scoreBlue.textContent = b;
+    if (this.el.scoreRed.textContent !== String(r)) this.el.scoreRed.textContent = r;
 
-    for (const u of state.units) {
-      const card = this.cards?.get(u.uid);
-      if (!card) continue;
-      const ratio = Math.max(0, u.hp / u.maxHp);
-      card.hp.style.width = `${(ratio * 100).toFixed(1)}%`;
-      card.el.classList.toggle('dead', u.dead);
-      if (u.dead) {
-        card.skill.textContent = '전투불능';
-        card.skill.classList.remove('ready');
-      } else if (u.skillTimer <= 0) {
-        card.skill.textContent = `${u.def.skill.icon} 준비`;
-        card.skill.classList.add('ready');
-      } else {
-        card.skill.textContent = `${u.def.skill.icon} ${u.skillTimer.toFixed(1)}s`;
-        card.skill.classList.remove('ready');
-      }
-    }
+    const t = Math.floor(state.time);
+    const clock = `${Math.floor(t / 60)}:${String(t % 60).padStart(2, '0')}`;
+    if (this.el.clock.textContent !== clock) this.el.clock.textContent = clock;
+
+    const hpPct = (list) => {
+      let hp = 0, max = 0;
+      list.forEach((u) => { hp += Math.max(0, u.hp); max += u.maxHp; });
+      return max ? Math.round((hp / max) * 100) : 0;
+    };
+    this.el.hpBlue.style.width = `${hpPct(state.units.filter((u) => u.team === 'blue'))}%`;
+    this.el.hpRed.style.width = `${hpPct(state.units.filter((u) => u.team === 'red'))}%`;
   }
 
   setPaused(paused) {
@@ -334,28 +417,21 @@ export class UI {
   setSpeed(speed) {
     this.el.speed.textContent = `${speed}×`;
     this.el.speed.classList.toggle('on', speed > 1);
+    this.el.slow.classList.toggle('on', speed < 1);
+    this.el.state.textContent = speed < 1 ? '슬로우 모션' : speed > 1 ? '배속' : '전투 중';
   }
 
-  setFollow(on) {
-    this.el.follow.classList.toggle('on', on);
+  setFollow(on) { this.el.follow.classList.toggle('on', on); }
+
+  setFocusTag(text) {
+    if (!text) { this.el.focusTag.classList.add('hidden'); return; }
+    this.el.focusTag.textContent = text;
+    this.el.focusTag.classList.remove('hidden');
   }
 
   setSound(on) {
     this.el.sound.textContent = on ? '🔊' : '🔇';
     this.el.sound.classList.toggle('off', !on);
-  }
-
-  showBattleUI() {
-    this.el.hud.classList.remove('hidden');
-    this.el.strip.classList.remove('hidden');
-  }
-
-  hideBattleUI() {
-    this.el.hud.classList.add('hidden');
-    this.el.strip.classList.add('hidden');
-    this.el.log.classList.add('hidden');
-    this.logCount = 0;
-    this.el.logList.innerHTML = '';
   }
 
   toggleLog(force) {
@@ -377,16 +453,37 @@ export class UI {
 
   /* ───────────── 결과 ───────────── */
 
-  showBanner(summary, mvp) {
+  showBanner(summary, mvp, opts = {}) {
     const win = summary.winner;
-    this.el.bannerCrown.textContent = win === 'draw' ? '⚖️' : '👑';
-    this.el.bannerTitle.textContent = win === 'draw'
-      ? '무승부!'
-      : `${win === 'blue' ? '🔵 블루' : '🔴 레드'} 팀 승리!`;
-    const secs = summary.time;
-    this.el.bannerSub.textContent = summary.reason === 'timeout'
-      ? `시간 종료 · 남은 체력으로 판정 (${secs.toFixed(1)}초)`
-      : `${secs.toFixed(1)}초 만에 전투 종료`;
+    const isChallenge = !!opts.challenge;
+    this.bannerNext = null;
+    if (isChallenge) {
+      if (win === 'blue') {
+        this.el.bannerCrown.textContent = '🏆';
+        this.el.bannerTitle.textContent = `${opts.challenge.id}단계 클리어!`;
+        this.el.bannerSub.textContent = opts.hasNext ? '다음 단계가 열렸습니다.' : '모든 챌린지를 클리어했습니다!';
+        if (opts.hasNext) {
+          this.bannerNext = opts.challenge.id + 1;
+          $('#btn-rematch').textContent = '➡️ 다음 스테이지';
+        } else {
+          $('#btn-rematch').textContent = '🔁 다시 배틀';
+        }
+      } else {
+        this.el.bannerCrown.textContent = '💀';
+        this.el.bannerTitle.textContent = win === 'draw' ? '무승부 — 다시 도전!' : '패배…';
+        this.el.bannerSub.textContent = '배치와 무기를 바꿔 다시 도전하세요.';
+        $('#btn-rematch').textContent = '🔁 다시 도전';
+      }
+    } else {
+      this.el.bannerCrown.textContent = win === 'draw' ? '⚖️' : '👑';
+      this.el.bannerTitle.textContent = win === 'draw' ? '무승부!' : `${win === 'blue' ? '🔵 블루' : '🔴 레드'} 팀 승리!`;
+      const secs = summary.time;
+      this.el.bannerSub.textContent = summary.reason === 'timeout'
+        ? `시간 종료 · 남은 체력으로 판정 (${secs.toFixed(1)}초)`
+        : `${secs.toFixed(1)}초 만에 전투 종료`;
+      $('#btn-rematch').textContent = '🔁 다시 배틀';
+    }
+
     this.el.bannerMvp.innerHTML = mvp
       ? `<div class="mvp-row"><span>${mvp.emoji}</span><span>${mvp.name}</span><span style="color:var(--gold);font-size:10px">MVP</span></div>
          <div class="mvp-stats">피해 ${Math.round(mvp.dmgDealt)} · 처치 ${mvp.kills} · 필살기 ${mvp.skillCasts}회</div>`
@@ -401,7 +498,7 @@ export class UI {
     t.textContent = msg;
     t.classList.add('show');
     clearTimeout(this._toastTimer);
-    this._toastTimer = setTimeout(() => t.classList.remove('show'), 1700);
+    this._toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
   }
 
   hideLoader() {

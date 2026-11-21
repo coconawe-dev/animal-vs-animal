@@ -3,25 +3,25 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0, user-scalable=no, viewport-fit=cover" />
-<title>동물 vs 동물 · 3D AI 배틀</title>
+<title>동물 vs 동물 · ARBS 샌드박스 배틀</title>
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
 <meta name="format-detection" content="telephone=no" />
 <meta name="theme-color" content="#0b0d12" />
-<meta name="description" content="사자·호랑이·코끼리·독수리… 12종 동물을 골라 AI가 스스로 싸우는 3D 배틀을 관전하세요. 사자 포효, 호랑이 급습, 코끼리 돌진까지 각자의 필살기." />
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%90%BE%3C/text%3E%3C/svg%3E" />
+<meta name="description" content="동물·공룡·괴수를 3D 전장에 직접 배치하고 무기를 달아 싸우는 ARBS 스타일 샌드박스 배틀. 티라노, 랩터 12마리, 로켓 코끼리, 거대 타이탄까지." />
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E%F0%9F%A6%96%3C/text%3E%3C/svg%3E" />
 <link rel="stylesheet" href="./styles.css" />
 </head>
 <body>
 <div id="app">
-  <canvas id="scene" aria-label="3D 동물 배틀 아레나"></canvas>
+  <canvas id="scene" aria-label="3D 배틀 아레나 — 땅을 탭해 유닛을 배치하세요"></canvas>
   <div id="nameplates" class="nameplates" aria-hidden="true"></div>
 
   <header id="topbar" class="topbar">
     <div class="brand">
-      <span class="brand-mark">🐾</span>
-      <div class="brand-text"><b>동물 vs 동물</b><small>AI 배틀 아레나</small></div>
+      <span class="brand-mark">🦖</span>
+      <div class="brand-text"><b>동물 vs 동물</b><small>ARBS 샌드박스 배틀</small></div>
     </div>
     <div class="top-actions">
       <button id="btn-sound" class="icon-btn" title="효과음" aria-label="효과음">🔊</button>
@@ -29,92 +29,102 @@
     </div>
   </header>
 
-  <!-- ── 전투 HUD ── -->
-  <div id="battle-hud" class="battle-hud hidden">
-    <div class="score-bar">
-      <div class="team-score blue"><span class="team-dot"></span><b id="score-blue">3</b><small>블루</small></div>
-      <div class="clock-box"><span id="battle-clock">0:00</span><i id="battle-state">전투 중</i></div>
-      <div class="team-score red"><small>레드</small><b id="score-red">3</b><span class="team-dot"></span></div>
+  <!-- ── 배치 도구 (샌드박스) ── -->
+  <div id="place-bar" class="place-bar">
+    <div class="pb-row pb-teams">
+      <div class="seg" id="team-switch">
+        <button data-team="blue" class="on"><span class="dot blue"></span>블루 <b id="count-blue">0</b></button>
+        <button data-team="red"><span class="dot red"></span>레드 <b id="count-red">0</b></button>
+      </div>
+      <button id="btn-eraser" class="tool" title="탭한 유닛을 지웁니다">🧽 지우개</button>
+      <button id="btn-undo" class="tool" title="마지막 배치를 되돌립니다">↩️</button>
     </div>
-    <div class="hud-actions">
-      <button id="btn-pause" class="chip-btn">⏸</button>
-      <button id="btn-speed" class="chip-btn speed">1×</button>
-      <button id="btn-restart" class="chip-btn">🔁</button>
-      <button id="btn-follow" class="chip-btn on">🎥</button>
-      <button id="btn-log" class="chip-btn">📜</button>
-      <button id="btn-rebuild" class="chip-btn">⚙️</button>
+    <div class="pb-row">
+      <span class="pb-label">무기</span>
+      <div class="weapon-row" id="weapon-row"></div>
+    </div>
+    <div class="pb-row pb-tools">
+      <span class="pb-label">수량</span>
+      <div class="seg count-row" id="count-row">
+        <button data-count="1" class="on">×1</button>
+        <button data-count="3">×3</button>
+        <button data-count="5">×5</button>
+      </div>
+      <button id="btn-mirror" class="tool" title="현재 팀 배치를 반대편에 좌우 대칭으로 복사">⇄ 대칭</button>
+      <button id="btn-clear" class="tool" title="현재 팀을 모두 비웁니다">🗑️ 비우기</button>
+      <button id="btn-free" class="tool" title="중앙선을 넘어 어디든 배치">자유 배치</button>
+    </div>
+    <div class="pb-row pb-hint">
+      <span id="place-hint">유닛을 고르고 땅을 탭하세요</span>
+      <span id="budget" class="budget hidden">예산 <b>0</b></span>
+      <button id="btn-leave-challenge" class="tool mini hidden">✕ 샌드박스로</button>
     </div>
   </div>
 
-  <div id="team-strip" class="team-strip hidden">
-    <div class="strip" id="strip-blue"></div>
-    <div class="strip" id="strip-red"></div>
+  <!-- ── 챌린지 목록 ── -->
+  <aside id="challenge-panel" class="challenge-panel hidden">
+    <div class="cp-head"><b>⚔️ 챌린지</b><button id="btn-challenge-close" aria-label="닫기">✕</button></div>
+    <p class="cp-sub">6단계를 차례로 클리어하세요. 이기면 다음 단계가 열립니다.</p>
+    <div id="challenge-list" class="challenge-list"></div>
+  </aside>
+
+  <!-- ── 빠른 프리셋 ── -->
+  <aside id="preset-panel" class="challenge-panel preset-panel hidden">
+    <div class="cp-head"><b>⚡ 빠른 프리셋</b><button id="btn-preset-close" aria-label="닫기">✕</button></div>
+    <div id="preset-list" class="challenge-list"></div>
+    <div class="cp-head" style="padding-top:4px"><b>🗺️ 전장</b></div>
+    <div id="arena-row" class="arena-row"></div>
+  </aside>
+
+  <!-- ── 하단 유닛 바 ── -->
+  <section id="dock" class="dock">
+    <div class="dock-head">
+      <div class="mode-tabs" id="mode-tabs">
+        <button data-mode="sandbox" class="active">🛠 샌드박스</button>
+        <button data-mode="challenge">⚔️ 챌린지</button>
+      </div>
+      <div class="dock-head-right">
+        <button id="btn-random" class="mini">🎲 프리셋</button>
+      </div>
+    </div>
+    <div class="cat-row" id="cat-row"></div>
+    <div class="unit-bar" id="unit-bar"></div>
+    <div class="detail-line" id="detail-line">유닛을 고르면 능력치와 필살기가 표시됩니다.</div>
+    <div class="dock-foot">
+      <div class="dock-info">
+        <span id="dock-count">🔵 0 · 🔴 0</span>
+        <span id="dock-title">샌드박스</span>
+      </div>
+      <button id="btn-fight" class="btn fight">⚔️ 배틀 시작</button>
+    </div>
+  </section>
+
+  <!-- ── 전투 HUD ── -->
+  <div id="battle-hud" class="battle-hud hidden">
+    <div class="score-bar">
+      <div class="team-score blue"><span class="team-dot"></span><b id="score-blue">0</b><small>블루</small></div>
+      <div class="clock-box"><span id="battle-clock">0:00</span><i id="battle-state">전투 중</i></div>
+      <div class="team-score red"><small>레드</small><b id="score-red">0</b><span class="team-dot"></span></div>
+    </div>
+    <div class="team-hp-row">
+      <div class="team-hp blue"><i id="hp-blue"></i></div>
+      <div class="team-hp red"><i id="hp-red"></i></div>
+    </div>
+    <div class="hud-actions">
+      <button id="btn-pause" class="chip-btn" title="일시정지">⏸</button>
+      <button id="btn-speed" class="chip-btn speed" title="배속">1×</button>
+      <button id="btn-slow" class="chip-btn" title="슬로우 모션">🐢 0.5×</button>
+      <button id="btn-follow" class="chip-btn on" title="자동 추적">🎥</button>
+      <button id="btn-log" class="chip-btn" title="전투 기록">📜</button>
+      <button id="btn-rebuild" class="chip-btn" title="배치로 돌아가기">⚙️</button>
+    </div>
+    <div id="focus-tag" class="focus-tag hidden"></div>
   </div>
 
   <aside id="battle-log" class="battle-log hidden">
     <div class="log-head"><b>전투 기록</b><button id="btn-log-close" aria-label="닫기">✕</button></div>
     <ul id="log-list"></ul>
   </aside>
-
-  <!-- ── 편성 화면 ── -->
-  <section id="builder" class="builder">
-    <div class="builder-panel">
-      <div class="sheet-grab"><span></span></div>
-      <div class="builder-scroll">
-        <div class="builder-title">
-          <div>
-            <h1>동물 <em>vs</em> 동물</h1>
-            <p>12종 동물이 스스로 싸운다 · AI 배틀</p>
-          </div>
-          <button id="btn-random" class="btn tiny">🎲 랜덤 매치</button>
-        </div>
-
-        <div class="mode-row" id="mode-row">
-          <button class="mode-chip" data-mode="duel">1 : 1</button>
-          <button class="mode-chip active" data-mode="team">팀 배틀</button>
-          <button class="mode-chip" data-mode="free">자유 편성</button>
-        </div>
-
-        <div class="team-switch">
-          <button class="team-btn blue active" data-team="blue">
-            <span class="dot"></span>블루 팀 <b id="count-blue">3</b>
-          </button>
-          <button class="team-btn red" data-team="red">
-            <span class="dot"></span>레드 팀 <b id="count-red">3</b>
-          </button>
-        </div>
-
-        <div class="slots-wrap">
-          <div class="slots-row" data-team="blue" id="slots-blue"></div>
-          <div class="slots-row" data-team="red" id="slots-red"></div>
-        </div>
-
-        <div class="section-label">빠른 매치</div>
-        <div class="preset-row" id="preset-row"></div>
-
-        <div class="section-label">전장</div>
-        <div class="arena-row" id="arena-row"></div>
-
-        <div class="roster-head">
-          <h3>동물 도감</h3>
-          <span id="roster-hint">동물을 눌러 팀에 추가</span>
-        </div>
-        <div class="roster" id="roster"></div>
-        <div class="detail" id="detail">
-          <span class="detail-empty">동물을 선택하면 능력치와 필살기를 볼 수 있어요.</span>
-        </div>
-
-        <div class="power-row">
-          <span class="pw blue">🔵 전투력 <b id="power-blue">0</b></span>
-          <span class="pw vs">VS</span>
-          <span class="pw red">🔴 전투력 <b id="power-red">0</b></span>
-        </div>
-      </div>
-      <div class="builder-foot">
-        <button id="btn-fight" class="btn fight">⚔️ 배틀 시작</button>
-      </div>
-    </div>
-  </section>
 
   <!-- ── 결과 배너 ── -->
   <div id="banner" class="banner hidden">
@@ -125,7 +135,7 @@
       <div class="mvp" id="banner-mvp"></div>
       <div class="banner-actions">
         <button id="btn-rematch" class="btn primary">🔁 다시 배틀</button>
-        <button id="btn-back" class="btn ghost">⚙️ 편성 바꾸기</button>
+        <button id="btn-back" class="btn ghost">⚙️ 배치 바꾸기</button>
       </div>
     </div>
   </div>
@@ -134,18 +144,19 @@
 
   <div id="help" class="modal hidden">
     <div class="modal-card">
-      <h3>🐾 동물 vs 동물</h3>
+      <h3>🦖 ARBS 샌드박스 배틀</h3>
       <ul>
-        <li><b>동물 고르기</b> — 블루/레드 팀을 골라 동물을 탭하면 추가됩니다. 슬롯을 탭하면 빠져요.</li>
-        <li><b>배틀 시작</b> — 동물들이 알아서 적을 찾아 싸웁니다. 각자의 필살기는 쿨타임마다 자동 발동!</li>
-        <li><b>화면 조작</b> — 드래그로 카메라 회전, 두 손가락(휠)로 확대·축소.</li>
-        <li><b>관전 도구</b> — ⏸ 일시정지 · 1×/2× 배속 · 🎥 자동 추적 · 📜 전투 기록.</li>
+        <li><b>배치</b> — 블루/레드 팀을 고르고, 아래에서 유닛을 고른 뒤 <b>3D 땅을 탭</b>하면 그 자리에 소환됩니다. ×1·×3·×5로 무리를 한 번에 놓을 수 있어요.</li>
+        <li><b>무기</b> — 개틀링·로켓·레이저·스파이크 방패를 골라 유닛에 장착합니다. 실제로 발사되고 폭발합니다.</li>
+        <li><b>도구</b> — 🧽 지우개(탭해서 제거) · ↩️ 되돌리기 · ⇄ 대칭 복사 · 🗑️ 팀 비우기 · 자유 배치.</li>
+        <li><b>관전</b> — 🐢 0.5× 슬로우 · 2× 배속 · 🎥 추적 · 전투 중 유닛을 탭하면 그 유닛을 따라갑니다.</li>
+        <li><b>화면</b> — 드래그로 회전, 두 손가락(휠)로 확대·축소.</li>
       </ul>
       <button id="btn-help-close" class="btn primary">알겠어요</button>
     </div>
   </div>
 
-  <div id="loader" class="loader"><div class="loader-inner"><span>🐾</span><b>전장을 준비하는 중…</b></div></div>
+  <div id="loader" class="loader"><div class="loader-inner"><span>🦖</span><b>전장을 준비하는 중…</b></div></div>
 </div>
 
 <script>

@@ -1,28 +1,58 @@
-// 무작위 편성 퍼즈 테스트 — 드문 크래시/NaN/정지 상태를 찾는다
+// 무작위 편성 퍼즈 테스트 — 드문 크래시/NaN/정지 상태를 찾는다.
+// 유닛 수·무기·배치 좌표를 무작위로 섞어 ARBS 샌드박스 조건을 흉내 낸다.
 import { createBattle, simulate } from '../src/sim.js';
-import { ANIMALS, ARENAS } from '../src/config.js';
+import { CREATURE_IDS, WEAPONS, ARENAS, TUNING } from '../src/config.js';
 
-const ids = ANIMALS.map((a) => a.id);
-let seed = 1;
+const wids = WEAPONS.map((w) => w.id);
+let seed = 7;
 const rnd = () => { seed = (seed * 1103515245 + 12345) & 0x7fffffff; return seed / 0x7fffffff; };
-const pick = (n) => Array.from({ length: n }, () => ids[Math.floor(rnd() * ids.length)]);
-let fails = 0, maxT = 0, draws = 0, timeouts = 0;
-for (let i = 0; i < 2000; i++) {
-  const bn = 1 + Math.floor(rnd() * 4);
-  const rn = 1 + Math.floor(rnd() * 4);
-  const blue = [...new Set(pick(bn))];
-  const red = [...new Set(pick(rn))];
-  const arena = ARENAS[Math.floor(rnd() * ARENAS.length)].id;
-  const s = createBattle({ blue, red, arenaId: arena, seed: (rnd() * 1e9) | 0 });
+const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+
+function side(team, n) {
+  const out = [];
+  for (let i = 0; i < n; i++) {
+    const x = (rnd() * 2 - 1) * (TUNING.ARENA_RADIUS + 2);
+    const z = (rnd() * 2 - 1) * (TUNING.ARENA_RADIUS + 2);
+    out.push({
+      id: pick(CREATURE_IDS),
+      x: team === 'blue' ? -Math.abs(x) - 1 : Math.abs(x) + 1,
+      z,
+      weapon: rnd() < 0.45 ? pick(wids) : 'none',
+    });
+  }
+  return out;
+}
+
+let fails = 0, maxT = 0, draws = 0, timeouts = 0, maxUnits = 0;
+const N = 600;
+for (let i = 0; i < N; i++) {
+  const bn = 1 + Math.floor(rnd() * 10);
+  const rn = 1 + Math.floor(rnd() * 10);
+  const arena = pick(ARENAS).id;
+  const s = createBattle({ blue: side('blue', bn), red: side('red', rn), arenaId: arena, seed: (rnd() * 1e9) | 0 });
+  maxUnits = Math.max(maxUnits, s.units.length);
   simulate(s, 1 / 60, 300);
-  if (!s.over) { fails++; console.log('종료 안 됨', blue, red, arena); continue; }
+  if (!s.over) { fails++; console.log('종료 안 됨', i); continue; }
   if (s.endReason === 'timeout') timeouts++;
   if (s.winner === 'draw') draws++;
   maxT = Math.max(maxT, s.time);
   for (const u of s.units) {
-    if (![u.x, u.z, u.hp, u.facing].every(Number.isFinite)) { fails++; console.log('NaN', blue, red, u.id); }
-    if (Math.hypot(u.x, u.z) > 15.6) { fails++; console.log('경기장 이탈', u.id, u.x.toFixed(1), u.z.toFixed(1)); }
+    if (![u.x, u.z, u.y, u.hp, u.facing, u.spin].every(Number.isFinite)) { fails++; console.log('NaN', u.id); }
+    if (Math.hypot(u.x, u.z) > TUNING.ARENA_RADIUS + 0.6) { fails++; console.log('경기장 이탈', u.id); }
   }
-  if (s.units.every((u) => u.dmgDealt === 0) && s.time > 5) { fails++; console.log('전투 없음', blue, red); }
+  if (s.units.every((u) => u.dmgDealt === 0) && s.time > 5) { fails++; console.log('전투 없음', i); }
 }
-console.log(`\n2000판 — 실패 ${fails} · 최장 ${maxT.toFixed(1)}초 · 무승부 ${draws} · 시간초과 ${timeouts}`);
+
+// 60마리 풀 배치도 몇 번
+for (let k = 0; k < 5; k++) {
+  const s = createBattle({ blue: side('blue', 30), red: side('red', 30), arenaId: pick(ARENAS).id, seed: 1000 + k });
+  simulate(s, 1 / 60, 300);
+  maxUnits = Math.max(maxUnits, s.units.length);
+  if (!s.over) { fails++; console.log('60마리 종료 안 됨'); }
+  for (const u of s.units) {
+    if (![u.x, u.z, u.y, u.hp].every(Number.isFinite)) { fails++; console.log('60마리 NaN', u.id); }
+  }
+}
+
+console.log(`\n${N}판 + 60마리 5판 — 실패 ${fails} · 최장 ${maxT.toFixed(1)}초 · 무승부 ${draws} · 시간초과 ${timeouts} · 최대 ${maxUnits}마리`);
+if (fails) process.exit(1);

@@ -1,7 +1,8 @@
-// 동물 vs 동물 — 배틀 시뮬레이션 (순수 로직 · THREE/DOM 의존 없음)
+// 동물 vs 동물 — ARBS 스타일 배틀 시뮬레이션 (순수 로직 · THREE/DOM 의존 없음)
 // 브라우저(main.js)와 노드(tests/smoke.mjs)가 똑같은 코드를 돌린다.
 
-import { ANIMAL_BY_ID, ARENA_BY_ID, TUNING } from './config.js';
+import { CREATURE_BY_ID, WEAPON_BY_ID, ARENA_BY_ID, TUNING } from './config.js';
+import { normalizePlacement, autoPositions, clampSide } from './placement.js';
 
 export const TEAMS = ['blue', 'red'];
 
@@ -28,9 +29,19 @@ function shortenAngle(a) {
 
 /* ─────────────────────────────── 배틀 생성 ─────────────────────────────── */
 
+function normalizeSide(list, team) {
+  if (!Array.isArray(list)) return [];
+  const cleaned = list.map(normalizePlacement).filter(Boolean).slice(0, TUNING.MAX_UNITS_PER_TEAM);
+  const placed = autoPositions(cleaned, team).map((p) => {
+    const c = clampSide(team, p.x, p.z, true);
+    return { ...p, x: c.x, z: c.z };
+  });
+  return placed;
+}
+
 export function createBattle(opts = {}) {
-  const blue = (opts.blue || []).slice(0, TUNING.MAX_TEAM);
-  const red = (opts.red || []).slice(0, TUNING.MAX_TEAM);
+  const blue = normalizeSide(opts.blue, 'blue');
+  const red = normalizeSide(opts.red, 'red');
   const arena = ARENA_BY_ID[opts.arenaId] || ARENA_BY_ID.savanna;
   const seed = opts.seed == null ? 20261121 : opts.seed >>> 0;
   const rng = mulberry32(seed);
@@ -40,7 +51,9 @@ export function createBattle(opts = {}) {
     time: 0, over: false, winner: null, endReason: null,
     units: [], projectiles: [], events: [], log: [], logTotal: 0, nextPid: 1, nextUid: 1,
     maxTime: opts.maxTime || TUNING.MAX_TIME,
-    stats: { skills: 0, hits: 0, crits: 0, dodges: 0, kills: 0 },
+    stats: { skills: 0, hits: 0, crits: 0, dodges: 0, kills: 0, shots: 0, explosions: 0 },
+    mode: opts.mode || 'sandbox',
+    challengeId: opts.challengeId || null,
   };
 
   spawnTeam(state, blue, 'blue');
@@ -55,26 +68,27 @@ export function createBattle(opts = {}) {
   return state;
 }
 
-function spawnTeam(state, ids, team) {
-  const n = ids.length;
-  const sign = team === 'blue' ? -1 : 1;
-  ids.forEach((id, i) => {
-    const def = ANIMAL_BY_ID[id];
-    if (!def) return;
-    const z = n === 1 ? 0 : (i - (n - 1) / 2) * 2.7;
-    const x = sign * (7.6 + (i % 2) * 1.2);
-    const u = makeUnit(state, def, team, x, z);
-    state.units.push(u);
-  });
+function spawnTeam(state, list, team) {
+  for (const p of list) {
+    const def = CREATURE_BY_ID[p.id];
+    if (!def) continue;
+    state.units.push(makeUnit(state, def, team, p.x, p.z, p.weapon));
+  }
 }
 
-function makeUnit(state, def, team, x, z) {
+function makeUnit(state, def, team, x, z, weaponId) {
   const uid = state.nextUid++;
+  const w = WEAPON_BY_ID[weaponId] || WEAPON_BY_ID.none;
+  const maxHp = Math.round(def.hp * (w.hpMul || 1));
   return {
     uid, team, battle: state, id: def.id, def, emoji: def.emoji, name: def.name,
-    x, z, y: 0, vx: 0, vz: 0, facing: team === 'blue' ? Math.PI / 2 : -Math.PI / 2,
-    hp: def.hp, maxHp: def.hp,
-    atk: def.atk, spd: def.spd, range: def.range,
+    x, z, y: 0, vx: 0, vz: 0, vy: 0, spin: 0, spinVel: 0,
+    facing: team === 'blue' ? Math.PI / 2 : -Math.PI / 2,
+    hp: maxHp, maxHp,
+    atk: def.atk, spd: def.spd,
+    range: Math.max(def.range, w.range || 0),
+    weapon: w, weaponId: w.id,
+    ranged: !!(def.ranged || w.proj),
     baseInterval: def.atkInterval,
     armor: def.armor || 0, kbResist: def.kbResist || 0,
     evasion: def.evasion || 0, crit: def.crit || 0.07,
@@ -131,6 +145,7 @@ export function drainEvents(state) {
 }
 
 function intervalFor(u) {
+  if (u.weapon.proj) return u.weapon.interval / (1 + u.haste);
   return u.baseInterval / (1 + u.haste);
 }
 
@@ -138,7 +153,6 @@ function unitSpeed(u, state) {
   let s = u.spd * u.speedMul;
   if (u.slow > 0) s *= 1 - u.slowFactor;
   if (u.def.id === 'wolf') {
-    // 늑대 패시브: 아군이 곁에 있으면 빨라진다
     let pack = 0;
     for (const o of state.units) {
       if (o !== u && !o.dead && o.team === u.team && dist2(o.x, o.z, u.x, u.z) < 5) pack++;
@@ -155,7 +169,6 @@ export function applyDamage(state, src, tgt, raw, opts = {}) {
   if (tgt.invuln > 0) return 0;
   const rng = state.rng;
 
-  // 회피
   const evade = clamp(tgt.evasion + tgt.dodgeBonus, 0, 0.85);
   if (!opts.unavoidable && evade > 0 && rng() < evade) {
     state.stats.dodges++;
@@ -164,6 +177,14 @@ export function applyDamage(state, src, tgt, raw, opts = {}) {
   }
 
   let dmg = raw;
+  // 스파이크 방패: 정면에서 오는 공격을 막는다
+  if (tgt.weapon && tgt.weapon.block && src && !opts.pierce) {
+    const toSrc = Math.atan2(src.x - tgt.x, src.z - tgt.z);
+    if (Math.abs(shortenAngle(toSrc - tgt.facing)) < Math.PI * 0.42) {
+      dmg *= 1 - tgt.weapon.block;
+      emit(state, { type: 'block', uid: tgt.uid, x: tgt.x, z: tgt.z });
+    }
+  }
   if (!opts.pierce) {
     const armor = clamp(tgt.armor + tgt.armorBuff, 0, 0.8);
     dmg *= 1 - armor;
@@ -183,39 +204,52 @@ export function applyDamage(state, src, tgt, raw, opts = {}) {
     crit: !!opts.crit, x: tgt.x, y: tgt.y + 1.1, z: tgt.z, element: opts.element || 'normal',
   });
 
-  if (tgt.hp <= 0) killUnit(state, tgt, src);
+  if (tgt.hp <= 0) killUnit(state, tgt, src, dmg);
   return dmg;
 }
 
-function killUnit(state, u, src) {
+function killUnit(state, u, src, heavy = 0) {
   if (u.dead) return;
   u.dead = true;
   u.hp = 0;
   u.deadTime = state.time;
   u.dash = null;
   u.state = 'dead';
+  u.targetId = null;
+  // 무거운 일격 = 공중으로 튕겨 나가며 회전 (래그돌 느낌)
+  if (heavy > 12 && u.def.size < 1.4) {
+    u.vy = Math.max(u.vy, 5.6);
+    u.spinVel = (state.rng() - 0.5) * 14;
+    u.vx *= 0.5; u.vz *= 0.5;
+  }
   state.stats.kills++;
   if (src) src.kills++;
-  emit(state, { type: 'death', uid: u.uid, x: u.x, z: u.z, by: src ? src.uid : null });
+  emit(state, { type: 'death', uid: u.uid, x: u.x, z: u.z, by: src ? src.uid : null, heavy });
   pushLog(state, {
     text: `${u.emoji} ${u.name} 쓰러짐${src ? ` (${src.emoji} ${src.name})` : ''}`,
     team: u.team, kind: 'death',
   });
 }
 
-function knock(state, u, dirX, dirZ, force) {
+function knock(state, u, dirX, dirZ, force, opts = {}) {
   if (u.dead || force <= 0) return;
   const resist = clamp(u.kbResist, 0, 0.9);
   const f = force * (1 - resist);
   const l = Math.hypot(dirX, dirZ) || 1;
   u.vx += (dirX / l) * f;
   u.vz += (dirZ / l) * f;
+  // 가벼운 유닛은 뜨면서 회전한다
+  if (opts.launch !== false && f > 6.5 && u.def.size < 1.32 && u.y <= 0.01) {
+    u.vy = Math.max(u.vy, Math.min(7.5, f * 0.3));
+    u.spinVel = clamp(f * 0.5, -11, 11) * (state.rng() < 0.5 ? -1 : 1);
+    emit(state, { type: 'launch', uid: u.uid, x: u.x, z: u.z, force: f });
+  }
 }
 
 function addBleed(state, target, src, dps, time) {
   if (!target || target.dead) return;
   target.bleeding.push({ dps, t: time, srcUid: src ? src.uid : null });
-  if (target.bleeding.length > 6) target.bleeding.shift();
+  if (target.bleeding.length > 8) target.bleeding.shift();
   emit(state, { type: 'bleedOn', uid: target.uid, x: target.x, z: target.z });
 }
 
@@ -233,14 +267,11 @@ function chooseTarget(state, u) {
     if (e.team === u.team) continue;
     const d = dist2(u.x, u.z, e.x, e.z);
     let score = d;
-    // 다른 아군이 이미 붙은 적은 조금 덜 선호 → 자연스럽게 옆으로 도는 그림
     let onIt = 0;
     for (const a of allies) if (a !== u && a.targetId === e.uid) onIt++;
-    score += onIt * (u.def.ranged ? 5.5 : 3.4);
-    // 마무리 가능한 적 선호
+    score += onIt * (u.ranged ? 5.5 : 3.4);
     score *= 0.82 + 0.36 * (e.hp / e.maxHp);
-    // 사거리 밖으로 너무 멀면 가중
-    if (!u.def.ranged && d > 30) score += 6;
+    if (!u.ranged && d > 30) score += 6;
     if (score < bestScore) { bestScore = score; best = e; }
   }
   return best;
@@ -262,19 +293,17 @@ function steerMove(state, u, tx, tz, speed, dt, stopAt = 0) {
   if (len <= stopAt || len < 0.0001) return false;
   dx /= len; dz /= len;
 
-  // 아군·적군끼리 서로 밀어내 겹치지 않게
   for (const o of state.units) {
     if (o === u || o.dead) continue;
     const ox = u.x - o.x, oz = u.z - o.z;
     const od = Math.hypot(ox, oz);
-    const want = TUNING.SEPARATION * (o.def.scale > 1.05 ? 1.2 : 1);
+    const want = TUNING.SEPARATION * (o.def.size || 1) * (u.def.size > 1.3 ? 1.25 : 1);
     if (od < want && od > 0.0001) {
       const w = ((want - od) / want) * 1.9;
       dx += (ox / od) * w; dz += (oz / od) * w;
     }
   }
 
-  // 장애물 회피
   for (const ob of state.arena.obstacles) {
     const ox = u.x - ob.x, oz = u.z - ob.z;
     const od = Math.hypot(ox, oz);
@@ -297,7 +326,6 @@ function moveAway(state, u, tx, tz, speed, dt) {
 }
 
 function resolveCollisions(state, u) {
-  // 장애물 밀어내기
   for (const ob of state.arena.obstacles) {
     const dx = u.x - ob.x, dz = u.z - ob.z;
     const d = Math.hypot(dx, dz);
@@ -307,7 +335,6 @@ function resolveCollisions(state, u) {
       u.z = ob.z + (dz / d) * lim;
     }
   }
-  // 전장 경계 (원형)
   const r = Math.hypot(u.x, u.z);
   const max = TUNING.ARENA_RADIUS;
   if (r > max) {
@@ -320,27 +347,70 @@ function resolveCollisions(state, u) {
 /* ───────────────────────────── 일반 공격 ───────────────────────────── */
 
 function doAttack(state, u, t) {
+  const w = u.weapon;
   u.attackTimer = intervalFor(u);
-  u.castLock = u.def.ranged ? 0.22 : 0.34;
+  u.castLock = w.proj ? 0.18 : 0.34;
   u.hitsLanded++;
-  emit(state, { type: 'attack', uid: u.uid, target: t.uid, ranged: !!u.def.ranged });
+  u.facing = Math.atan2(t.x - u.x, t.z - u.z);
 
-  if (u.def.ranged) {
-    const speed = 21;
-    const dx = t.x - u.x, dz = t.z - u.z;
-    const dd = Math.hypot(dx, dz) || 1;
-    state.projectiles.push({
-      pid: state.nextPid++, fromUid: u.uid, targetUid: t.uid,
-      x: u.x, y: u.y + 1.5, z: u.z, vx: (dx / dd) * speed, vz: (dz / dd) * speed,
-      dmg: u.atk * (0.9 + state.rng() * 0.2), ttl: 1.4,
-    });
-    return;
-  }
+  if (w.proj === 'laser') { fireLaser(state, u, t); return; }
+  if (w.proj) { fireProjectile(state, u, t); return; }
+
+  emit(state, { type: 'attack', uid: u.uid, target: t.uid, ranged: !!u.def.ranged, weapon: 'none' });
   const dmg = u.atk * (0.9 + state.rng() * 0.2);
   const crit = state.rng() < u.crit;
   applyDamage(state, u, t, dmg, { crit });
-  knock(state, t, t.x - u.x, t.z - u.z, 2.2);
+  const bash = w.bash || 0;
+  knock(state, t, t.x - u.x, t.z - u.z, 2.2 + bash * 0.5);
+  if (bash > 0) {
+    stunUnit(state, t, 0.18);
+    emit(state, { type: 'bash', uid: t.uid, x: t.x, z: t.z });
+  }
   if (u.def.onHitBleed) addBleed(state, t, u, u.def.onHitBleed.dps, u.def.onHitBleed.time);
+}
+
+function fireProjectile(state, u, t) {
+  const w = u.weapon;
+  const speed = w.pspd || 30;
+  const dx = t.x - u.x, dz = t.z - u.z;
+  const dd = Math.hypot(dx, dz) || 1;
+  const dmg = u.atk * w.dmgMul * (0.9 + state.rng() * 0.2);
+  state.projectiles.push({
+    pid: state.nextPid++, kind: w.proj, fromUid: u.uid, targetUid: t.uid, team: u.team,
+    x: u.x, y: u.y + 1.55, z: u.z,
+    vx: (dx / dd) * speed, vz: (dz / dd) * speed, speed,
+    dmg, ttl: Math.min(2.2, dd / speed + 0.35),
+    aoe: w.aoe || 0, knock: w.knock || 0, color: w.color || 0xffe08a,
+    x0: u.x, z0: u.z,
+  });
+  state.stats.shots++;
+  emit(state, {
+    type: 'shot', uid: u.uid, kind: w.proj, x: u.x, y: u.y + 1.55, z: u.z,
+    tx: t.x, tz: t.z, color: w.color,
+  });
+}
+
+function fireLaser(state, u, t) {
+  const w = u.weapon;
+  const dx = t.x - u.x, dz = t.z - u.z;
+  const dd = Math.hypot(dx, dz) || 1;
+  const ux = dx / dd, uz = dz / dd;
+  const len = w.range;
+  const ex = u.x + ux * len, ez = u.z + uz * len;
+  const dmg = u.atk * w.dmgMul;
+  const crit = state.rng() < u.crit;
+  state.stats.shots++;
+  emit(state, {
+    type: 'beam', uid: u.uid, x: u.x, y: u.y + 1.6, z: u.z,
+    x2: ex, z2: ez, color: w.color || 0x6fe8ff,
+  });
+  for (const e of state.units) {
+    if (e.dead || e.team === u.team) continue;
+    if (pointSegDist(e.x, e.z, u.x, u.z, ex, ez) <= 0.95) {
+      applyDamage(state, u, e, dmg, { pierce: true, crit });
+      knock(state, e, e.x - u.x, e.z - u.z, 1.8);
+    }
+  }
 }
 
 function updateProjectiles(state, dt) {
@@ -348,21 +418,57 @@ function updateProjectiles(state, dt) {
   for (let i = state.projectiles.length - 1; i >= 0; i--) {
     const p = state.projectiles[i];
     p.ttl -= dt;
-    p.x += p.vx * dt; p.z += p.vz * dt;
-    const src = unitByUid(state, p.fromUid);
     const tgt = unitByUid(state, p.targetUid);
-    let hit = false;
-    if (tgt && !tgt.dead && dist2(p.x, p.z, tgt.x, tgt.z) < 0.85) hit = true;
-    else if (p.ttl <= 0) hit = false;
-    if (hit) {
-      const crit = rng() < (src ? src.crit : 0.07);
-      applyDamage(state, src, tgt, p.dmg, { crit });
+
+    if (p.kind === 'rocket') {
+      // 약한 유도 — 표적이 살아 있으면 방향을 살짝 튼다
+      if (tgt && !tgt.dead) {
+        const dx = tgt.x - p.x, dz = tgt.z - p.z;
+        const dd = Math.hypot(dx, dz) || 1;
+        p.vx += ((dx / dd) * p.speed - p.vx) * Math.min(1, dt * 3.2);
+        p.vz += ((dz / dd) * p.speed - p.vz) * Math.min(1, dt * 3.2);
+        const l = Math.hypot(p.vx, p.vz) || 1;
+        p.vx = (p.vx / l) * p.speed; p.vz = (p.vz / l) * p.speed;
+      }
+    }
+    p.x += p.vx * dt;
+    p.z += p.vz * dt;
+
+    // 명중 판정
+    let hitUnit = null;
+    for (const e of state.units) {
+      if (e.dead || e.team === p.team) continue;
+      if (dist2(p.x, p.z, e.x, e.z) < (p.kind === 'rocket' ? 0.95 : 0.7)) { hitUnit = e; break; }
+    }
+    const hitTarget = tgt && !tgt.dead && dist2(p.x, p.z, tgt.x, tgt.z) < 0.95;
+    const outOfArena = Math.hypot(p.x, p.z) > TUNING.ARENA_RADIUS + 2.2;
+    let obstacleHit = false;
+    for (const ob of state.arena.obstacles) {
+      if (dist2(p.x, p.z, ob.x, ob.z) < ob.r * 0.85) { obstacleHit = true; break; }
+    }
+
+    if (p.kind === 'rocket') {
+      if (hitUnit || hitTarget || p.ttl <= 0 || outOfArena || obstacleHit) {
+        explode(state, p, p.x, p.z);
+        state.projectiles.splice(i, 1);
+      }
+    } else if (hitUnit || hitTarget) {
+      const crit = rng() < (p.fromUid ? (unitByUid(state, p.fromUid)?.crit || 0.07) : 0.07);
+      applyDamage(state, unitByUid(state, p.fromUid), hitUnit || tgt, p.dmg, { crit });
+      emit(state, { type: 'bulletHit', x: p.x, y: p.y, z: p.z, color: p.color });
       state.projectiles.splice(i, 1);
-    } else if (p.ttl <= 0) {
+    } else if (p.ttl <= 0 || outOfArena) {
       state.projectiles.splice(i, 1);
       emit(state, { type: 'projectileGone', x: p.x, z: p.z });
     }
   }
+}
+
+function explode(state, p, x, z) {
+  state.stats.explosions++;
+  emit(state, { type: 'explosion', x, y: 0.8, z, r: p.aoe || 2.6, color: p.color || 0xff8a4a, uid: p.fromUid });
+  const src = unitByUid(state, p.fromUid);
+  areaBurst(state, src, x, z, p.aoe || 2.6, p.dmg, 0.25, p.knock || 10, null, { launch: true });
 }
 
 /* ─────────────────────────────── 대시/돌진 ─────────────────────────────── */
@@ -385,10 +491,9 @@ function startDash(u, opts) {
 function updateDash(state, u, dt) {
   const dash = u.dash;
   const step = Math.hypot(dash.vx, dash.vz) * dt;
-  const ax = u.x, az = u.z, ay = u.y;
+  const ax = u.x, az = u.z;
   const nx = u.x + dash.vx * dt, nz = u.z + dash.vz * dt;
 
-  // 장애물에 막히면 돌진 중단
   if (dash.stopOnObstacle) {
     for (const ob of state.arena.obstacles) {
       if (dist2(nx, nz, ob.x, ob.z) < ob.r + 0.7) {
@@ -403,7 +508,6 @@ function updateDash(state, u, dt) {
   dash.remain -= step;
   u.facing = Math.atan2(dash.vx, dash.vz);
 
-  // 경로상의 적 타격
   for (const e of state.units) {
     if (e.dead || e.team === u.team || dash.hit.has(e.uid)) continue;
     const d = pointSegDist(e.x, e.z, ax, az, u.x, u.z);
@@ -417,7 +521,6 @@ function updateDash(state, u, dt) {
     }
   }
 
-  // 급강하 착지
   if (dash.remain <= 0) {
     if (dash.kind === 'dive') {
       u.y = 0;
@@ -454,17 +557,33 @@ function slowUnit(state, u, factor, time) {
   emit(state, { type: 'slow', uid: u.uid });
 }
 
-function areaBurst(state, u, x, z, radius, dmg, stun = 0, knockForce = 0, exclude = null) {
+function areaBurst(state, u, x, z, radius, dmg, stun = 0, knockForce = 0, exclude = null, opts = {}) {
   emit(state, { type: 'burst', x, z, r: radius, uid: u ? u.uid : null, kind: u ? u.def.skill.kind : 'generic' });
   for (const e of state.units) {
     if (e.dead || e === u || e === exclude) continue;
     if (u && e.team === u.team) continue;
     const d = dist2(x, z, e.x, e.z);
     if (d <= radius + 0.5) {
-      applyDamage(state, u, e, dmg, {});
+      applyDamage(state, u, e, dmg, opts.pierce ? { pierce: true } : {});
       if (stun > 0) stunUnit(state, e, stun);
-      if (knockForce > 0) knock(state, e, e.x - x, e.z - z, knockForce);
+      if (knockForce > 0) knock(state, e, e.x - x, e.z - z, knockForce, { launch: opts.launch });
     }
+  }
+}
+
+// 전방 부채꼴 범위 (티라노 턱 등)
+function coneBurst(state, u, radius, spread, dmg, opts = {}) {
+  emit(state, { type: 'burst', x: u.x, z: u.z, r: radius, uid: u.uid, kind: u.def.skill.kind });
+  for (const e of state.units) {
+    if (e.dead || e.team === u.team) continue;
+    const d = dist2(u.x, u.z, e.x, e.z);
+    if (d > radius + 0.6) continue;
+    const ang = Math.atan2(e.x - u.x, e.z - u.z);
+    if (Math.abs(shortenAngle(ang - u.facing)) > spread) continue;
+    applyDamage(state, u, e, dmg, {});
+    if (opts.stun) stunUnit(state, e, opts.stun);
+    if (opts.knock) knock(state, e, e.x - u.x, e.z - u.z, opts.knock);
+    if (opts.bleed) addBleed(state, e, u, opts.bleed, opts.bleedTime || 3);
   }
 }
 
@@ -483,7 +602,7 @@ function skillReady(state, u) {
   return u.skillTimer <= 0 && !u.dash;
 }
 
-function tryCastSkill(state, u, target, d, enemies) {
+function tryCastSkill(state, u, target, d) {
   if (!u.def.skill || !skillReady(state, u)) return false;
   const s = u.def.skill;
   const rng = state.rng;
@@ -491,30 +610,33 @@ function tryCastSkill(state, u, target, d, enemies) {
   switch (s.kind) {
     case 'roar':
     case 'slam':
-    case 'smash': {
+    case 'smash':
+    case 'titanSlam': {
       const r = s.radius || u.range;
       if (d > r + 1.2 || countEnemiesIn(state, u, r) < 1) return false;
       break;
     }
-    case 'pounce': {
-      if (d < s.minRange || d > s.range) return false;
+    case 'crunch': {
+      if (d > s.range + 1.0 || countEnemiesIn(state, u, s.range) < 1) return false;
       break;
     }
-    case 'gore2': {
-      if (d < s.minRange || d > s.range) return false;
+    case 'pounce':
+    case 'gore2':
+    case 'packPounce':
+    case 'sailSlash': {
+      if (d < (s.minRange || 0.8) || d > s.range) return false;
       break;
     }
     case 'charge':
-    case 'gore': {
+    case 'gore':
+    case 'hornCharge': {
       if (d > s.range || d < 2.2) return false;
       break;
     }
     case 'pack':
-    case 'chomp': {
-      if (d > s.range || !target) return false;
-      break;
-    }
-    case 'dive': {
+    case 'chomp':
+    case 'dive':
+    case 'flame': {
       if (d > s.range || !target) return false;
       break;
     }
@@ -522,10 +644,7 @@ function tryCastSkill(state, u, target, d, enemies) {
       if (u.hp > u.maxHp * 0.82 && countEnemiesIn(state, u, 4.6) < 1) return false;
       break;
     }
-    case 'sprint': {
-      // 자기 강화 — 사거리 조건 없이 쿨마다 사용
-      break;
-    }
+    case 'sprint': break;
     default: return false;
   }
 
@@ -539,7 +658,6 @@ function tryCastSkill(state, u, target, d, enemies) {
   emit(state, { type: 'skill', uid: u.uid, kind: s.kind, name: s.name, x: u.x, z: u.z, team: u.team });
   pushLog(state, { text: `${u.emoji} ${u.name} 「${s.name}」`, team: u.team, kind: 'skill' });
 
-  const fx = u.x, fz = u.z;
   const dirX = target ? target.x - u.x : Math.sin(u.facing);
   const dirZ = target ? target.z - u.z : Math.cos(u.facing);
   const dirLen = Math.hypot(dirX, dirZ) || 1;
@@ -562,6 +680,16 @@ function tryCastSkill(state, u, target, d, enemies) {
       emit(state, { type: 'quake', x: u.x, z: u.z, r: s.radius });
       break;
     }
+    case 'titanSlam': {
+      areaBurst(state, u, u.x, u.z, s.radius, u.atk * s.power, s.stun, s.knock, null, { launch: true });
+      emit(state, { type: 'quake', x: u.x, z: u.z, r: s.radius, big: true });
+      break;
+    }
+    case 'crunch': {
+      coneBurst(state, u, s.radius, Math.PI * 0.46, u.atk * s.power, { stun: s.stun, knock: s.knock });
+      emit(state, { type: 'tail', uid: u.uid, x: u.x, z: u.z });
+      break;
+    }
     case 'pounce': {
       const dist = Math.max(1.2, d - 1.3);
       startDash(u, {
@@ -572,17 +700,36 @@ function tryCastSkill(state, u, target, d, enemies) {
       u.dodgeBonus = 0.2; u.dodgeT = 0.55;
       break;
     }
+    case 'packPounce': {
+      const dist = Math.max(1.2, d - 1.0);
+      startDash(u, {
+        vx: ((target.x - u.x) / d) * 27, vz: ((target.z - u.z) / d) * 27,
+        dist, width: 1.3, dmg: u.atk * s.power, bleed: s.bleed, bleedTime: s.bleedTime,
+        knock: 2.5, kind: 'packPounce', invuln: true,
+      });
+      for (const a of aliveUnits(state, u.team)) {
+        if (a !== u && dist2(a.x, a.z, u.x, u.z) <= 6.5) {
+          haste(a, s.haste, s.hasteTime);
+          emit(state, { type: 'buff', uid: a.uid, kind: 'haste' });
+        }
+      }
+      break;
+    }
     case 'charge':
-    case 'gore': {
+    case 'gore':
+    case 'hornCharge': {
       const dist = s.dash || 9;
-      // 돌진은 대상 방향이 아니라 "조준한 방향"으로 — 코끼리는 관통해서 지나간다
-      const dash = {
-        vx: (dirX / dirLen) * (s.kind === 'gore' ? 19 : 15),
-        vz: (dirZ / dirLen) * (s.kind === 'gore' ? 19 : 15),
+      const fast = s.kind === 'gore' ? 19 : s.kind === 'hornCharge' ? 17 : 15;
+      startDash(u, {
+        vx: (dirX / dirLen) * fast,
+        vz: (dirZ / dirLen) * fast,
         dist, width: s.width || 2.4, dmg: u.atk * s.power, stun: s.stun,
-        knock: s.knock, kind: s.kind, immune: s.kind === 'gore',
-      };
-      startDash(u, dash);
+        knock: s.knock, kind: s.kind, immune: s.kind !== 'charge',
+      });
+      if (s.armorUp) {
+        u.armorBuff = Math.max(u.armorBuff, s.armorUp);
+        u.armorT = s.armorTime || 4;
+      }
       emit(state, { type: 'quakeLine', x: u.x, z: u.z, dx: dirX / dirLen, dz: dirZ / dirLen, len: dist, kind: s.kind });
       break;
     }
@@ -593,6 +740,18 @@ function tryCastSkill(state, u, target, d, enemies) {
         width: 1.3, dmg: u.atk * s.power, bleed: s.bleed, bleedTime: s.bleedTime,
         knock: s.knock, kind: 'gore2',
       });
+      break;
+    }
+    case 'sailSlash': {
+      const dist = Math.min(7, Math.max(2, d - 0.4));
+      startDash(u, {
+        vx: (dirX / dirLen) * 20, vz: (dirZ / dirLen) * 20, dist,
+        width: 2.0, dmg: u.atk * s.power, bleed: s.bleed, bleedTime: s.bleedTime,
+        knock: 4, kind: 'sailSlash', pierce: true,
+      });
+      u.armorBuff = Math.max(u.armorBuff, s.armorUp || 0.15);
+      u.armorT = s.armorTime || 5;
+      emit(state, { type: 'buff', uid: u.uid, kind: 'armor' });
       break;
     }
     case 'pack': {
@@ -622,6 +781,18 @@ function tryCastSkill(state, u, target, d, enemies) {
       emit(state, { type: 'buff', uid: u.uid, kind: 'armor' });
       break;
     }
+    case 'flame': {
+      // 대상 지점에 화염을 뿌린다
+      const fx = target ? target.x : u.x + (dirX / dirLen) * s.range * 0.7;
+      const fz = target ? target.z : u.z + (dirZ / dirLen) * s.range * 0.7;
+      emit(state, { type: 'flame', uid: u.uid, x: u.x, z: u.z, tx: fx, tz: fz, r: s.radius, color: 0xff7a3a });
+      areaBurst(state, u, fx, fz, s.radius, u.atk * s.power, 0, s.knock);
+      for (const e of state.units) {
+        if (e.dead || e.team === u.team) continue;
+        if (dist2(fx, fz, e.x, e.z) <= s.radius + 0.5) addBleed(state, e, u, s.burn, s.burnTime);
+      }
+      break;
+    }
     case 'dive': {
       const dist = Math.max(1.5, d - 1.2);
       startDash(u, {
@@ -648,7 +819,6 @@ function tryCastSkill(state, u, target, d, enemies) {
     }
     default: break;
   }
-  u.lastSkillPos = { x: fx, z: fz };
   return true;
 }
 
@@ -687,7 +857,7 @@ function tickEffects(state, u, dt) {
     }
   }
 
-  // 넉백 감쇠 + 적용
+  // 넉백 + 공중 회전(래그돌)
   if (Math.abs(u.vx) > 0.01 || Math.abs(u.vz) > 0.01) {
     u.x += u.vx * dt;
     u.z += u.vz * dt;
@@ -695,6 +865,22 @@ function tickEffects(state, u, dt) {
     u.vx *= decay; u.vz *= decay;
     if (Math.abs(u.vx) < 0.05) u.vx = 0;
     if (Math.abs(u.vz) < 0.05) u.vz = 0;
+  }
+  if (u.vy !== 0 || u.y > 0) {
+    u.vy -= 38 * dt;
+    u.y += u.vy * dt;
+    if (u.y <= 0) {
+      u.y = 0;
+      if (u.vy < -3.5) emit(state, { type: 'land', uid: u.uid, x: u.x, z: u.z, force: -u.vy });
+      u.vy = 0;
+      u.spinVel *= 0.35;
+    }
+  }
+  if (Math.abs(u.spinVel) > 0.05 && (u.y > 0 || u.dead)) {
+    u.spin += u.spinVel * dt;
+  } else if (!u.dead) {
+    u.spin *= Math.max(0, 1 - dt * 6);
+    u.spinVel *= Math.max(0, 1 - dt * 3);
   }
 }
 
@@ -708,11 +894,10 @@ function actUnit(state, u, dt) {
   const desired = Math.atan2(target.x - u.x, target.z - u.z);
   u.facing = shortenAngle(u.facing + shortenAngle(desired - u.facing) * Math.min(1, dt * 9));
 
-  if (u.castLock <= 0 && tryCastSkill(state, u, target, d, null)) return;
+  if (u.castLock <= 0 && tryCastSkill(state, u, target, d)) return;
 
   if (u.castLock > 0) {
     u.state = 'attack';
-    // 시전 중엔 제자리
     u.moving = false;
     return;
   }
@@ -724,13 +909,12 @@ function actUnit(state, u, dt) {
   }
 
   const speed = unitSpeed(u, state);
-  if (u.def.ranged) {
-    if (d < u.range * 0.55) { moveAway(state, u, target.x, target.z, speed, dt); u.state = 'retreat'; }
+  if (u.ranged) {
+    if (d < u.range * 0.4) { moveAway(state, u, target.x, target.z, speed, dt); u.state = 'retreat'; }
     else if (d > u.range * 0.95) { steerMove(state, u, target.x, target.z, speed, dt, u.range * 0.9); u.state = 'chase'; }
     else {
-      // 사거리 안 — 옆으로 돌며 각을 잡는다
       const perp = desired + Math.PI / 2;
-      steerMove(state, u, u.x + Math.sin(perp) * 3, u.z + Math.cos(perp) * 3, speed * 0.65, dt);
+      steerMove(state, u, u.x + Math.sin(perp) * 3, u.z + Math.cos(perp) * 3, speed * 0.5, dt);
       u.state = 'strafe';
     }
   } else {
@@ -750,7 +934,7 @@ export function step(state, dt) {
   state.time += h;
 
   for (const u of state.units) {
-    if (u.dead) continue;
+    if (u.dead) { tickDead(u, h); continue; }
     u.moving = false;
     tickEffects(state, u, h);
   }
@@ -761,7 +945,6 @@ export function step(state, dt) {
     resolveCollisions(state, u);
   }
 
-  // 승패 판정
   const b = aliveCount(state, 'blue');
   const r = aliveCount(state, 'red');
   if (b === 0 || r === 0) {
@@ -778,6 +961,20 @@ export function step(state, dt) {
     finish(state);
   }
   return state;
+}
+
+function tickDead(u, dt) {
+  if (Math.abs(u.vx) > 0.01 || Math.abs(u.vz) > 0.01) {
+    u.x += u.vx * dt; u.z += u.vz * dt;
+    const decay = Math.exp(-6 * dt);
+    u.vx *= decay; u.vz *= decay;
+  }
+  if (u.vy !== 0 || u.y > 0) {
+    u.vy -= 38 * dt;
+    u.y += u.vy * dt;
+    if (u.y <= 0) { u.y = 0; u.vy = 0; u.spinVel *= 0.4; }
+  }
+  if (Math.abs(u.spinVel) > 0.05) u.spin += u.spinVel * dt;
 }
 
 function finish(state) {
@@ -812,7 +1009,7 @@ function summarizeUnit(u) {
     uid: u.uid, id: u.id, name: u.name, alive: !u.dead,
     hp: Math.max(0, Math.round(u.hp)), maxHp: u.maxHp,
     dmg: Math.round(u.dmgDealt), taken: Math.round(u.dmgTaken),
-    kills: u.kills, skills: u.skillCasts,
+    kills: u.kills, skills: u.skillCasts, weapon: u.weaponId,
   };
 }
 

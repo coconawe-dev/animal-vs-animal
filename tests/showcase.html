@@ -13,7 +13,7 @@
 <canvas id="c"></canvas>
 <script type="module">
 import * as THREE from '../vendor/three.module.js';
-import { ANIMALS } from '../src/config.js';
+import { CREATURES } from '../src/config.js';
 import { buildAnimalModel, animateRig } from '../src/models.js';
 
 const canvas = document.getElementById('c');
@@ -67,13 +67,15 @@ function label(text, x, y, z) {
   scene.add(sp);
 }
 
-const cols = 12;
-const spacing = 3.0;
+const cols = 9;
+const rows = 2;
+const spacing = 3.6;
 const rigs = [];
-ANIMALS.forEach((def, i) => {
+CREATURES.forEach((def, i) => {
   const col = i % cols;
+  const row = Math.floor(i / cols);
   const x = (col - (cols - 1) / 2) * spacing;
-  const z = 0;
+  const z = (row - (rows - 1) / 2) * 7.5;
   const rig = buildAnimalModel(def, i % 2 ? 'red' : 'blue');
   rig.group.position.set(x, 0, z);
   rig.group.rotation.y = 0.35;
@@ -81,14 +83,14 @@ ANIMALS.forEach((def, i) => {
   scene.add(rig.group);
   rigs.push({ rig, phase: i * 0.7 });
   rig.group.rotation.y = 0.5;
-  label(`${def.name}`, x, rig.height + 0.5, z);
+  label(`${def.emoji} ${def.name}`, x, rig.height + 0.5, z);
 });
 
 const from = Number(new URLSearchParams(location.search).get('from') || 0);
 const fx = (from + 2.5 - (cols - 1) / 2) * spacing;
-camera.fov = 30;
-camera.position.set(fx, 2.4, 24);
-camera.lookAt(fx, 1.15, 0);
+camera.fov = 34;
+camera.position.set(fx, 4.4, 32);
+camera.lookAt(fx, 1.4, 0);
 camera.updateProjectionMatrix();
 
 let last = performance.now();

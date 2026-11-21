@@ -91,6 +91,26 @@ export class Effects {
     this.projectileMeshes = new Map();
     this.projGeo = new THREE.ConeGeometry(0.09, 0.62, 5);
     this.projMat = new THREE.MeshStandardMaterial({ color: 0xe8dcc0, flatShading: true, roughness: 0.6 });
+    this.bulletGeo = new THREE.SphereGeometry(0.13, 6, 5);
+    this.bulletMat = new THREE.MeshBasicMaterial({ color: 0xffe08a });
+    this.rocketGeo = new THREE.ConeGeometry(0.16, 0.55, 7);
+    this.rocketMat = new THREE.MeshStandardMaterial({ color: 0x55606e, flatShading: true, roughness: 0.5, emissive: 0x662200, emissiveIntensity: 0.6 });
+
+    // ── 레이저 빔 풀
+    this.beams = [];
+    const beamGeo = new THREE.CylinderGeometry(0.075, 0.075, 1, 6);
+    for (let i = 0; i < 8; i++) {
+      const mat = new THREE.MeshBasicMaterial({
+        color: 0x6fe8ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(beamGeo, mat);
+      mesh.visible = false;
+      this.group.add(mesh);
+      this.beams.push({ mesh, life: 0, max: 0.22 });
+    }
+    this.beamIdx = 0;
+    this.up = new THREE.Vector3(0, 1, 0);
+    this.tmpDir = new THREE.Vector3();
   }
 
   /* ───────── 피해 숫자 ───────── */
@@ -205,7 +225,12 @@ export class Effects {
       seen.add(p.pid);
       let mesh = this.projectileMeshes.get(p.pid);
       if (!mesh) {
-        mesh = new THREE.Mesh(this.projGeo, this.projMat);
+        const kind = p.kind || 'arrow';
+        mesh = kind === 'bullet'
+          ? new THREE.Mesh(this.bulletGeo, this.bulletMat)
+          : kind === 'rocket'
+            ? new THREE.Mesh(this.rocketGeo, this.rocketMat)
+            : new THREE.Mesh(this.projGeo, this.projMat);
         mesh.castShadow = false;
         this.group.add(mesh);
         this.projectileMeshes.set(p.pid, mesh);
@@ -220,6 +245,37 @@ export class Effects {
         this.projectileMeshes.delete(pid);
       }
     }
+  }
+
+  /* ───────── 레이저 · 폭발 · 화염 ───────── */
+  beam(x1, y1, z1, x2, y2, z2, color = 0x6fe8ff, dur = 0.22) {
+    const b = this.beams[this.beamIdx];
+    this.beamIdx = (this.beamIdx + 1) % this.beams.length;
+    const dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+    const len = Math.hypot(dx, dy, dz) || 1;
+    b.mesh.position.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2);
+    this.tmpDir.set(dx / len, dy / len, dz / len);
+    b.mesh.quaternion.setFromUnitVectors(this.up, this.tmpDir);
+    b.mesh.scale.set(1, len, 1);
+    b.mesh.material.color.setHex(color);
+    b.mesh.material.opacity = 0.95;
+    b.mesh.visible = true;
+    b.life = dur; b.max = dur;
+  }
+
+  explosion(x, y, z, r = 3, color = 0xff8a4a) {
+    this.flash(x, y + 0.3, z, r * 1.15, color, 0.34);
+    this.ring(x, z, r * 0.25, r * 1.5, color, 0.5);
+    this.burst(x, y, z, color, Math.min(46, 14 + Math.round(r * 8)), 7);
+    this.burst(x, y, z, 0xffe08a, Math.min(24, 8 + Math.round(r * 4)), 5);
+    this.dust(x, z, 12, 0x8a7a62);
+  }
+
+  flame(x, y, z, r = 3, color = 0xff7a3a) {
+    this.flash(x, y, z, r * 0.8, color, 0.3);
+    this.ring(x, z, r * 0.3, r * 1.2, color, 0.45);
+    this.burst(x, y + 0.2, z, color, 30, 5.5, { grav: -2 });
+    this.burst(x, y + 0.2, z, 0xffe066, 14, 4, { grav: -1 });
   }
 
   /* ───────── 프레임 갱신 ───────── */
@@ -288,12 +344,21 @@ export class Effects {
       s.mesh.scale.multiplyScalar(1 + dt * 3);
       if (s.life <= 0) s.mesh.visible = false;
     }
+    // 빔
+    for (const b of this.beams) {
+      if (b.life <= 0) continue;
+      b.life -= dt;
+      const k = 1 - Math.max(0, b.life) / b.max;
+      b.mesh.material.opacity = Math.max(0, 0.95 * (1 - k));
+      if (b.life <= 0) b.mesh.visible = false;
+    }
   }
 
   clear() {
     for (const n of this.numbers) { n.life = 0; n.sprite.visible = false; }
     for (const r of this.rings) { r.life = 0; r.mesh.visible = false; }
     for (const f of this.flashes) { f.life = 0; f.mesh.visible = false; }
+    for (const b of this.beams) { b.life = 0; b.mesh.visible = false; }
     this.parts.length = 0;
     this.partGeo.setDrawRange(0, 0);
     for (const [, mesh] of this.projectileMeshes) this.group.remove(mesh);

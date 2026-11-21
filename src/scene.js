@@ -126,7 +126,54 @@ export class Stage {
     this.arenaGroup = null;
     this.time = 0;
     this.autoRotate = 0;
+    this.raycaster = new THREE.Raycaster();
+    this.groundPlane = new THREE.Plane(new THREE.Vector3(0, 1, 0), 0);
+    this.rayHit = new THREE.Vector3();
     this.resize();
+    this.makeGhost();
+  }
+
+  /* ── 배치 고스트(탭 지점 표시) ── */
+  makeGhost() {
+    const g = new THREE.Group();
+    this.ghostMat = new THREE.MeshBasicMaterial({
+      color: 0x3f86ff, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false,
+    });
+    const ring = new THREE.Mesh(new THREE.RingGeometry(0.72, 1.0, 40), this.ghostMat);
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = 0.06;
+    g.add(ring);
+    this.ghostDiscMat = new THREE.MeshBasicMaterial({
+      color: 0x3f86ff, transparent: true, opacity: 0.16, depthWrite: false,
+    });
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(0.72, 24), this.ghostDiscMat);
+    disc.rotation.x = -Math.PI / 2;
+    disc.position.y = 0.05;
+    g.add(disc);
+    g.visible = false;
+    this.scene.add(g);
+    this.ghost = g;
+    this.ghostRing = ring;
+    this.ghostDisc = disc;
+  }
+
+  setGhost(x, z, color = 0x3f86ff, scale = 1) {
+    if (!this.ghost) return;
+    if (x == null) { this.ghost.visible = false; return; }
+    this.ghost.visible = true;
+    this.ghost.position.set(x, 0, z);
+    this.ghost.scale.setScalar(scale);
+    this.ghostMat.color.setHex(color);
+    this.ghostDiscMat.color.setHex(color);
+  }
+
+  hideGhost() { if (this.ghost) this.ghost.visible = false; }
+
+  // 화면 좌표 → 지면(y=0) 교점
+  rayGround(ndcX, ndcY) {
+    this.raycaster.setFromCamera({ x: ndcX, y: ndcY }, this.camera);
+    const hit = this.raycaster.ray.intersectPlane(this.groundPlane, this.rayHit);
+    return hit ? { x: hit.x, z: hit.z } : null;
   }
 
   resize() {
@@ -217,6 +264,46 @@ export class Stage {
       b.castShadow = false; b.receiveShadow = true;
       group.add(b);
     }
+
+    /* ── ARBS 진영 구분: 블루(서쪽) · 레드(동쪽) 반원 틴트 + 중앙선 ── */
+    const halfGeoRed = new THREE.CircleGeometry(R + 1.2, 64, -Math.PI / 2, Math.PI);
+    const tintRed = new THREE.Mesh(halfGeoRed, new THREE.MeshBasicMaterial({
+      color: arena.lineRed || 0xff5040, transparent: true, opacity: 0.1, depthWrite: false,
+    }));
+    tintRed.rotation.x = -Math.PI / 2;
+    tintRed.position.y = 0.035;
+    group.add(tintRed);
+
+    const halfGeoBlue = new THREE.CircleGeometry(R + 1.2, 64, Math.PI / 2, Math.PI);
+    const tintBlue = new THREE.Mesh(halfGeoBlue, new THREE.MeshBasicMaterial({
+      color: arena.lineBlue || 0x3f86ff, transparent: true, opacity: 0.1, depthWrite: false,
+    }));
+    tintBlue.rotation.x = -Math.PI / 2;
+    tintBlue.position.y = 0.036;
+    group.add(tintBlue);
+
+    // 중앙 구분선
+    const lineMat = new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.34, depthWrite: false,
+      blending: THREE.AdditiveBlending,
+    });
+    const line = new THREE.Mesh(new THREE.PlaneGeometry(0.16, R * 2.05), lineMat);
+    line.rotation.x = -Math.PI / 2;
+    line.position.y = 0.045;
+    group.add(line);
+    const lineGlow = new THREE.Mesh(new THREE.PlaneGeometry(0.7, R * 2.05), new THREE.MeshBasicMaterial({
+      color: arena.rim, transparent: true, opacity: 0.1, depthWrite: false, blending: THREE.AdditiveBlending,
+    }));
+    lineGlow.rotation.x = -Math.PI / 2;
+    lineGlow.position.y = 0.04;
+    group.add(lineGlow);
+    // 중앙 원
+    const centerRing = new THREE.Mesh(new THREE.RingGeometry(1.6, 1.75, 40), new THREE.MeshBasicMaterial({
+      color: 0xffffff, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false,
+    }));
+    centerRing.rotation.x = -Math.PI / 2;
+    centerRing.position.y = 0.045;
+    group.add(centerRing);
 
     // 장애물
     arena.obstacles.forEach((ob) => {

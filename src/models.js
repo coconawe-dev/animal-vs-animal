@@ -503,15 +503,431 @@ function buildBoar(g, m, rig) {
   rig.height = 1.1;
 }
 
+/* ───────────────────────────── 티라노사우루스 ───────────────────────────── */
+function buildTRex(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 1.72;
+  g.add(body); rig.body = body; rig.bodyY = 1.72;
+
+  add(body, G.sphere, m.main, [0, 0, 0], [0.5, 0.56, 0.86]);
+  add(body, G.sphere, m.main, [0, 0.08, 0.52], [0.44, 0.42, 0.42]);
+  add(body, G.sphereLow, m.belly, [0, -0.24, 0.06], [0.36, 0.24, 0.66], null, false);
+  // 등 능선
+  for (let i = 0; i < 4; i++) {
+    add(body, G.coneLow, m.dark, [0, 0.46, 0.3 - i * 0.22], [0.1, 0.2, 0.08], [0.2, 0, 0], false);
+  }
+
+  // 두 발
+  const legs = [];
+  [1, -1].forEach((side, i) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.36, -0.16, -0.06);
+    pivot.rotation.order = 'YXZ';
+    body.add(pivot);
+    add(pivot, G.leg, m.main, [0, -0.36, 0], [0.17, 0.76, 0.2]);
+    add(pivot, G.leg, m.dark, [0, -0.88, 0.06], [0.085, 0.42, 0.09]);
+    add(pivot, G.box, m.dark, [0, -1.1, 0.16], [0.22, 0.11, 0.42]);
+    legs.push({ pivot, phase: i * Math.PI, front: false, left: side > 0 });
+  });
+  rig.legs = legs;
+
+  // 꼬리
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.14, -0.82);
+  body.add(tail); rig.tail = tail;
+  add(tail, G.cone, m.main, [0, 0, -0.34], [0.32, 1.0, 0.28], [-Math.PI / 2, 0, 0]);
+  const tip = new THREE.Group(); tip.position.set(0, 0, -0.8); tail.add(tip); rig.tailTip = tip;
+  add(tip, G.cone, m.dark, [0, 0, -0.34], [0.18, 0.88, 0.15], [-Math.PI / 2, 0, 0]);
+
+  // 머리 · 턱
+  const head = new THREE.Group();
+  head.position.set(0, 0.42, 0.76);
+  body.add(head); rig.head = head;
+  add(head, G.sphere, m.main, [0, 0.02, 0.08], [0.31, 0.3, 0.34]);
+  add(head, G.box, m.main, [0, 0.04, 0.48], [0.42, 0.34, 0.68]);
+  add(head, G.sphereLow, m.accent, [0, 0.12, 0.2], [0.24, 0.16, 0.3], null, false);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.14, 0.18);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.box, m.belly, [0, -0.02, 0.34], [0.38, 0.14, 0.66]);
+  for (let i = 0; i < 5; i++) {
+    add(head, G.coneLow, m.accent, [0.19, -0.12, 0.26 + i * 0.11], [0.04, 0.13, 0.04], [Math.PI, 0, 0], false);
+    add(head, G.coneLow, m.accent, [-0.19, -0.12, 0.26 + i * 0.11], [0.04, 0.13, 0.04], [Math.PI, 0, 0], false);
+  }
+  add(head, G.sphereLow, m.eye, [0.2, 0.14, 0.16], [0.05, 0.055, 0.045], null, false);
+  add(head, G.sphereLow, m.eye, [-0.2, 0.14, 0.16], [0.05, 0.055, 0.045], null, false);
+  add(head, G.coneLow, m.dark, [0.16, 0.3, -0.02], [0.06, 0.18, 0.05], [0, 0, -0.3], false);
+  add(head, G.coneLow, m.dark, [-0.16, 0.3, -0.02], [0.06, 0.18, 0.05], [0, 0, 0.3], false);
+
+  // 작은 팔
+  const arms = [];
+  [1, -1].forEach((side) => {
+    const sh = new THREE.Group();
+    sh.position.set(side * 0.4, -0.08, 0.5);
+    body.add(sh);
+    add(sh, G.cyl, m.main, [0, -0.12, 0.04], [0.07, 0.28, 0.07], [0.9, 0, 0]);
+    add(sh, G.coneLow, m.dark, [0, -0.24, 0.16], [0.05, 0.14, 0.05], [1.6, 0, 0], false);
+    arms.push({ pivot: sh, side });
+  });
+  rig.arms = arms;
+  rig.height = 2.55;
+}
+
+/* ───────────────────────────── 스피노사우루스 ───────────────────────────── */
+function buildSpino(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 1.62;
+  g.add(body); rig.body = body; rig.bodyY = 1.62;
+
+  add(body, G.sphere, m.main, [0, 0, 0], [0.48, 0.52, 0.92]);
+  add(body, G.sphere, m.main, [0, 0.06, 0.55], [0.42, 0.4, 0.4]);
+  add(body, G.sphereLow, m.belly, [0, -0.22, 0.05], [0.34, 0.22, 0.7], null, false);
+  // 등돛
+  for (let i = 0; i < 8; i++) {
+    const z = 0.55 - i * 0.24;
+    const h = 0.55 + Math.sin((i / 7) * Math.PI) * 0.5;
+    add(body, G.coneLow, m.accent, [0, 0.42 + h * 0.2, z], [0.26, h, 0.075], [0.05, 0, 0], false);
+  }
+
+  const legs = [];
+  [1, -1].forEach((side, i) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.34, -0.14, -0.04);
+    pivot.rotation.order = 'YXZ';
+    body.add(pivot);
+    add(pivot, G.leg, m.main, [0, -0.36, 0], [0.16, 0.72, 0.18]);
+    add(pivot, G.leg, m.dark, [0, -0.84, 0.06], [0.08, 0.4, 0.09]);
+    add(pivot, G.box, m.dark, [0, -1.04, 0.16], [0.21, 0.1, 0.4]);
+    legs.push({ pivot, phase: i * Math.PI, front: false, left: side > 0 });
+  });
+  rig.legs = legs;
+
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.12, -0.88);
+  body.add(tail); rig.tail = tail;
+  add(tail, G.cone, m.main, [0, 0, -0.4], [0.3, 1.1, 0.26], [-Math.PI / 2, 0, 0]);
+  add(tail, G.coneLow, m.accent, [0, 0.14, -0.5], [0.14, 0.5, 0.08], [-Math.PI / 2, 0, 0], false);
+
+  const head = new THREE.Group();
+  head.position.set(0, 0.36, 0.82);
+  body.add(head); rig.head = head;
+  add(head, G.sphere, m.main, [0, 0.02, 0.06], [0.28, 0.27, 0.32]);
+  add(head, G.box, m.main, [0, 0.02, 0.5], [0.34, 0.26, 0.72]);   // 긴 주둥이
+  add(head, G.sphereLow, m.accent, [0, 0.18, 0.1], [0.2, 0.12, 0.26], null, false);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.12, 0.16);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.box, m.belly, [0, -0.02, 0.36], [0.3, 0.12, 0.7]);
+  for (let i = 0; i < 6; i++) {
+    add(head, G.coneLow, m.accent, [0.15, -0.1, 0.28 + i * 0.1], [0.03, 0.1, 0.03], [Math.PI, 0, 0], false);
+    add(head, G.coneLow, m.accent, [-0.15, -0.1, 0.28 + i * 0.1], [0.03, 0.1, 0.03], [Math.PI, 0, 0], false);
+  }
+  add(head, G.sphereLow, m.eye, [0.18, 0.16, 0.16], [0.045, 0.05, 0.04], null, false);
+  add(head, G.sphereLow, m.eye, [-0.18, 0.16, 0.16], [0.045, 0.05, 0.04], null, false);
+
+  const arms = [];
+  [1, -1].forEach((side) => {
+    const sh = new THREE.Group();
+    sh.position.set(side * 0.42, -0.04, 0.52);
+    body.add(sh);
+    add(sh, G.cyl, m.main, [0, -0.16, 0.06], [0.075, 0.34, 0.075], [0.8, 0, 0]);
+    add(sh, G.cone, m.accent, [0, -0.3, 0.2], [0.05, 0.26, 0.05], [1.5, 0, 0], false);
+    arms.push({ pivot: sh, side });
+  });
+  rig.arms = arms;
+  rig.height = 2.4;
+}
+
+/* ───────────────────────────── 트리케라톱스 ───────────────────────────── */
+function buildTriceratops(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 1.0;
+  g.add(body); rig.body = body; rig.bodyY = 1.0;
+
+  add(body, G.sphere, m.main, [0, 0, -0.06], [0.66, 0.56, 1.0]);
+  add(body, G.sphereLow, m.belly, [0, -0.26, 0.05], [0.5, 0.22, 0.72], null, false);
+  add(body, G.sphereLow, m.dark, [0, 0.34, -0.1], [0.5, 0.2, 0.66], null, false);
+
+  rig.legs = quadLegs(body, m.dark, { x: 0.44, zf: 0.54, zb: -0.56, len: 0.76, r: 0.18, hoof: m.accent });
+
+  const head = new THREE.Group();
+  head.position.set(0, 0.12, 0.86);
+  body.add(head); rig.head = head;
+  add(head, G.sphere, m.main, [0, 0, 0.06], [0.34, 0.28, 0.34]);
+  add(head, G.sphere, m.accent, [0, -0.08, 0.3], [0.24, 0.18, 0.24]);
+  // 프릴
+  const frill = add(head, G.cyl, m.accent, [0, 0.16, -0.16], [0.72, 0.08, 0.72], [Math.PI / 2.35, 0, 0]);
+  frill.scale.set(0.74, 0.09, 0.74);
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 1.2 - Math.PI * 0.6;
+    add(head, G.coneLow, m.dark, [Math.sin(a) * 0.66, 0.3 + Math.cos(a) * 0.3, -0.14], [0.075, 0.24, 0.06], [0, 0, -a], false);
+  }
+  // 세 개의 뿔
+  add(head, G.cone, m.accent, [0.22, 0.12, 0.42], [0.065, 0.62, 0.065], [1.15, 0, -0.18]);
+  add(head, G.cone, m.accent, [-0.22, 0.12, 0.42], [0.065, 0.62, 0.065], [1.15, 0, 0.18]);
+  add(head, G.cone, m.accent, [0, -0.06, 0.5], [0.05, 0.28, 0.05], [1.4, 0, 0]);
+  add(head, G.sphereLow, m.eye, [0.24, 0.06, 0.26], [0.045, 0.05, 0.04], null, false);
+  add(head, G.sphereLow, m.eye, [-0.24, 0.06, 0.26], [0.045, 0.05, 0.04], null, false);
+
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.06, -1.0);
+  body.add(tail); rig.tail = tail;
+  add(tail, G.cone, m.main, [0, -0.04, -0.3], [0.24, 0.72, 0.22], [-Math.PI / 2, 0, 0]);
+  rig.height = 1.85;
+}
+
+/* ───────────────────────────── 벨로시랩터 ───────────────────────────── */
+function buildRaptor(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 0.92;
+  g.add(body); rig.body = body; rig.bodyY = 0.92;
+
+  add(body, G.sphere, m.main, [0, 0, 0], [0.3, 0.32, 0.62]);
+  add(body, G.sphere, m.main, [0, 0.06, 0.36], [0.26, 0.26, 0.28]);
+  add(body, G.sphereLow, m.belly, [0, -0.14, 0.04], [0.22, 0.14, 0.46], null, false);
+  for (let i = 0; i < 4; i++) {
+    add(body, G.coneLow, m.accent, [0, 0.26, 0.28 - i * 0.18], [0.07, 0.14, 0.05], [0.15, 0, 0], false);
+  }
+
+  const legs = [];
+  [1, -1].forEach((side, i) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.16, -0.06, 0.0);
+    pivot.rotation.order = 'YXZ';
+    body.add(pivot);
+    add(pivot, G.leg, m.main, [0, -0.22, 0], [0.09, 0.46, 0.1]);
+    add(pivot, G.leg, m.dark, [0, -0.52, 0.04], [0.05, 0.28, 0.05]);
+    add(pivot, G.box, m.dark, [0, -0.67, 0.1], [0.13, 0.07, 0.26]);
+    // 낫 발톱
+    add(pivot, G.coneLow, m.accent, [0, -0.66, 0.22], [0.03, 0.16, 0.03], [1.9, 0, 0], false);
+    legs.push({ pivot, phase: i * Math.PI, front: false, left: side > 0 });
+  });
+  rig.legs = legs;
+
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.06, -0.6);
+  body.add(tail); rig.tail = tail;
+  add(tail, G.cone, m.main, [0, 0, -0.32], [0.17, 0.78, 0.15], [-Math.PI / 2, 0, 0]);
+  add(tail, G.coneLow, m.accent, [0, 0, -0.62], [0.1, 0.4, 0.09], [-Math.PI / 2, 0, 0], false);
+
+  const head = new THREE.Group();
+  head.position.set(0, 0.26, 0.52);
+  body.add(head); rig.head = head;
+  add(head, G.sphere, m.main, [0, 0, 0.02], [0.18, 0.18, 0.24]);
+  add(head, G.box, m.main, [0, 0.0, 0.26], [0.17, 0.14, 0.34]);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.08, 0.1);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.box, m.belly, [0, 0, 0.22], [0.15, 0.07, 0.32]);
+  add(head, G.sphereLow, m.eye, [0.13, 0.07, 0.1], [0.035, 0.04, 0.03], null, false);
+  add(head, G.sphereLow, m.eye, [-0.13, 0.07, 0.1], [0.035, 0.04, 0.03], null, false);
+
+  const arms = [];
+  [1, -1].forEach((side) => {
+    const sh = new THREE.Group();
+    sh.position.set(side * 0.24, -0.02, 0.24);
+    body.add(sh);
+    add(sh, G.cyl, m.main, [0, -0.12, 0.06], [0.04, 0.24, 0.04], [0.9, 0, 0]);
+    add(sh, G.coneLow, m.accent, [0, -0.2, 0.15], [0.025, 0.12, 0.025], [1.6, 0, 0], false);
+    arms.push({ pivot: sh, side });
+  });
+  rig.arms = arms;
+  rig.height = 1.35;
+}
+
+/* ───────────────────────────── 와이번 ───────────────────────────── */
+function buildWyvern(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 0.95;
+  g.add(body); rig.body = body; rig.bodyY = 0.95;
+
+  add(body, G.sphere, m.main, [0, 0, 0], [0.34, 0.36, 0.72]);
+  add(body, G.sphereLow, m.belly, [0, -0.16, 0.08], [0.26, 0.18, 0.5], null, false);
+
+  // 날개
+  const wings = [];
+  [1, -1].forEach((side) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.28, 0.12, 0.02);
+    body.add(pivot);
+    add(pivot, G.sphereLow, m.main, [side * 0.62, 0.02, -0.04], [0.72, 0.06, 0.36], [0, side * 0.12, 0], true);
+    add(pivot, G.sphereLow, m.dark, [side * 1.05, -0.02, -0.3], [0.46, 0.04, 0.3], [0, side * 0.2, 0], false);
+    for (let i = 0; i < 3; i++) {
+      add(pivot, G.coneLow, m.accent, [side * (0.5 + i * 0.3), 0.03, -0.34 - i * 0.05], [0.03, 0.34, 0.03], [1.4, 0, side * 0.2], false);
+    }
+    wings.push({ pivot, side });
+  });
+  rig.wings = wings;
+
+  const legs = [];
+  [1, -1].forEach((side, i) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.2, -0.18, -0.06);
+    body.add(pivot);
+    add(pivot, G.cyl, m.dark, [0, -0.2, 0.04], [0.06, 0.3, 0.06], [0.4, 0, 0]);
+    add(pivot, G.coneLow, m.accent, [0, -0.32, 0.14], [0.04, 0.14, 0.04], [1.7, 0, 0], false);
+    legs.push({ pivot, phase: i * Math.PI, front: false, left: side > 0 });
+  });
+  rig.legs = legs;
+
+  // 목 · 머리
+  const head = new THREE.Group();
+  head.position.set(0, 0.34, 0.62);
+  body.add(head); rig.head = head;
+  add(head, G.cyl, m.main, [0, -0.1, -0.18], [0.12, 0.4, 0.12], [1.15, 0, 0]);
+  add(head, G.sphere, m.main, [0, 0.02, 0.1], [0.2, 0.18, 0.26]);
+  add(head, G.box, m.main, [0, 0.02, 0.34], [0.18, 0.14, 0.34]);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.08, 0.18);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.box, m.belly, [0, 0, 0.16], [0.15, 0.06, 0.3]);
+  add(head, G.sphereLow, m.accent, [0.12, 0.1, 0.2], [0.04, 0.045, 0.035], null, false);
+  add(head, G.sphereLow, m.accent, [-0.12, 0.1, 0.2], [0.04, 0.045, 0.035], null, false);
+  add(head, G.coneLow, m.accent, [0, 0.2, -0.02], [0.05, 0.2, 0.05], [-0.3, 0, 0], false);
+
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.02, -0.7);
+  body.add(tail); rig.tail = tail;
+  add(tail, G.cone, m.main, [0, 0, -0.34], [0.16, 0.86, 0.14], [-Math.PI / 2, 0, 0]);
+  add(tail, G.coneLow, m.accent, [0, 0, -0.72], [0.12, 0.34, 0.1], [-Math.PI / 2 - 0.4, 0, 0], false);
+  rig.height = 1.9;
+  rig.air = true;
+}
+
+/* ───────────────────────────── 거대 타이탄 ───────────────────────────── */
+function buildTitan(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 1.45;
+  g.add(body); rig.body = body; rig.bodyY = 1.45;
+
+  add(body, G.capsule, m.main, [0, 0.06, 0], [1.1, 0.92, 0.94], [0.1, 0, 0]);
+  add(body, G.sphere, m.main, [0, 0.46, 0.18], [0.76, 0.5, 0.54]);
+  add(body, G.sphereLow, m.dark, [0, 0.52, -0.34], [0.5, 0.44, 0.16], null, false);
+  // 등 판
+  for (let i = 0; i < 4; i++) {
+    add(body, G.coneLow, m.accent, [0, 0.68 - i * 0.06, -0.2 - i * 0.16], [0.11, 0.3, 0.08], [0.5, 0, 0], false);
+  }
+
+  // 다리
+  const legs = [];
+  [1, -1].forEach((side, i) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.38, -0.18, 0.02);
+    body.add(pivot);
+    add(pivot, G.leg, m.main, [0, -0.44, 0], [0.22, 0.9, 0.24]);
+    add(pivot, G.box, m.dark, [0, -0.9, 0.1], [0.32, 0.16, 0.44]);
+    legs.push({ pivot, phase: i * Math.PI, front: false, left: side > 0 });
+  });
+  rig.legs = legs;
+
+  // 긴 팔
+  const arms = [];
+  [1, -1].forEach((side) => {
+    const sh = new THREE.Group();
+    sh.position.set(side * 0.66, 0.36, 0.2);
+    body.add(sh);
+    add(sh, G.cyl, m.dark, [0, -0.42, 0], [0.17, 0.86, 0.17]);
+    add(sh, G.sphereLow, m.dark, [0, -0.84, 0.04], [0.21, 0.17, 0.22]);
+    add(sh, G.sphere, m.main, [0, 0.02, 0], [0.26, 0.24, 0.24]);
+    arms.push({ pivot: sh, side });
+  });
+  rig.arms = arms;
+
+  const head = new THREE.Group();
+  head.position.set(0, 0.66, 0.42);
+  body.add(head); rig.head = head;
+  add(head, G.sphere, m.main, [0, 0, 0], [0.34, 0.32, 0.3]);
+  add(head, G.sphere, m.dark, [0, -0.12, 0.2], [0.24, 0.18, 0.2]);
+  add(head, G.sphereLow, m.accent, [0.12, 0.06, 0.24], [0.07, 0.06, 0.04], null, false);
+  add(head, G.sphereLow, m.accent, [-0.12, 0.06, 0.24], [0.07, 0.06, 0.04], null, false);
+  add(head, G.coneLow, m.dark, [0.18, 0.28, -0.06], [0.08, 0.28, 0.07], [0, 0, -0.4]);
+  add(head, G.coneLow, m.dark, [-0.18, 0.28, -0.06], [0.08, 0.28, 0.07], [0, 0, 0.4]);
+  add(head, G.sphereLow, m.dark, [0, 0.3, -0.16], [0.3, 0.14, 0.18], null, false);
+  rig.height = 2.7;
+  rig.upright = true;
+}
+
+/* ───────────────────────────── 장착 무기 ───────────────────────────── */
+
+const WEAPON_MATS = {};
+function wmat(key, color, opts) {
+  // 리그마다 새 재질 — 리그를 폐기할 때 함께 정리된다 (공유 재질을 dispose 하면 다른 유닛의 재질까지 깨진다)
+  return mat(color, opts);
+}
+
+export function attachWeapon(rig, weaponId) {
+  if (!weaponId || weaponId === 'none') return null;
+  const body = rig.body;
+  if (!body) return null;
+  const size = Math.max(0.8, rig.def.size || 1);
+  const dark = wmat('dark', 0x2b2f38, { metalness: 0.6, roughness: 0.4 });
+  const steel = wmat('steel', 0x646c7c, { metalness: 0.7, roughness: 0.3 });
+  const hot = wmat('hot', 0xffb347, { metalness: 0.2, roughness: 0.4, emissive: 0x8a3a00, emissiveIntensity: 0.5 });
+  const cyan = wmat('cyan', 0x6fe8ff, { metalness: 0.3, roughness: 0.25, emissive: 0x2aa8c8, emissiveIntensity: 1.1 });
+
+  const g = new THREE.Group();
+  body.add(g);
+  const muzzle = new THREE.Object3D();
+  g.add(muzzle);
+  rig.muzzle = muzzle;
+
+  if (weaponId === 'gatling') {
+    g.position.set(0, 0.42 * size, -0.28 * size);
+    add(g, G.box, dark, [0, 0, 0], [0.34, 0.28, 0.42]);
+    add(g, G.cyl, steel, [0, 0.02, 0.36], [0.09, 0.62, 0.09], [Math.PI / 2, 0, 0]);
+    for (let i = 0; i < 3; i++) {
+      const a = (i / 3) * Math.PI * 2;
+      add(g, G.cyl, steel, [Math.cos(a) * 0.09, 0.02 + Math.sin(a) * 0.09, 0.44], [0.035, 0.6, 0.035], [Math.PI / 2, 0, 0]);
+    }
+    add(g, G.box, hot, [0.2, 0.02, 0.16], [0.1, 0.12, 0.2], null, false);
+    muzzle.position.set(0, 0.02, 0.78);
+  } else if (weaponId === 'rocket') {
+    g.position.set(0, 0.48 * size, -0.26 * size);
+    add(g, G.box, dark, [0, 0, 0], [0.44, 0.3, 0.46]);
+    add(g, G.cyl, steel, [0.13, 0.02, 0.3], [0.12, 0.72, 0.12], [Math.PI / 2, 0, 0]);
+    add(g, G.cyl, steel, [-0.13, 0.02, 0.3], [0.12, 0.72, 0.12], [Math.PI / 2, 0, 0]);
+    add(g, G.cone, hot, [0.13, 0.02, 0.7], [0.11, 0.22, 0.11], [Math.PI / 2, 0, 0], false);
+    add(g, G.cone, hot, [-0.13, 0.02, 0.7], [0.11, 0.22, 0.11], [Math.PI / 2, 0, 0], false);
+    muzzle.position.set(0, 0.02, 0.8);
+  } else if (weaponId === 'laser') {
+    g.position.set(0, 0.52 * size, -0.22 * size);
+    add(g, G.box, dark, [0, 0, 0], [0.3, 0.3, 0.5]);
+    add(g, G.cyl, steel, [0, 0.02, 0.42], [0.1, 0.72, 0.1], [Math.PI / 2, 0, 0]);
+    add(g, G.cyl, cyan, [0, 0.02, 0.62], [0.055, 0.3, 0.055], [Math.PI / 2, 0, 0], false);
+    add(g, G.sphereLow, cyan, [0, 0.02, 0.82], [0.075, 0.075, 0.075], null, false);
+    for (let i = 0; i < 3; i++) {
+      add(g, G.box, dark, [0, 0.02, 0.18 + i * 0.14], [0.4, 0.06, 0.05], null, false);
+    }
+    muzzle.position.set(0, 0.02, 0.9);
+  } else if (weaponId === 'shield') {
+    g.position.set(0, 0.1 * size, 0.5 * size);
+    add(g, G.cyl, steel, [0, 0, 0], [0.62, 0.1, 0.62], [Math.PI / 2, 0, 0]);
+    add(g, G.cyl, dark, [0, 0, 0.02], [0.5, 0.14, 0.5], [Math.PI / 2, 0, 0], false);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2;
+      add(g, G.cone, steel, [Math.cos(a) * 0.46, Math.sin(a) * 0.46, 0.1], [0.06, 0.26, 0.06], [Math.PI / 2, 0, -a], false);
+    }
+    add(g, G.sphereLow, hot, [0, 0, 0.12], [0.12, 0.12, 0.08], null, false);
+    muzzle.position.set(0, 0, 0.3);
+  }
+  g.scale.setScalar(0.95 * Math.max(0.85, size));
+  g.userData.baseZ = g.position.z;
+  rig.weaponId = weaponId;
+  rig.weaponNode = g;
+  return g;
+}
+
 const BUILDERS = {
   lion: buildLion, tiger: buildTiger, elephant: buildElephant, bear: buildBear,
   wolf: buildWolf, eagle: buildEagle, crocodile: buildCrocodile, rhino: buildRhino,
   fox: buildFox, gorilla: buildGorilla, cheetah: buildCheetah, boar: buildBoar,
+  trex: buildTRex, spino: buildSpino, triceratops: buildTriceratops,
+  raptor: buildRaptor, wyvern: buildWyvern, titan: buildTitan,
 };
 
 export const TEAM_TINTS = { blue: 0x3b7bff, red: 0xff4b3b };
 
-export function buildAnimalModel(def, team = 'blue') {
+export function buildAnimalModel(def, team = 'blue', opts = {}) {
   const C = def.colors;
   const mats = {
     main: mat(C.main),
@@ -524,7 +940,7 @@ export function buildAnimalModel(def, team = 'blue') {
   const rig = {
     group, def, mats, matList: Object.values(mats), t: Math.random() * 6,
     walk: Math.random() * 6, bodyY: 0.8, legs: [], wings: [], arms: [], parts: {},
-    hurt: 0, attack: 0, skill: 0, deadT: -1, height: 1.3,
+    hurt: 0, attack: 0, skill: 0, deadT: -1, height: 1.3, recoil: 0,
   };
   (BUILDERS[def.id] || buildLion)(group, mats, rig);
 
@@ -547,6 +963,21 @@ export function buildAnimalModel(def, team = 'blue') {
   const s = def.scale || 1;
   group.scale.setScalar(s);
   rig.height *= s;
+
+  // 장착 무기
+  attachWeapon(rig, opts.weapon || 'none');
+
+  // 유닛이 아주 많을 때: 작은 장식 메시는 숨겨 드로우 콜을 줄인다
+  if (opts.lowDetail) {
+    group.updateMatrixWorld(true);
+    group.traverse((o) => {
+      if (!o.isMesh) return;
+      o.geometry.computeBoundingSphere?.();
+      const rr = (o.geometry.boundingSphere?.radius || 0) * Math.max(o.scale.x, o.scale.y, o.scale.z);
+      if (rr < 0.14) o.visible = false;
+      o.castShadow = false;
+    });
+  }
 
   // 작은 디테일(눈·이빨·점박이)은 그림자 패스에서 제외 — 드로우 콜 절약
   group.traverse((o) => {
@@ -573,6 +1004,12 @@ export function buildAnimalModel(def, team = 'blue') {
   return rig;
 }
 
+export function weaponMuzzleWorld(rig, out) {
+  if (!rig.muzzle) return null;
+  rig.muzzle.getWorldPosition(out);
+  return out;
+}
+
 /* ───────────────────────────── 애니메이션 ───────────────────────────── */
 
 export function animateRig(rig, s) {
@@ -595,6 +1032,11 @@ export function animateRig(rig, s) {
   rig.attack = Math.max(0, (rig.attack || 0) - dt * 4.2);
   rig.hurt = Math.max(0, (rig.hurt || 0) - dt * 3.4);
   rig.skill = Math.max(0, (rig.skill || 0) - dt * 2.2);
+  if (rig.recoil > 0 && rig.weaponNode) {
+    rig.recoil = Math.max(0, rig.recoil - dt * 5.5);
+    const base = rig.weaponNode.userData.baseZ ?? rig.weaponNode.position.z;
+    rig.weaponNode.position.z = base - rig.recoil * 0.14;
+  }
 
   const atk = rig.attack;
   const sk = rig.skill;
@@ -680,6 +1122,9 @@ export function animateRig(rig, s) {
 
 function easeOut(k) { return 1 - Math.pow(1 - k, 3); }
 
-export function triggerAttack(rig) { rig.attack = 1; }
+export function triggerAttack(rig) {
+  rig.attack = 1;
+  if (rig.weaponId && rig.weaponId !== 'none') rig.recoil = 1;
+}
 export function triggerSkill(rig) { rig.skill = 1; }
 export function triggerHurt(rig) { rig.hurt = 1; }

@@ -94,11 +94,49 @@ export class Sfx {
   }
 
   skill(kind) {
-    if (kind === 'roar' || kind === 'smash') return this.roar();
+    if (kind === 'roar' || kind === 'smash' || kind === 'titanSlam') return this.roar();
     if (kind === 'slam' || kind === 'quake') return this.slam();
-    if (kind === 'charge' || kind === 'gore' || kind === 'gore2' || kind === 'pounce') return this.whoosh();
+    if (kind === 'charge' || kind === 'gore' || kind === 'gore2' || kind === 'hornCharge') return this.whoosh();
+    if (kind === 'pounce' || kind === 'packPounce' || kind === 'sailSlash') return this.whoosh();
+    if (kind === 'flame') return this.flame();
+    if (kind === 'crunch') return this.boom();
     this.tone({ freq: 520, freq2: 900, dur: 0.16, gain: 0.2, type: 'triangle' });
     this.noiseBurst({ dur: 0.2, freq: 1600, gain: 0.18, sweep: 900 });
+  }
+
+  gun(kind) {
+    const now = performance.now();
+    if (now - (this.lastGun || 0) < 55) return;
+    this.lastGun = now;
+    if (kind === 'laser') return this.laser();
+    if (kind === 'rocket') return this.boom();
+    this.noiseBurst({ dur: 0.06, freq: 2600, q: 1.4, gain: 0.16, type: 'bandpass', sweep: 1200 });
+    this.tone({ freq: 320, freq2: 160, dur: 0.05, gain: 0.1, type: 'square' });
+  }
+
+  laser() {
+    if (!this.ok) return;
+    if (performance.now() - (this.lastLaser || 0) < 90) return;
+    this.lastLaser = performance.now();
+    this.tone({ freq: 1400, freq2: 260, dur: 0.22, gain: 0.2, type: 'sawtooth' });
+    this.noiseBurst({ dur: 0.16, freq: 3200, gain: 0.14, type: 'highpass', sweep: 800 });
+  }
+
+  boom() {
+    if (!this.ok) return;
+    if (performance.now() - (this.lastBoom || 0) < 70) return;
+    this.lastBoom = performance.now();
+    this.tone({ freq: 120, freq2: 34, dur: 0.5, gain: 0.5, type: 'sine' });
+    this.noiseBurst({ dur: 0.45, freq: 480, gain: 0.45, sweep: 60 });
+  }
+
+  flame() {
+    this.noiseBurst({ dur: 0.4, freq: 1200, q: 0.6, gain: 0.3, type: 'lowpass', sweep: 200 });
+  }
+
+  clang() {
+    this.tone({ freq: 1800, freq2: 900, dur: 0.1, gain: 0.16, type: 'triangle' });
+    this.noiseBurst({ dur: 0.1, freq: 4200, gain: 0.14, type: 'highpass', sweep: 2000 });
   }
 
   death() {
