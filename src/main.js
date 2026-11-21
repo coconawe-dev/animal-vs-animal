@@ -77,6 +77,13 @@ let fpsAccum = 0, fpsFrames = 0, downgraded = false;
 let userZoomed = false;
 
 // 편성 패널이 열려 있을 때 3D 미리보기를 화면 위쪽에 보이게
+function previewDistance() {
+  const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
+  if (aspect > 1.25) return 25;
+  if (aspect > 0.95) return 28;
+  return 34 * (aspect < 0.7 ? 1.12 : 1);
+}
+
 function updatePreviewFraming() {
   const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
   const narrow = aspect < 1.0;
@@ -234,8 +241,7 @@ function backToBuilder() {
   ui.hideBattleUI();
   ui.showBuilder();
   refreshPreview();
-  const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
-  stage.camGoal.dist = 34 * (aspect < 0.7 ? 1.12 : 1);
+  stage.camGoal.dist = previewDistance();
   stage.camGoal.phi = 0.95;
   updatePreviewFraming();
 }
