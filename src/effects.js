@@ -243,16 +243,16 @@ export class Effects {
       grp.add(rim);
       // 손가락 — 손등 쪽으로 구부러져 내려찍는 모양
       for (let f = 0; f < 4; f++) {
-        const len = f === 3 ? 0.8 : 0.98;
-        const knuckle = new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 6), knuckleMat);
-        knuckle.position.set(-0.57 + f * 0.38, -0.02, 0.82);
+        const len = f === 3 ? 0.8 : 1.0;
+        const knuckle = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), knuckleMat);
+        knuckle.position.set(-0.57 + f * 0.38, -0.02, 0.74);
         grp.add(knuckle);
-        const finger = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.1, len, 6), bone);
-        finger.position.set(-0.57 + f * 0.38, -0.24, 0.98 + len * 0.18);
-        finger.rotation.x = 1.32;
+        const finger = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.11, len, 6), bone);
+        finger.position.set(-0.57 + f * 0.38, -0.16, 0.82 + len * 0.14);
+        finger.rotation.x = 1.28;
         grp.add(finger);
-        const tip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 7, 5), bone);
-        tip.position.set(-0.57 + f * 0.38, -0.42, 0.98 + len * 0.4);
+        const tip = new THREE.Mesh(new THREE.SphereGeometry(0.11, 7, 5), bone);
+        tip.position.set(-0.57 + f * 0.38, -0.33, 0.82 + len * 0.34);
         grp.add(tip);
       }
       const thumb = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.11, 0.85, 6), bone);
@@ -275,23 +275,23 @@ export class Effects {
       const grp = new THREE.Group();
       const a = new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 1 });
       const b = new THREE.MeshBasicMaterial({ color: 0xff8a3a, transparent: true, opacity: 1 });
-      const palm = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.46, 0.18), a);
+      const palm = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.44, 0.18), a);
       grp.add(palm);
       for (const k of [-1, 1]) {
-        const bent = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.22, 0.18), b);
-        bent.position.set(k * 0.18, 0.31, 0);
+        const bent = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.18), b);
+        bent.position.set(k * 0.16, 0.28, 0);
         grp.add(bent);
         for (let t = 0; t < 2; t++) {
-          const knuckle = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.18), a);
-          knuckle.position.set(k * 0.18, 0.4 + t * 0.11, 0.03);
+          const knuckle = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.11, 0.18), a);
+          knuckle.position.set(k * 0.16, 0.37 + t * 0.1, 0.03);
           grp.add(knuckle);
         }
       }
-      const mid = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.66, 0.18), a);
-      mid.position.set(0, 0.52, 0);
+      const mid = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.82, 0.18), a);
+      mid.position.set(0, 0.6, 0);
       grp.add(mid);
-      const nail = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.1, 0.2), b);
-      nail.position.set(0, 0.88, 0);
+      const nail = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.2), b);
+      nail.position.set(0, 1.02, 0);
       grp.add(nail);
       const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.34, 0.18), b);
       thumb.position.set(-0.33, 0.1, 0);
@@ -448,16 +448,21 @@ export class Effects {
 
   // 히드라 — 세 갈래 맹독 브레스
   venomBreath(x, z, ang = 0, len = 12) {
-    const steps = 7;
+    const steps = 8;
+    const ex = x + Math.sin(ang) * len;
+    const ez = z + Math.cos(ang) * len;
+    // 굵은 맹독 줄기 (초록 + 보라 이중 빔)
+    this.beam(x, 1.65, z, ex, 0.95, ez, 0x9bf06a, 0.38);
+    this.beam(x, 1.6, z, ex, 1.05, ez, 0x9f4aff, 0.3);
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
       const bx = x + Math.sin(ang) * len * t;
       const bz = z + Math.cos(ang) * len * t;
       const col = i % 2 ? 0x9bf06a : 0x9f4aff;
-      this.burst(bx, 1.1 + t * 0.5, bz, col, 5, 3.2, { grav: -1 });
-      this.flash(bx, 1.4, bz, 0.9 + t * 1.3, col, 0.24);
+      this.burst(bx, 1.2 + t * 0.6, bz, col, 7, 3.8, { grav: -1 });
+      this.flash(bx, 1.4, bz, 0.9 + t * 1.4, col, 0.26);
     }
-    this.ring(x, z, 0.5, len * 0.55, 0x9bf06a, 0.4);
+    this.ring(x, z, 0.5, len * 0.85, 0x9bf06a, 0.45);
   }
 
   // 매머드 — 엄니 돌진이 끝나고 착지한 자리의 지진
