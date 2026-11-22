@@ -1236,14 +1236,14 @@ function buildShark(g, m, rig) {
 
   // 유선형 몸통
   add(body, G.sphere, m.main, [0, 0, 0], [0.34, 0.36, 1.1]);
-  add(body, G.sphereLow, m.belly, [0, -0.14, 0.06], [0.27, 0.2, 0.9], null, false);
+  add(body, G.sphereLow, m.belly, [0, -0.12, 0.06], [0.24, 0.17, 0.74], null, false);
 
   // 등지느러미 · 작은 등지느러미 두 개
   add(body, G.coneLow, m.dark, [0, 0.36, -0.08], [0.1, 0.52, 0.3], [-0.55, 0, 0]);
   add(body, G.coneLow, m.dark, [0, 0.28, -0.62], [0.06, 0.2, 0.16], [-0.7, 0, 0], false);
   // 배지느러미 (옆구리가 아니라 배 아래에서 뒤-아래로)
-  add(body, G.coneLow, m.dark, [0.14, -0.22, -0.44], [0.05, 0.13, 0.11], [-2.25, 0, -0.42], false);
-  add(body, G.coneLow, m.dark, [-0.14, -0.22, -0.44], [0.05, 0.13, 0.11], [-2.25, 0, 0.42], false);
+  add(body, G.coneLow, m.dark, [0.17, -0.21, -0.42], [0.04, 0.11, 0.09], [-2.3, 0, -0.5], false);
+  add(body, G.coneLow, m.dark, [-0.17, -0.21, -0.42], [0.04, 0.11, 0.09], [-2.3, 0, 0.5], false);
 
   // 가슴지느러미 (지면 가까이)
   add(body, G.sphereLow, m.dark, [0.44, -0.14, 0.26], [0.36, 0.05, 0.19], [0, 0.34, -0.22]);
@@ -1263,7 +1263,7 @@ function buildShark(g, m, rig) {
   const head = new THREE.Group();
   head.position.set(0, -0.02, 1.02);
   body.add(head); rig.head = head;
-  add(head, G.coneLow, m.main, [0, 0, 0.07], [0.24, 0.78, 0.235], [Math.PI / 2, 0, 0]);
+  add(head, G.coneLow, m.main, [0, 0, -0.005], [0.27, 0.93, 0.3], [Math.PI / 2, 0, 0]);
 
   // 아가리: 주둥이 아래 검은 입 테두리 + 흰 아래턱
   add(head, G.sphereLow, m.dark, [0, -0.09, 0.15], [0.055, 0.022, 0.11], [-0.3, 0, 0], false);
