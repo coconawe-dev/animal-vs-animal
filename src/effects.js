@@ -131,13 +131,18 @@ export class Effects {
     for (let i = 0; i < 3; i++) {
       const grp = new THREE.Group();
       const boneMat = new THREE.MeshStandardMaterial({
-        color: 0xf6fbff, roughness: 0.4, metalness: 0.05, flatShading: true,
-        emissive: 0x2f7f96, emissiveIntensity: 0.55,
+        color: 0xf7fbff, roughness: 0.42, metalness: 0.05, flatShading: true,
+        emissive: 0x2f7f96, emissiveIntensity: 0.16,
       });
       const eyeMat = new THREE.MeshBasicMaterial({ color: 0x9ff4ff });
       const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 9), boneMat);
       cranium.scale.set(0.92, 0.82, 1.0);
       grp.add(cranium);
+      // 광대뼈 · 턱 테두리로 해골 느낌을 준다
+      const cheek = new THREE.Mesh(new THREE.SphereGeometry(0.5, 10, 8), boneMat);
+      cheek.position.set(0, -0.42, 0.42);
+      cheek.scale.set(1.15, 0.5, 0.9);
+      grp.add(cheek);
       const snout = new THREE.Mesh(new THREE.ConeGeometry(0.62, 2.1, 6), boneMat);
       snout.rotation.x = Math.PI / 2;
       snout.position.set(0, -0.24, 1.15);
@@ -147,8 +152,12 @@ export class Effects {
       upper.position.set(0, 0.3, 1.0);
       grp.add(upper);
       for (const s2 of [-1, 1]) {
-        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), eyeMat);
-        eye.position.set(s2 * 0.38, 0.22, 0.55);
+        const socket = new THREE.Mesh(new THREE.SphereGeometry(0.32, 8, 6), new THREE.MeshBasicMaterial({ color: 0x0a1a22 }));
+        socket.position.set(s2 * 0.38, 0.22, 0.6);
+        socket.scale.set(1, 1.1, 0.5);
+        grp.add(socket);
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.16, 8, 6), eyeMat);
+        eye.position.set(s2 * 0.38, 0.22, 0.78);
         grp.add(eye);
         const horn = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.95, 5), boneMat);
         horn.position.set(s2 * 0.62, 0.72, -0.15);
@@ -246,17 +255,17 @@ export class Effects {
   gasterBlast(x, z, ang = 0, len = 26, color = 0x9ff4ff) {
     const b = this.blasters[this.blasterIdx];
     this.blasterIdx = (this.blasterIdx + 1) % this.blasters.length;
-    b.grp.position.set(x, 3.5, z);
+    b.grp.position.set(x, 3.3, z);
     b.grp.rotation.set(0, ang, 0);
-    b.grp.scale.setScalar(1.9);
+    b.grp.scale.setScalar(1.38);
     b.grp.visible = true;
     b.life = 0.6; b.max = 0.6;
 
-    const sx = x + Math.sin(ang) * 3.2, sz = z + Math.cos(ang) * 3.2;
+    const sx = x + Math.sin(ang) * 2.9, sz = z + Math.cos(ang) * 2.9;
     const ex = x + Math.sin(ang) * len, ez = z + Math.cos(ang) * len;
-    this.bigBeam(sx, 3.35, sz, ex, 3.35, ez, color, 0.75, 0.85, 0.4);
-    this.bigBeam(sx, 3.35, sz, ex, 3.35, ez, 0xffffff, 0.32, 0.95, 0.32);
-    this.flash(sx, 3.4, sz, 2.6, color, 0.26);
+    this.bigBeam(sx, 3.3, sz, ex, 3.3, ez, color, 0.62, 0.85, 0.4);
+    this.bigBeam(sx, 3.3, sz, ex, 3.3, ez, 0xffffff, 0.26, 0.95, 0.32);
+    this.flash(sx, 3.35, sz, 2.2, color, 0.26);
     this.flash(ex, 1.6, ez, 2.4, color, 0.3);
     this.ring(ex, ez, 0.8, 4.4, color, 0.45);
     this.burst(ex, 1.2, ez, color, 24, 6.5);
@@ -576,8 +585,8 @@ export class Effects {
       if (b.life <= 0) continue;
       b.life -= dt;
       const k = 1 - Math.max(0, b.life) / b.max;
-      b.grp.position.y = 3.5 + Math.sin(k * Math.PI) * 0.25;
-      b.grp.scale.setScalar(1.9 + Math.sin(k * Math.PI) * 0.22);
+      b.grp.position.y = 3.3 + Math.sin(k * Math.PI) * 0.22;
+      b.grp.scale.setScalar(1.38 + Math.sin(k * Math.PI) * 0.12);
       b.grp.visible = b.life > 0;
     }
     // 굵은 빔
