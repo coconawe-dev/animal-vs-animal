@@ -17,6 +17,18 @@ const G = {
   plane: new THREE.PlaneGeometry(1, 1),
 };
 
+// 상어 주둥이 — 끝이 바늘처럼 뾰족하지 않고 둥글게 마무리되는 방추형 (밑면 반지름 1 · 길이 1)
+const SNOUT_GEO = (() => {
+  const pts = [];
+  const N = 14;
+  for (let i = 0; i <= N; i++) {
+    const t = i / N;
+    const r = Math.pow(Math.max(0, 1 - Math.pow(t, 1.8)), 0.62);
+    pts.push(new THREE.Vector2(Math.max(0.0001, r), t));
+  }
+  return new THREE.LatheGeometry(pts, 12);
+})();
+
 function mat(color, opts = {}) {
   return new THREE.MeshStandardMaterial({
     color, flatShading: true, roughness: 0.78, metalness: 0.02, ...opts,
@@ -1259,11 +1271,11 @@ function buildShark(g, m, rig) {
   tail.add(tip); rig.tailTip = tip;
   caudalFin(tip, m.dark, 1);
 
-  // 머리: 몸통에서 바로 이어지는 쐐기형 주둥이 (앞으로 갈수록 납작해지고 뾰족해진다)
+  // 머리: 몸통에서 바로 이어지는 쐐기형 주둥이 (앞으로 갈수록 납작해지고 둥글게 마무리된다)
   const head = new THREE.Group();
   head.position.set(0, -0.02, 1.02);
   body.add(head); rig.head = head;
-  add(head, G.coneLow, m.main, [0, 0, -0.005], [0.27, 0.93, 0.3], [Math.PI / 2, 0, 0]);
+  add(head, SNOUT_GEO, m.main, [0, 0, -0.465], [0.27, 0.885, 0.3], [Math.PI / 2, 0, 0]);
 
   // 아가리: 주둥이 아래 검은 입 테두리 + 흰 아래턱
   add(head, G.sphereLow, m.dark, [0, -0.09, 0.15], [0.055, 0.022, 0.11], [-0.3, 0, 0], false);
