@@ -71,7 +71,7 @@ function loadSave() {
     if (!raw) return;
     const d = JSON.parse(raw);
     const blue = sanitizeList(d.blue);
-    const red = sanitizeList(d.red).slice(0, Math.max(0, TUNING.MAX_UNITS - blue.length));
+    const red = sanitizeList(d.red).slice(0, TUNING.MAX_UNITS_PER_TEAM);
     if (blue.length) app.teams.blue = blue;
     if (red.length) app.teams.red = red;
     if (ARENA_BY_ID[d.arena]) app.arenaId = d.arena;
@@ -615,6 +615,12 @@ function challengeLeft() {
   return app.challenge.budget - placementCost(app.teams.blue);
 }
 
+function limitToastText(teamList) {
+  return (teamList || []).length >= TUNING.MAX_UNITS_PER_TEAM
+    ? `팀당 한도는 ${TUNING.MAX_UNITS_PER_TEAM}마리입니다`
+    : `전장 한도는 ${TUNING.MAX_UNITS}마리입니다`;
+}
+
 function placeAt(x, z) {
   const def = CREATURE_BY_ID[app.selected];
   if (!def) return;
@@ -662,10 +668,10 @@ function placeAt(x, z) {
   if (!res.added.length) {
     history.pop();
     if (res.skipped === 'budget') ui.toast(`💸 예산 35를 넘을 수 없습니다 (남은 ${Math.max(0, res.left || 0)})`);
-    else ui.toast(res.skipped === 'limit' ? `전장 한도는 ${TUNING.MAX_UNITS}마리입니다` : '여기에 놓을 수 없습니다');
+    else ui.toast(res.skipped === 'limit' ? limitToastText(list) : '여기에 놓을 수 없습니다');
     return;
   }
-  if (res.skipped === 'limit') ui.toast(`전장 한도 ${TUNING.MAX_UNITS}마리 — 추가하지 못했습니다`);
+  if (res.skipped === 'limit') ui.toast(limitToastText(list).replace('입니다', '') + ' — 추가하지 못했습니다');
   if (party) app.party.setPlacements(list);
   afterPlacementChange();
   sfx.ui();

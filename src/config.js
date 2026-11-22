@@ -5,8 +5,8 @@
 export const TUNING = {
   ARENA_RADIUS: 49.5,        // 전장 반경 (기존 16.5의 3배 — 거대한 3× 전장)
   DIVIDER: 0,                // 진영 구분선 (x = 0)
-  MAX_UNITS_PER_TEAM: 100,   // 한 팀 최대 배치 수 (사실상 한도 없음 — 80 vs 10, 50 vs 50 모두 가능)
-  MAX_UNITS: 100,            // 전장 전체 최대 배치 수
+  MAX_UNITS_PER_TEAM: 100,   // 한 팀 최대 배치 수 (팀당 100마리 — 블루 100 vs 레드 100 가능)
+  MAX_UNITS: 200,            // 전장 전체 최대 배치 수 (두 팀 × 100)
   MAX_TIME: 240,             // 배틀 제한 시간(초) — 초과 시 HP 비율 판정
   SIM_DT: 1 / 60,            // 고정 스텝
   SEPARATION: 1.85,          // 유닛끼리 겹침 방지 거리

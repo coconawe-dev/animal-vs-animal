@@ -359,7 +359,12 @@ export class UI {
       : `🔵 ${teams.blue.length} · 🔴 ${teams.red.length}`;
     const totalUnits = (party ? partyTeams(a.partyTeamCount || 2) : ['blue', 'red'])
       .reduce((s, t) => s + (teams[t] || []).length, 0);
-    this.el.dockCount.textContent = `${teamLine} · Σ ${totalUnits}/${TUNING.MAX_UNITS}`;
+    // 전장 상한: 두 팀 × 팀당 한도 (파티는 참가 인원 수만큼)
+    const cap = Math.min(
+      TUNING.MAX_UNITS,
+      TUNING.MAX_UNITS_PER_TEAM * (party ? partyTeams(a.partyTeamCount || 2).length : 2),
+    );
+    this.el.dockCount.textContent = `${teamLine} · 팀당 ${TUNING.MAX_UNITS_PER_TEAM} · Σ ${totalUnits}/${cap}`;
 
     // 수량
     $$('[data-count]').forEach((b) => b.classList.toggle('on', Number(b.dataset.count) === a.count));

@@ -73,7 +73,22 @@ check($$('#challenge-list .stage').length === CHALLENGES.length, '챌린지 6단
 check($('#count-blue').textContent === '2', '블루 수 표시');
 check($('#count-red').textContent === '1', '레드 수 표시');
 check($('#dock-count').textContent.includes('2') && $('#dock-count').textContent.includes('1'), '독 인원 표시');
-check($('#dock-count').textContent.includes('Σ 3/100'), '전장 한도 100 표시');
+check($('#dock-count').textContent.includes('Σ 3/200'), '전장 한도 200 표시');
+check($('#dock-count').textContent.includes('팀당 100'), '팀당 100마리 표시');
+{
+  // 팀당 100마리 가득 채운 화면 표시
+  const keepB = app.teams.blue;
+  const keepR = app.teams.red;
+  app.teams.blue = Array.from({ length: 100 }, (_, i) => ({ id: 'raptor', x: -20 + (i % 10), z: -10 + Math.floor(i / 10), weapon: 'none' }));
+  app.teams.red = Array.from({ length: 100 }, (_, i) => ({ id: 'raptor', x: 20 - (i % 10), z: -10 + Math.floor(i / 10), weapon: 'none' }));
+  ui.render();
+  check($('#dock-count').textContent.includes('🔵 100') && $('#dock-count').textContent.includes('🔴 100'), '양 팀 100마리 표시');
+  check($('#dock-count').textContent.includes('Σ 200/200'), '전장 200/200 가득 참 표시');
+  check($('#btn-fight').textContent.includes('100 vs 100'), '시작 버튼 100 vs 100');
+  app.teams.blue = keepB;
+  app.teams.red = keepR;
+  ui.render();
+}
 check(!$('#btn-fight').disabled, '양 팀 있으면 시작 가능');
 check($('#btn-fight').textContent.includes('2 vs 1'), '시작 버튼 인원 표시');
 check($('#place-hint').textContent.includes('블루'), '배치 힌트');
@@ -386,7 +401,7 @@ check($('#place-hint').textContent.includes('그린'), '배치 힌트에 내 진
 check(!$('#budget').classList.contains('hidden'), '파티 예산 표시');
 check($('#budget').textContent.includes('35'), '파티 예산 35 표시');
 check($('#budget').textContent.includes('그린'), '예산 줄에 내 진영');
-check($('#dock-count').textContent.includes('Σ 3/100'), '파티 전체 유닛 합계');
+check($('#dock-count').textContent.includes('Σ 3/200'), '파티 전체 유닛 합계');
 check($('#btn-fight').classList.contains('hidden'), '파티에서 하단 시작 버튼 숨김');
 
 // 4팀 전투 HUD

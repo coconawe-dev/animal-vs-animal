@@ -86,7 +86,7 @@ check(WEAPON_BY_ID.laser.pierce === true, '레이저 관통');
 
 check(ARENAS.length === 3, '전장 3개');
 check(TUNING.ARENA_RADIUS >= 45, `전장 반경 3배 확장 (${TUNING.ARENA_RADIUS})`);
-check(TUNING.MAX_UNITS === 100 && TUNING.MAX_UNITS_PER_TEAM === 100, '전장 한도 100마리');
+check(TUNING.MAX_UNITS_PER_TEAM === 100 && TUNING.MAX_UNITS === 200, '팀당 100마리 · 전장 전체 200마리 한도');
 for (const ar of ARENAS) {
   check(!!ARENA_BY_ID[ar.id], `${ar.id} 전장 등록`);
   check(ar.obstacles.length >= 4, `${ar.id} 장애물 4개 이상`);
@@ -99,7 +99,7 @@ check(PRESETS.length >= 7, '프리셋 7개 이상');
 for (const p of PRESETS) {
   check(p.blue.length > 0 && p.blue.length <= TUNING.MAX_UNITS_PER_TEAM, `${p.id} 블루 인원`);
   check(p.red.length > 0 && p.red.length <= TUNING.MAX_UNITS_PER_TEAM, `${p.id} 레드 인원`);
-  check(p.blue.length + p.red.length <= TUNING.MAX_UNITS, `${p.id} 전장 한도 100 이내`);
+  check(p.blue.length + p.red.length <= TUNING.MAX_UNITS, `${p.id} 전장 한도 200 이내`);
   check(p.blue.every((q) => !!CREATURE_BY_ID[q.id] && !!WEAPON_BY_ID[q.weapon]), `${p.id} 블루 배치`);
   check(p.red.every((q) => !!CREATURE_BY_ID[q.id] && !!WEAPON_BY_ID[q.weapon]), `${p.id} 레드 배치`);
   check(!!ARENA_BY_ID[p.arena], `${p.id} 전장 id`);
@@ -163,6 +163,33 @@ check(clusterOffsets(1).length === 1, '×1 배치 좌표 1개');
   const swarm = [];
   for (let i = 0; i < 4; i++) placeUnits(swarm, { id: 'raptor', team: 'blue', x: -12 - i * 3, z: -12, count: 10, limit: 100 });
   check(swarm.length === 40, '한 팀 40마리 배치 가능');
+}
+{
+  // 팀당 100마리 · 두 팀 합계 200마리 한도 (블루 100 vs 레드 100)
+  const fill = (team, x0) => {
+    const list = [];
+    for (let i = 0; i < 10; i++) {
+      placeUnits(list, {
+        id: 'raptor', team, x: x0, z: -24 + (i % 3) * 5,
+        count: 10, limit: TUNING.MAX_UNITS_PER_TEAM,
+      });
+    }
+    return list;
+  };
+  const limit = TUNING.MAX_UNITS_PER_TEAM;
+  const blue = fill('blue', -30);
+  check(blue.length === 100, `블루 팀당 100마리 배치 (${blue.length})`);
+  const over = placeUnits(blue, { id: 'raptor', team: 'blue', x: -34, z: 20, limit });
+  check(over.added.length === 0 && over.skipped === 'limit' && blue.length === 100, '101번째 블루 유닛 차단');
+  const red = fill('red', 30);
+  check(red.length === 100, `레드 팀당 100마리 배치 (${red.length})`);
+  check(blue.length + red.length === 200, '블루 100 + 레드 100 = 200마리');
+  const overRed = placeUnits(red, { id: 'raptor', team: 'red', x: 34, z: 20, limit });
+  check(overRed.added.length === 0 && overRed.skipped === 'limit', '101번째 레드 유닛 차단');
+  check(sanitizeList(Array.from({ length: 130 }, (_, i) => ({ id: 'raptor', x: 0, z: i }))).length === 100, '저장값도 팀당 100마리로 정리');
+  const big = createBattle({ blue, red, arenaId: 'savanna', seed: 7 });
+  check(big.units.length === 200, `200마리 전장 생성 (${big.units.length})`);
+  check(big.units.every((u) => [u.x, u.z, u.y, u.hp].every(Number.isFinite)), '200마리 좌표 유효');
 }
 {
   const list = [P('lion', -3, 0), P('tiger', -5, 2)];
