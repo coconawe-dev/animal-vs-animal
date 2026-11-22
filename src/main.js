@@ -642,7 +642,7 @@ function placeAt(x, z) {
     }
   }
   if (party) {
-    // 1인당 예산 35 — 넘으면 토스트로 막는다
+    // 1인당 예산 60 — 넘으면 토스트로 막는다
     const left = PARTY.BUDGET - placementCost(list);
     const affordable = Math.floor(left / def.cost);
     if (affordable <= 0) {
@@ -651,7 +651,7 @@ function placeAt(x, z) {
     }
     if (count > affordable) {
       count = affordable;
-      ui.toast(`예산 35 안에서 ${count}마리만 배치합니다`);
+      ui.toast(`예산 ${PARTY.BUDGET} 안에서 ${count}마리만 배치합니다`);
     }
   }
 
@@ -667,7 +667,7 @@ function placeAt(x, z) {
   });
   if (!res.added.length) {
     history.pop();
-    if (res.skipped === 'budget') ui.toast(`💸 예산 35를 넘을 수 없습니다 (남은 ${Math.max(0, res.left || 0)})`);
+    if (res.skipped === 'budget') ui.toast(`💸 예산 ${PARTY.BUDGET}을 넘을 수 없습니다 (남은 ${Math.max(0, res.left || 0)})`);
     else ui.toast(res.skipped === 'limit' ? limitToastText(list) : '여기에 놓을 수 없습니다');
     return;
   }

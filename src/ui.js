@@ -391,7 +391,7 @@ export class UI {
       this.el.hint.textContent = `${teamTxt} · ${def ? def.emoji + ' ' + shortName(def) : '유닛'} ${a.count > 1 ? `×${a.count}` : ''} — 땅을 탭해 배치`;
     }
 
-    // 예산 (챌린지 · 파티 35)
+    // 예산 (챌린지 · 파티 60)
     if (a.mode === 'challenge' && a.challenge) {
       this.el.budget.classList.remove('hidden');
       this.el.budget.innerHTML = `예산 <b class="${budgetInfo.left < 0 ? 'over' : ''}">${budgetInfo.left}</b> / ${budgetInfo.budget}`;

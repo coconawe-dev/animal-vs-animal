@@ -308,7 +308,7 @@ check(app.mode === 'party', '파티 탭 → 파티 모드');
 check(!$('#party-panel').classList.contains('hidden'), '파티 패널 열림');
 check(!$('#party-setup').classList.contains('hidden'), '방 만들기 화면');
 check($('#party-panel').textContent.includes('최대'), '최대 인원 안내');
-check($('#party-panel').textContent.includes('35'), '1인당 예산 35 안내');
+check($('#party-panel').textContent.includes('60'), '1인당 예산 60 안내');
 check($('#btn-fight').classList.contains('hidden'), '파티에서는 하단 배틀 버튼 숨김');
 
 ui.el.partyNick.value = '지우';
@@ -320,15 +320,15 @@ check(partyCalls.join.length === 1 && partyCalls.join[0][0] === 'ab-cd', '참가
 
 // 방 안 화면 (4명 · 4팀)
 const roster4 = [
-  { pid: 'a', nick: '지우', team: 'blue', me: true, host: true, ready: true, count: 6, used: 22, budget: 35 },
-  { pid: 'b', nick: '친구2', team: 'red', me: false, host: false, ready: true, count: 5, used: 20, budget: 35 },
-  { pid: 'c', nick: '친구3', team: 'green', me: false, host: false, ready: false, count: 3, used: 12, budget: 35 },
-  { pid: 'd', nick: '친구4', team: 'gold', me: false, host: false, ready: true, count: 7, used: 30, budget: 35 },
+  { pid: 'a', nick: '지우', team: 'blue', me: true, host: true, ready: true, count: 6, used: 22, budget: 60 },
+  { pid: 'b', nick: '친구2', team: 'red', me: false, host: false, ready: true, count: 5, used: 20, budget: 60 },
+  { pid: 'c', nick: '친구3', team: 'green', me: false, host: false, ready: false, count: 3, used: 12, budget: 60 },
+  { pid: 'd', nick: '친구4', team: 'gold', me: false, host: false, ready: true, count: 7, used: 30, budget: 60 },
 ];
 const partyState = {
   phase: 'place', roomCode: 'K7QM', isHost: true, teams: ['blue', 'red', 'green', 'gold'], teamCount: 4,
-  players: roster4, maxPlayers: 4, budget: 35, canStart: false, myTeam: 'blue', myReady: true,
-  myPlaced: 6, myUsed: 22, status: '4/4명 · 4팀 · 1인당 예산 35',
+  players: roster4, maxPlayers: 4, budget: 60, canStart: false, myTeam: 'blue', myReady: true,
+  myPlaced: 6, myUsed: 22, status: '4/4명 · 4팀 · 1인당 예산 60',
 };
 ui.renderParty(partyState);
 check($('#party-setup').classList.contains('hidden'), '방에 들어가면 만들기 화면 숨김');
@@ -337,7 +337,7 @@ check($('#party-room-code').textContent === 'K7QM', '방 코드 표시');
 check($$('#party-roster .pr-row').length === 4, '참가자 4명 표시');
 check($('#party-roster').textContent.includes('지우'), '내 닉네임');
 check($('#party-roster').textContent.includes('그린') || $('#party-roster').textContent.includes('🟢'), '진영 이름 표시');
-check($('#party-roster').textContent.includes('22/35'), '개인 예산 사용량 표시');
+check($('#party-roster').textContent.includes('22/60'), '개인 예산 사용량 표시');
 check($$('#party-roster .pr-state.ready').length === 3, '준비 인원 표시');
 check($$('#party-roster .pr-state.wait').length === 1, '대기 인원 표시');
 check($('#party-roster .pr-row.me') !== null, '내 줄 강조');
@@ -381,12 +381,12 @@ check($$('#party-roster .pr-empty').length === 2, '빈 자리 2개 안내');
   ui.renderParty({ ...partyState, myReady: false });
   ui.renderParty({ ...partyState, myReady: false, myUsed: 26, myPlaced: 7 });
   check($('#party-panel').classList.contains('hidden'), '몹 소환/상태 갱신 후에도 파티 창은 접힌 채');
-  check($('#party-fab').textContent.includes('26/35'), '접힌 칩 숫자만 조용히 갱신');
+  check($('#party-fab').textContent.includes('26/60'), '접힌 칩 숫자만 조용히 갱신');
   $('#party-fab').click();                       // 칩을 직접 누르면 다시 펼쳐진다
   check(!$('#party-panel').classList.contains('hidden'), '칩 탭 → 파티 창 다시 펼침');
 }
 
-// 파티 배치 도구 — 내 진영 하나만 + 예산 35
+// 파티 배치 도구 — 내 진영 하나만 + 예산 60
 app.mode = 'party';
 app.activeTeam = 'green';
 app.partyTeamCount = 4;
@@ -399,7 +399,7 @@ check($$('#team-switch [data-team]').length === 1, '파티에서는 진영 스�
 check($('#team-switch [data-team="green"]') !== null, '내 진영(그린) 표시');
 check($('#place-hint').textContent.includes('그린'), '배치 힌트에 내 진영');
 check(!$('#budget').classList.contains('hidden'), '파티 예산 표시');
-check($('#budget').textContent.includes('35'), '파티 예산 35 표시');
+check($('#budget').textContent.includes('60'), '파티 예산 60 표시');
 check($('#budget').textContent.includes('그린'), '예산 줄에 내 진영');
 check($('#dock-count').textContent.includes('Σ 3/200'), '파티 전체 유닛 합계');
 check($('#btn-fight').classList.contains('hidden'), '파티에서 하단 시작 버튼 숨김');
@@ -456,13 +456,13 @@ const teams3 = partyTeams(3);
 
   // 파티 패널 3인 상태 — roster가 3명이면 teamCount도 3으로 그려진다
   const roster3 = [
-    { pid: 'a', nick: '지우', team: 'blue', me: true, host: true, ready: true, count: 2, used: 8, budget: 35 },
-    { pid: 'b', nick: '친구2', team: 'red', me: false, host: false, ready: true, count: 2, used: 8, budget: 35 },
-    { pid: 'c', nick: '친구3', team: 'green', me: false, host: false, ready: false, count: 1, used: 4, budget: 35 },
+    { pid: 'a', nick: '지우', team: 'blue', me: true, host: true, ready: true, count: 2, used: 8, budget: 60 },
+    { pid: 'b', nick: '친구2', team: 'red', me: false, host: false, ready: true, count: 2, used: 8, budget: 60 },
+    { pid: 'c', nick: '친구3', team: 'green', me: false, host: false, ready: false, count: 1, used: 4, budget: 60 },
   ];
   ui.renderParty({
     phase: 'place', roomCode: '3TMP', isHost: true, teams: teams3, teamCount: 3,
-    players: roster3, maxPlayers: 4, budget: 35, canStart: false, myTeam: 'blue', myReady: true,
+    players: roster3, maxPlayers: 4, budget: 60, canStart: false, myTeam: 'blue', myReady: true,
     myPlaced: 2, myUsed: 8, status: '3/4명 · 3팀',
   });
   check($$('#party-roster .pr-row').length === 3, '3인 방 참가자 3명 표시');

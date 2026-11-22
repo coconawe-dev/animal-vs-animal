@@ -676,10 +676,10 @@ check(blueRig.ring.material.color.getHex() !== redRig.ring.material.color.getHex
   check(ms < 9000, `프리셋 40판 빠름 (${ms}ms)`);
 }
 
-/* ─────────────── 6. 파티 멀티 (2~4팀 · 예산 35 · 4인 루프백) ─────────────── */
+/* ─────────────── 6. 파티 멀티 (2~4팀 · 예산 60 · 4인 루프백) ─────────────── */
 
 // 진영 데이터
-check(PARTY.MAX_PLAYERS === 4 && PARTY.BUDGET === 35, '파티 최대 4명 · 1인당 예산 35');
+check(PARTY.MAX_PLAYERS === 4 && PARTY.BUDGET === 60, '파티 최대 4명 · 1인당 예산 60');
 check(TEAM_ORDER.length === 4, '진영 4종');
 for (const t of TEAM_ORDER) {
   const d = TEAM_DEFS[t];
@@ -742,19 +742,26 @@ for (const n of [2, 3, 4]) {
   check(list.every((q) => Math.hypot(q.x, q.z) <= TUNING.ARENA_RADIUS), '4팀 배치가 경기장 안');
 }
 
-// 예산 35
+// 예산 60
 {
   const list = [];
   const r = placeUnits(list, { id: 'lion', team: 'blue', x: -10, z: 0, count: 20, budget: PARTY.BUDGET, limit: 99 });
-  // 사자 코스트 4 → 35 안에서 8마리
-  check(r.added.length === 8, `예산 35 → 사자 8마리 (${r.added.length})`);
-  check(costOf(list) === 32, `사용 예산 32 (${costOf(list)})`);
+  // 사자 코스트 4 → 60 안에서 15마리
+  check(r.added.length === 15, `예산 60 → 사자 15마리 (${r.added.length})`);
+  check(costOf(list) === 60, `사용 예산 60 (${costOf(list)})`);
   check(r.skipped === 'budget', '예산 초과분은 놓지 않고 알림');
-  check(affordableCount(list, 'lion', PARTY.BUDGET) === 0, '남은 3 으로는 사자 불가');
-  check(affordableCount(list, 'fox', PARTY.BUDGET) === 1, '남은 3 으로 여우 1마리');
+  check(affordableCount(list, 'lion', PARTY.BUDGET) === 0, '예산을 다 써서 사자 불가');
+  check(affordableCount(list, 'fox', PARTY.BUDGET) === 0, '남은 0 으로 여우도 불가');
   const over = placeUnits(list, { id: 'titan', team: 'blue', x: -10, z: 5, budget: PARTY.BUDGET });
   check(over.added.length === 0 && over.skipped === 'budget', '예산 밖 타이탄 거부');
   check(costOf(list) <= PARTY.BUDGET, '예산 초과 없음');
+
+  const half = [];
+  placeUnits(half, { id: 'lion', team: 'blue', x: -10, z: 0, count: 14, budget: PARTY.BUDGET, limit: 99 });
+  check(costOf(half) === 56, `사자 14마리 = 56 (${costOf(half)})`);
+  check(affordableCount(half, 'lion', PARTY.BUDGET) === 1, '남은 4 로 사자 1마리');
+  check(affordableCount(half, 'fox', PARTY.BUDGET) === 2, '남은 4 로 여우 2마리');
+  check(affordableCount(half, 'strong_chicken', PARTY.BUDGET) === 0, '강하닭(20)은 남은 4 로 불가');
 }
 
 // 3팀 · 4팀 전투
@@ -892,7 +899,7 @@ for (const n of [3, 4]) {
   check(g2.net.active && g3.net.active && g4.net.active, '가득 참 거절이 다른 참가자 연결을 끊지 않는다');
   check(g5.net.role === null, '거절당한 참가자는 연결 정리');
 
-  // 예산 35 — 모두 자기 진영에만 놓는다
+  // 예산 60 — 모두 자기 진영에만 놓는다
   const pool = ['lion', 'tiger', 'bear', 'wolf', 'eagle', 'boar'];
   S.forEach((s, i) => {
     const list = [];
@@ -903,7 +910,7 @@ for (const n of [3, 4]) {
   for (const s of S) {
     check(s.playerCount === 4, '모두 4명을 본다');
     check(s.order.every((pid) => s.players.get(pid).placements.length > 0), '모두 배치를 공유');
-    check(costOf(s.me.placements) <= PARTY.BUDGET, `[${s.myTeam}] 예산 35 이내 (${costOf(s.me.placements)})`);
+    check(costOf(s.me.placements) <= PARTY.BUDGET, `[${s.myTeam}] 예산 60 이내 (${costOf(s.me.placements)})`);
   }
   const hostCounts = host.order.map((pid) => host.players.get(pid).placements.length);
   const guestCounts = g4.order.map((pid) => g4.players.get(pid).placements.length);
