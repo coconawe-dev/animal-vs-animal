@@ -527,9 +527,11 @@ export class UI {
   }
 
   // p = PartySession.snapshotState()
+  // 주의: 이 함수는 상태를 그릴 뿐, 패널을 여닫지 않는다.
+  //       (몹을 소환하거나 다른 참가자가 배치할 때마다 창이 다시 펼쳐지던 버그 방지)
   renderParty(p) {
     this._partyState = p;
-    this.openParty();
+    this.updatePartyFab(p);           // 접혀 있으면 칩 숫자만 조용히 갱신
     if (!p) return;
     const inRoom = !!p.roomCode && p.phase && p.phase !== 'idle';
     this.el.partySetup.classList.toggle('hidden', inRoom);

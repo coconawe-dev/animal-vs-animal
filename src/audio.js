@@ -94,11 +94,12 @@ export class Sfx {
   }
 
   skill(kind) {
-    if (kind === 'roar' || kind === 'smash' || kind === 'titanSlam') return this.roar();
+    if (kind === 'roar' || kind === 'smash' || kind === 'titanSlam' || kind === 'rockCrush' || kind === 'abyssVortex') return this.roar();
     if (kind === 'slam' || kind === 'quake') return this.slam();
     if (kind === 'charge' || kind === 'gore' || kind === 'gore2' || kind === 'hornCharge') return this.whoosh();
     if (kind === 'pounce' || kind === 'packPounce' || kind === 'sailSlash') return this.whoosh();
-    if (kind === 'flame') return this.flame();
+    if (kind === 'bloodFrenzy' || kind === 'deepBite' || kind === 'tidalJaw' || kind === 'sneakStrike') return this.whoosh();
+    if (kind === 'flame' || kind === 'dragonBreath') return this.flame();
     if (kind === 'crunch') return this.boom();
     this.tone({ freq: 520, freq2: 900, dur: 0.16, gain: 0.2, type: 'triangle' });
     this.noiseBurst({ dur: 0.2, freq: 1600, gain: 0.18, sweep: 900 });

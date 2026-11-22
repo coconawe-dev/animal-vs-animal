@@ -130,7 +130,7 @@ export const CATEGORIES = [
   { id: 'monster', name: '괴수', emoji: '👹' },
 ];
 
-/* ──────────────────────────── 동물 로스터 (12종) ────────────────────────────
+/* ──────────────────────────── 동물 로스터 (15종) ────────────────────────────
    hp/atk/spd/range 는 sim 의 실제 값, atkInterval 은 공격 1회 간격(초).
    skill.kind 는 sim.castSkill 이 해석한다.                                   */
 
@@ -284,9 +284,20 @@ const ANIMAL_LIST = [
     passive: '기본 회피 8%',
     evasion: 0.08,
   },
+  {
+    id: 'shark', name: '상어', emoji: '🦈', cat: 'animal', tier: 2, cost: 4, role: '출혈 추격자',
+    hp: 156, atk: 18, spd: 4.5, range: 2.7, atkInterval: 0.85, evasion: 0.06,
+    colors: { main: 0x6f8ea8, dark: 0x2f4356, accent: 0xe8f2f8, belly: 0xcfdde6 },
+    scale: 1.02, size: 1.05,
+    desc: '등지느러미를 세우고 냄새를 따라 끝까지 물고 늘어진다.',
+    skill: { kind: 'bloodFrenzy', name: '혈액 광란', icon: '🩸', cd: 6.4, range: 9, minRange: 0.8, power: 1.55, bleed: 3.6, bleedTime: 4, dash: 7.5, haste: 0.3, hasteTime: 4,
+      desc: '피 냄새를 쫓아 돌진해 출혈을 남기고 흥분해 빨라진다' },
+    passive: '물린 적을 계속 출혈시킨다',
+    onHitBleed: { dps: 1.8, time: 3 },
+  },
 ];
 
-/* ──────────────────────────── 공룡 · 괴수 (6종) ──────────────────────────── */
+/* ──────────────────────────── 공룡 · 괴수 · 해양 (9종) ──────────────────────────── */
 
 const DINO_LIST = [
   {
@@ -366,9 +377,31 @@ const DINO_LIST = [
     passive: '거대 체력 · 넉백 저항',
     armor: 0.14, kbResist: 0.8,
   },
+  {
+    id: 'megalodon', name: '메갈로돈', short: '메갈로돈', emoji: '🦈', cat: 'dino', tier: 4, cost: 9, role: '심해 포식자',
+    hp: 520, atk: 42, spd: 3.1, range: 3.6, atkInterval: 1.35,
+    colors: { main: 0x4a5f74, dark: 0x1e2b38, accent: 0xf2f7fa, belly: 0x9fb2bf },
+    scale: 1.22, size: 1.55,
+    desc: '선사시대의 거대 상어. 한 번 물면 살점을 뜯어 삼키고 다시 달려든다.',
+    skill: { kind: 'deepBite', name: '심해 포식', icon: '🦷', cd: 8.2, range: 4.4, radius: 3.6, power: 2.1, stun: 0.5, knock: 14, lifesteal: 0.3,
+      desc: '거대한 턱으로 뜯어내고, 그 피로 체력을 회복한다' },
+    passive: '거대 체력 · 피를 빨아 회복',
+    armor: 0.1, kbResist: 0.6,
+  },
+  {
+    id: 'mosasaurus', name: '모사사우르스', short: '모사사', emoji: '🦕', cat: 'dino', tier: 4, cost: 8, role: '해양 포식자',
+    hp: 460, atk: 34, spd: 3.7, range: 3.3, atkInterval: 1.15,
+    colors: { main: 0x3f7a72, dark: 0x1c3b38, accent: 0xe8d86a, belly: 0x8fc0b4 },
+    scale: 1.2, size: 1.5,
+    desc: '네 개의 노 젓는 지느러미와 긴 악어 턱. 물결처럼 미끄러져 덮친다.',
+    skill: { kind: 'tidalJaw', name: '해일 턱', icon: '🌊', cd: 7.6, range: 9, minRange: 1.5, power: 1.9, stun: 1.2, width: 2.9, dash: 8, knock: 9,
+      desc: '거대한 해일처럼 넓게 돌진해 닿은 적을 물고 기절시킨다' },
+    passive: '넉백 저항',
+    kbResist: 0.45,
+  },
 ];
 
-/* ──────────────────────────── 괴수 / 언데드 (2종) ──────────────────────────── */
+/* ──────────────────────────── 괴수 / 언데드 / 신화 (6종) ──────────────────────────── */
 
 const MONSTER_LIST = [
   {
@@ -392,6 +425,50 @@ const MONSTER_LIST = [
       desc: '방어를 무시하는 빠른 3연격' },
     passive: '기본 회피 12%',
     evasion: 0.12,
+  },
+  {
+    id: 'leviathan', name: '레비아탄', emoji: '🐉', cat: 'monster', tier: 4, cost: 10, role: '심연의 군주',
+    hp: 660, atk: 44, spd: 2.9, range: 3.8, atkInterval: 1.4,
+    colors: { main: 0x2a4a6e, dark: 0x0e1a2a, accent: 0x6fe8ff, belly: 0x4a7a9a },
+    scale: 1.35, size: 1.75,
+    desc: '심해에서 올라온 거대한 바다뱀. 몸부림 한 번에 전장이 휘청인다.',
+    skill: { kind: 'abyssVortex', name: '심연의 소용돌이', icon: '🌊', cd: 9.0, range: 5.0, radius: 7.4, power: 1.9, knock: 13, slow: 0.45, slowTime: 3.5,
+      desc: '심연의 물길을 일으켜 광역 피해 · 강한 넉백 · 둔화' },
+    passive: '거대 체력 · 넉백 저항',
+    armor: 0.14, kbResist: 0.8,
+  },
+  {
+    id: 'stone_golem', name: '스톤골렘', short: '골렘', emoji: '🗿', cat: 'monster', tier: 3, cost: 7, role: '바위 수호자',
+    hp: 430, atk: 29, spd: 2.1, range: 3.1, atkInterval: 1.5,
+    colors: { main: 0x7a7468, dark: 0x3f3a32, accent: 0x9ef07a, belly: 0x9a9488 },
+    scale: 1.25, size: 1.42,
+    desc: '고대 룬이 새겨진 바위 거인. 주먹을 내리치면 땅이 갈라진다.',
+    skill: { kind: 'rockCrush', name: '암석 분쇄', icon: '🪨', cd: 7.8, range: 4.2, radius: 6.4, power: 1.85, stun: 1.5, knock: 9,
+      desc: '거대한 바위 주먹을 내리쳐 광역 피해 + 1.5초 기절' },
+    passive: '단단한 바위 몸 · 넉백 저항',
+    armor: 0.26, kbResist: 0.85,
+  },
+  {
+    id: 'dragon', name: '드래곤', emoji: '🐲', cat: 'monster', tier: 4, cost: 10, role: '하늘의 군주',
+    hp: 400, atk: 40, spd: 4.0, range: 4.6, atkInterval: 1.2, airborne: true,
+    colors: { main: 0x8a2a2a, dark: 0x3a0f12, accent: 0xffb347, belly: 0xe0a060 },
+    scale: 1.35, size: 1.5,
+    desc: '네 발과 거대한 날개, 뾰족한 뿔과 꼬리를 가진 진짜 용. 숨결이 전장을 태운다.',
+    skill: { kind: 'dragonBreath', name: '용의 브레스', icon: '🔥', cd: 7.2, range: 10, power: 1.9, burn: 3.6, burnTime: 4.5, knock: 5, spread: 0.62,
+      desc: '넓은 전방에 불길을 뿜어 태우고 밀어낸다' },
+    passive: '높이 난다 · 넉백 저항',
+    kbResist: 0.45,
+  },
+  {
+    id: 'goblin', name: '고블린', emoji: '👺', cat: 'monster', tier: 1, cost: 2, role: '비열한 습격자',
+    hp: 84, atk: 13, spd: 5.6, range: 2.0, atkInterval: 0.62, evasion: 0.14, crit: 0.15,
+    colors: { main: 0x6fa03a, dark: 0x2e4a18, accent: 0xc8a040, belly: 0xa8c870 },
+    scale: 0.92, size: 0.9,
+    desc: '작고 빠른 초록 고블린. 몽둥이를 들고 뒤에서 슬쩍 찌른다.',
+    skill: { kind: 'sneakStrike', name: '비열한 급습', icon: '🗡️', cd: 4.6, range: 8, minRange: 0.7, power: 1.5, bleed: 3, bleedTime: 3, dash: 6.5, crit: true,
+      desc: '달려들어 급소를 찔러 확정 치명타와 출혈을 남긴다' },
+    passive: '기본 회피 14% · 치명타 15%',
+    evasion: 0.14,
   },
 ];
 
@@ -632,6 +709,13 @@ const PRESET_DATA = [
     blue: lineup('blue', ['tiger', 'crocodile', 'boar', 'fox'], { x0: 5.8, dz: 2.7 }),
     red: lineup('red', ['lion', 'elephant', 'cheetah'], { x0: 5.8, dz: 2.9 }),
     arena: 'savanna',
+  },
+  {
+    id: 'seven-new', name: '신규 7종 쇼케이스', emoji: '🦈🐉🗿',
+    desc: '상어·메갈로돈·모사사우르스·레비아탄·스톤골렘·드래곤·고블린 vs 사자 무리',
+    blue: lineup('blue', ['shark', 'megalodon', 'mosasaurus', 'leviathan', 'stone_golem', 'dragon', 'goblin'], { x0: 5.4, dx: 2.8, dz: 3.1 }),
+    red: lineup('red', ['lion', 'bear', 'tiger', 'triceratops', 'lion'], { x0: 5.4, dz: 3.0 }),
+    arena: 'tundra',
   },
 ];
 

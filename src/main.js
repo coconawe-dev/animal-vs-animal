@@ -919,6 +919,9 @@ const SK_COLORS = {
   gore: 0xc08bff, evade: 0x6fe8d8, sprint: 0xffe066, gore2: 0xffb0a0,
   crunch: 0xffc247, sailSlash: 0x6fd8ff, hornCharge: 0xffa03c,
   packPounce: 0x9fe86a, flame: 0xff7a3a, titanSlam: 0xff5a3a,
+  bloodFrenzy: 0xff5a8a, deepBite: 0xd8e8ff, tidalJaw: 0x6fd8ff,
+  abyssVortex: 0x4a8aff, rockCrush: 0xc0a878, dragonBreath: 0xff6a2a,
+  sneakStrike: 0xa8ff6a,
 };
 
 function handleEvent(ev) {
@@ -1025,6 +1028,24 @@ function handleEvent(ev) {
       break;
     }
     case 'chomp': effects.flash(ev.x, 1.2, ev.z, 1.2, 0x9ee06a, 0.25); break;
+    case 'vortex': {
+      const c = SK_COLORS.abyssVortex;
+      effects.ring(ev.x, ev.z, 0.8, (ev.r || 6) * 1.1, c, 0.7);
+      effects.ring(ev.x, ev.z, (ev.r || 6) * 0.4, (ev.r || 6) * 0.95, 0x9fd8ff, 0.55);
+      effects.burst(ev.x, 1.2, ev.z, c, 26, 5.5);
+      stage.shake = Math.max(stage.shake, 0.45);
+      break;
+    }
+    case 'rockCrush': {
+      effects.ring(ev.x, ev.z, 0.8, (ev.r || 5) * 1.05, SK_COLORS.rockCrush, 0.55);
+      effects.dust(ev.x, ev.z, 26, 0xb8a88c);
+      break;
+    }
+    case 'tidalWave': {
+      effects.ring(ev.x, ev.z, 0.6, 3.4, SK_COLORS.tidalJaw, 0.4);
+      effects.dust(ev.x, ev.z, 10, 0xbfe0f0);
+      break;
+    }
     case 'buff': {
       if (target) effects.ring(target.u.x, target.u.z, 0.5, 1.8, 0x8fe36a, 0.45);
       break;
@@ -1080,7 +1101,7 @@ function updateViews(dt, adt) {
     const hover = u.def.airborne && !u.dead ? 0.62 + Math.sin(performance.now() * 0.003 + u.uid) * 0.1 : 0;
     rig.group.position.set(v.x, u.y + hover, v.z);
     rig.group.rotation.y += shortestAngle(u.facing - rig.group.rotation.y) * Math.min(1, dt * 14);
-    rig.group.rotation.x = u.spin || 0;
+    rig.group.rotation.x = u.dead ? 0 : (u.spin || 0);
 
     const moved = Math.hypot(u.x - v.lastX, u.z - v.lastZ) / Math.max(dt, 0.0001);
     v.lastX = u.x; v.lastZ = u.z;

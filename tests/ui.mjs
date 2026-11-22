@@ -87,7 +87,7 @@ check(app.selected === 'raptor', '카드 탭 → 유닛 선택');
 check($('.ucard[data-id="raptor"]').classList.contains('sel'), '선택 카드 표시');
 $('#cat-row [data-cat="dino"]').click();
 check(app.activeCat === 'dino', '공룡 카테고리');
-check($$('#unit-bar .ucard:not(.hide)').length === 6, '공룡 6종만 표시');
+check($$('#unit-bar .ucard:not(.hide)').length === 8, '공룡 8종만 표시');
 $('#cat-row [data-cat="all"]').click();
 check($$('#unit-bar .ucard:not(.hide)').length === CREATURES.length, '전체 표시');
 
@@ -354,6 +354,22 @@ ui.renderParty({
 });
 check($$('#party-roster .pr-row').length === 2, '2인 방 참가자 2명');
 check($$('#party-roster .pr-empty').length === 2, '빈 자리 2개 안내');
+
+// 회귀: × 로 접은 파티 창은 몹 소환/상태 갱신으로 다시 펼쳐지지 않는다
+{
+  ui.renderParty(partyState);                    // 방 화면 (열린 상태)
+  $('#btn-party-close').click();                 // 사용자가 직접 접기
+  check($('#party-panel').classList.contains('hidden'), '× 로 파티 창 접힘');
+  check(!$('#party-fab').classList.contains('hidden'), '접으면 방 코드 칩이 남음');
+  check($('#party-fab').textContent.includes('K7QM'), '칩에 방 코드 표시');
+  // 유닛을 소환하면 main 이 renderParty(snapshot) 를 다시 호출한다
+  ui.renderParty({ ...partyState, myReady: false });
+  ui.renderParty({ ...partyState, myReady: false, myUsed: 26, myPlaced: 7 });
+  check($('#party-panel').classList.contains('hidden'), '몹 소환/상태 갱신 후에도 파티 창은 접힌 채');
+  check($('#party-fab').textContent.includes('26/35'), '접힌 칩 숫자만 조용히 갱신');
+  $('#party-fab').click();                       // 칩을 직접 누르면 다시 펼쳐진다
+  check(!$('#party-panel').classList.contains('hidden'), '칩 탭 → 파티 창 다시 펼침');
+}
 
 // 파티 배치 도구 — 내 진영 하나만 + 예산 35
 app.mode = 'party';

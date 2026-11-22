@@ -254,10 +254,12 @@ function killUnit(state, u, src, heavy = 0) {
   u.dash = null;
   u.state = 'dead';
   u.targetId = null;
-  // 무거운 일격 = 공중으로 튕겨 나가며 회전 (래그돌 느낌)
+  // 죽으면 회전을 즉시 멈춘다 — 옆으로 쓰러진 뒤 그대로 누워 있어야 한다
+  u.spin = 0;
+  u.spinVel = 0;
+  // 무거운 일격 = 몸이 살짝 튕겨 나간다 (회전은 없다)
   if (heavy > 12 && u.def.size < 1.4) {
     u.vy = Math.max(u.vy, 5.6);
-    u.spinVel = (state.rng() - 0.5) * 14;
     u.vx *= 0.5; u.vz *= 0.5;
   }
   state.stats.kills++;
@@ -518,6 +520,7 @@ function startDash(u, opts) {
     width: opts.width || 1.5, dmg: opts.dmg, stun: opts.stun || 0,
     knock: opts.knock || 0, hit: new Set(), pierce: !!opts.pierce,
     kind: opts.kind, aoe: opts.aoe || 0, bleed: opts.bleed || 0, bleedTime: opts.bleedTime || 0,
+    crit: !!opts.crit,
     stopOnObstacle: opts.stopOnObstacle !== false,
   };
   u.ccImmune = opts.immune ? 0.6 : 0;
@@ -551,7 +554,7 @@ function updateDash(state, u, dt) {
     const d = pointSegDist(e.x, e.z, ax, az, u.x, u.z);
     if (d <= dash.width + 0.55) {
       dash.hit.add(e.uid);
-      applyDamage(state, u, e, dash.dmg, { pierce: dash.pierce });
+      applyDamage(state, u, e, dash.dmg, { pierce: dash.pierce, crit: !!dash.crit });
       knock(state, e, e.x - ax, e.z - az, dash.knock);
       if (dash.stun > 0) stunUnit(state, e, dash.stun);
       if (dash.bleed > 0) addBleed(state, e, u, dash.bleed, dash.bleedTime);
@@ -661,8 +664,25 @@ function tryCastSkill(state, u, target, d) {
     case 'pounce':
     case 'gore2':
     case 'packPounce':
-    case 'sailSlash': {
+    case 'sailSlash':
+    case 'bloodFrenzy':
+    case 'sneakStrike': {
       if (d < (s.minRange || 0.8) || d > s.range) return false;
+      break;
+    }
+    case 'tidalJaw': {
+      if (d > s.range || d < 2.0) return false;
+      break;
+    }
+    case 'deepBite':
+    case 'dragonBreath': {
+      if (d > s.range + 0.7 || !target) return false;
+      break;
+    }
+    case 'abyssVortex':
+    case 'rockCrush': {
+      const r = s.radius || u.range;
+      if (d > r + 1.2 || countEnemiesIn(state, u, r) < 1) return false;
       break;
     }
     case 'charge':
@@ -903,6 +923,67 @@ function tryCastSkill(state, u, target, d) {
       emit(state, { type: 'takeoff', uid: u.uid, x: u.x, z: u.z });
       break;
     }
+    case 'bloodFrenzy': {
+      const dist = Math.min(s.dash || 7.5, Math.max(2, d - 0.5));
+      startDash(u, {
+        vx: (dirX / dirLen) * 18, vz: (dirZ / dirLen) * 18, dist,
+        width: 1.35, dmg: u.atk * s.power, bleed: s.bleed, bleedTime: s.bleedTime,
+        knock: 3.5, kind: 'bloodFrenzy',
+      });
+      haste(u, s.haste || 0.3, s.hasteTime || 4);
+      emit(state, { type: 'buff', uid: u.uid, kind: 'haste' });
+      break;
+    }
+    case 'deepBite': {
+      const before = state.stats.hits;
+      coneBurst(state, u, s.range, Math.PI * 0.5, u.atk * s.power, { stun: s.stun, knock: s.knock });
+      const bites = Math.max(1, Math.min(3, state.stats.hits - before));
+      const heal = Math.round(u.atk * s.power * (s.lifesteal || 0.3) * bites);
+      u.hp = Math.min(u.maxHp, u.hp + heal);
+      emit(state, { type: 'heal', uid: u.uid, x: u.x, z: u.z, amount: heal });
+      emit(state, { type: 'chomp', uid: u.uid, target: target ? target.uid : null, x: target ? target.x : u.x, z: target ? target.z : u.z });
+      break;
+    }
+    case 'tidalJaw': {
+      const dist = Math.min(s.dash || 8, Math.max(2.5, d - 1.0));
+      startDash(u, {
+        vx: (dirX / dirLen) * 18, vz: (dirZ / dirLen) * 18, dist,
+        width: s.width || 2.9, dmg: u.atk * s.power, stun: s.stun,
+        knock: s.knock, kind: 'tidalJaw', aoe: (s.width || 2.9) * 1.2,
+      });
+      emit(state, { type: 'tidalWave', uid: u.uid, x: u.x, z: u.z, dx: dirX / dirLen, dz: dirZ / dirLen, len: dist, w: s.width || 2.9 });
+      break;
+    }
+    case 'abyssVortex': {
+      areaBurst(state, u, u.x, u.z, s.radius, u.atk * s.power, 0, s.knock, null, { launch: true });
+      for (const e of state.units) {
+        if (!e.dead && e.team !== u.team && dist2(u.x, u.z, e.x, e.z) <= s.radius + 0.5) slowUnit(state, e, s.slow, s.slowTime);
+      }
+      emit(state, { type: 'vortex', uid: u.uid, x: u.x, z: u.z, r: s.radius });
+      break;
+    }
+    case 'rockCrush': {
+      areaBurst(state, u, u.x, u.z, s.radius, u.atk * s.power, s.stun, s.knock);
+      emit(state, { type: 'rockCrush', uid: u.uid, x: u.x, z: u.z, r: s.radius });
+      emit(state, { type: 'quake', x: u.x, z: u.z, r: s.radius, big: true });
+      break;
+    }
+    case 'dragonBreath': {
+      const fx = target ? target.x : u.x + (dirX / dirLen) * s.range * 0.6;
+      const fz = target ? target.z : u.z + (dirZ / dirLen) * s.range * 0.6;
+      emit(state, { type: 'flame', uid: u.uid, x: u.x, z: u.z, tx: fx, tz: fz, r: 3.6, color: 0xff5a1a });
+      coneBurst(state, u, s.range, s.spread || 0.62, u.atk * s.power, { knock: s.knock, bleed: s.burn, bleedTime: s.burnTime });
+      break;
+    }
+    case 'sneakStrike': {
+      const dist = Math.min(s.dash || 6.5, Math.max(1.5, d - 0.4));
+      startDash(u, {
+        vx: (dirX / dirLen) * 19, vz: (dirZ / dirLen) * 19, dist,
+        width: 1.2, dmg: u.atk * s.power, bleed: s.bleed, bleedTime: s.bleedTime,
+        knock: 2, kind: 'sneakStrike', crit: !!s.crit,
+      });
+      break;
+    }
     case 'evade': {
       u.dodgeBonus = s.dodge; u.dodgeT = s.dodgeTime;
       haste(u, s.haste, s.hasteTime);
@@ -975,7 +1056,7 @@ function tickEffects(state, u, dt) {
       u.spinVel *= 0.35;
     }
   }
-  if (Math.abs(u.spinVel) > 0.05 && (u.y > 0 || u.dead)) {
+  if (!u.dead && Math.abs(u.spinVel) > 0.05 && u.y > 0) {
     u.spin += u.spinVel * dt;
   } else if (!u.dead) {
     u.spin *= Math.max(0, 1 - dt * 6);
@@ -1078,6 +1159,9 @@ export function step(state, dt) {
 }
 
 function tickDead(u, dt) {
+  // 죽은 유닛은 다시는 돌지 않는다 (쓰러진 자세 그대로 정지)
+  u.spin = 0;
+  u.spinVel = 0;
   if (Math.abs(u.vx) > 0.01 || Math.abs(u.vz) > 0.01) {
     u.x += u.vx * dt; u.z += u.vz * dt;
     const decay = Math.exp(-6 * dt);
@@ -1086,9 +1170,8 @@ function tickDead(u, dt) {
   if (u.vy !== 0 || u.y > 0) {
     u.vy -= 38 * dt;
     u.y += u.vy * dt;
-    if (u.y <= 0) { u.y = 0; u.vy = 0; u.spinVel *= 0.4; }
+    if (u.y <= 0) { u.y = 0; u.vy = 0; }
   }
-  if (Math.abs(u.spinVel) > 0.05) u.spin += u.spinVel * dt;
 }
 
 function finish(state) {

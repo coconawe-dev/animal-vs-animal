@@ -1206,6 +1206,411 @@ function buildDRex(g, m, rig) {
   rig.height = 3.2;
 }
 
+/* ───────────────────────────── 상어 ───────────────────────────── */
+function buildShark(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 0.34;
+  g.add(body); rig.body = body; rig.bodyY = 0.34;
+
+  // 유선형 몸통
+  add(body, G.sphere, m.main, [0, 0, 0], [0.34, 0.36, 1.1]);
+  add(body, G.sphereLow, m.belly, [0, -0.14, 0.06], [0.27, 0.2, 0.9], null, false);
+  add(body, G.sphere, m.main, [0, 0.03, 0.9], [0.23, 0.21, 0.4]);
+
+  // 등지느러미 · 작은 등지느러미 두 개
+  add(body, G.coneLow, m.dark, [0, 0.36, -0.08], [0.1, 0.52, 0.3], [-0.55, 0, 0]);
+  add(body, G.coneLow, m.dark, [0, 0.28, -0.62], [0.06, 0.2, 0.16], [-0.7, 0, 0], false);
+  add(body, G.coneLow, m.dark, [0.28, 0.16, -0.28], [0.05, 0.18, 0.16], [-0.8, 0, -0.45], false);
+  add(body, G.coneLow, m.dark, [-0.28, 0.16, -0.28], [0.05, 0.18, 0.16], [-0.8, 0, 0.45], false);
+
+  // 가슴지느러미 (지면 가까이)
+  add(body, G.sphereLow, m.dark, [0.44, -0.14, 0.26], [0.36, 0.05, 0.19], [0, 0.34, -0.22]);
+  add(body, G.sphereLow, m.dark, [-0.44, -0.14, 0.26], [0.36, 0.05, 0.19], [0, -0.34, 0.22]);
+
+  // 세로 꼬리지느러미
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.06, -1.0);
+  body.add(tail); rig.tail = tail;
+  add(tail, G.coneLow, m.main, [0, 0.26, -0.2], [0.08, 0.46, 0.14], [0.5, 0, 0]);
+  add(tail, G.coneLow, m.main, [0, -0.18, -0.16], [0.07, 0.3, 0.12], [-0.4, 0, 0]);
+  const tip = new THREE.Group(); tip.position.set(0, 0, -0.24); tail.add(tip); rig.tailTip = tip;
+
+  // 주둥이 · 아가리 · 이빨
+  const head = new THREE.Group();
+  head.position.set(0, -0.02, 1.02);
+  body.add(head); rig.head = head;
+  add(head, G.sphere, m.main, [0, 0, 0.1], [0.2, 0.17, 0.3]);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.1, 0.06);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.sphereLow, m.belly, [0, 0.01, 0.18], [0.18, 0.07, 0.3], null, false);
+  for (let i = 0; i < 4; i++) {
+    add(head, G.coneLow, m.accent, [0.12, -0.07, 0.16 + i * 0.07], [0.028, 0.1, 0.028], [Math.PI, 0, 0], false);
+    add(head, G.coneLow, m.accent, [-0.12, -0.07, 0.16 + i * 0.07], [0.028, 0.1, 0.028], [Math.PI, 0, 0], false);
+  }
+  add(head, G.sphereLow, m.eye, [0.15, 0.07, 0.12], [0.042, 0.05, 0.035], null, false);
+  add(head, G.sphereLow, m.eye, [-0.15, 0.07, 0.12], [0.042, 0.05, 0.035], null, false);
+  // 아가미 틈
+  for (let i = 0; i < 3; i++) {
+    add(body, G.box, m.dark, [0.29, 0.02, 0.46 - i * 0.09], [0.02, 0.18, 0.025], [0, 0, 0.12], false);
+    add(body, G.box, m.dark, [-0.29, 0.02, 0.46 - i * 0.09], [0.02, 0.18, 0.025], [0, 0, -0.12], false);
+  }
+  rig.height = 1.15;
+}
+
+/* ───────────────────────────── 메갈로돈 ───────────────────────────── */
+function buildMegalodon(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 0.62;
+  g.add(body); rig.body = body; rig.bodyY = 0.62;
+
+  // 육중한 몸통
+  add(body, G.sphere, m.main, [0, 0, 0], [0.58, 0.56, 1.35]);
+  add(body, G.sphereLow, m.belly, [0, -0.24, 0.05], [0.46, 0.3, 1.1], null, false);
+  add(body, G.sphere, m.main, [0, 0.06, 1.02], [0.4, 0.36, 0.55]);
+
+  // 거대 등지느러미
+  add(body, G.coneLow, m.dark, [0, 0.5, -0.05], [0.14, 0.72, 0.42], [-0.5, 0, 0]);
+  add(body, G.coneLow, m.dark, [0, 0.42, -0.72], [0.08, 0.3, 0.2], [-0.7, 0, 0], false);
+  add(body, G.coneLow, m.dark, [0.4, 0.24, -0.2], [0.06, 0.24, 0.2], [-0.85, 0, -0.5], false);
+  add(body, G.coneLow, m.dark, [-0.4, 0.24, -0.2], [0.06, 0.24, 0.2], [-0.85, 0, 0.5], false);
+
+  // 커다란 가슴지느러미
+  add(body, G.sphereLow, m.dark, [0.72, -0.28, 0.3], [0.58, 0.07, 0.28], [0, 0.36, -0.2]);
+  add(body, G.sphereLow, m.dark, [-0.72, -0.28, 0.3], [0.58, 0.07, 0.28], [0, -0.36, 0.2]);
+
+  // 강력한 꼬리
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.1, -1.24);
+  body.add(tail); rig.tail = tail;
+  add(tail, G.coneLow, m.main, [0, 0.44, -0.26], [0.12, 0.78, 0.2], [0.45, 0, 0]);
+  add(tail, G.coneLow, m.main, [0, -0.3, -0.2], [0.1, 0.5, 0.16], [-0.35, 0, 0]);
+  const tip = new THREE.Group(); tip.position.set(0, 0, -0.3); tail.add(tip); rig.tailTip = tip;
+
+  // 거대한 턱
+  const head = new THREE.Group();
+  head.position.set(0, -0.04, 1.28);
+  body.add(head); rig.head = head;
+  add(head, G.box, m.main, [0, 0.02, 0.16], [0.5, 0.32, 0.5]);
+  add(head, G.sphereLow, m.accent, [0, 0.14, 0.1], [0.26, 0.12, 0.32], null, false);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.16, 0.06);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.box, m.belly, [0, 0.01, 0.28], [0.44, 0.13, 0.62]);
+  for (let i = 0; i < 5; i++) {
+    add(head, G.coneLow, m.accent, [0.2, -0.12, 0.12 + i * 0.1], [0.045, 0.16, 0.045], [Math.PI, 0, 0], false);
+    add(head, G.coneLow, m.accent, [-0.2, -0.12, 0.12 + i * 0.1], [0.045, 0.16, 0.045], [Math.PI, 0, 0], false);
+  }
+  add(head, G.sphereLow, m.eye, [0.22, 0.12, 0.02], [0.05, 0.055, 0.04], null, false);
+  add(head, G.sphereLow, m.eye, [-0.22, 0.12, 0.02], [0.05, 0.055, 0.04], null, false);
+  for (let i = 0; i < 4; i++) {
+    add(body, G.box, m.dark, [0.52, 0.02, 0.6 - i * 0.1], [0.025, 0.26, 0.03], [0, 0, 0.1], false);
+    add(body, G.box, m.dark, [-0.52, 0.02, 0.6 - i * 0.1], [0.025, 0.26, 0.03], [0, 0, -0.1], false);
+  }
+  rig.height = 1.7;
+}
+
+/* ───────────────────────────── 모사사우르스 ───────────────────────────── */
+function buildMosasaurus(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 0.78;
+  g.add(body); rig.body = body; rig.bodyY = 0.78;
+
+  // 길게 이어진 해양 파충류 몸통 (3마디)
+  add(body, G.sphere, m.main, [0, 0, 0.16], [0.42, 0.44, 0.78]);
+  add(body, G.sphere, m.main, [0, -0.02, -0.66], [0.36, 0.38, 0.62]);
+  add(body, G.sphereLow, m.belly, [0, -0.2, 0.1], [0.34, 0.24, 1.0], null, false);
+  // 등 돌기
+  for (let i = 0; i < 6; i++) {
+    add(body, G.coneLow, m.dark, [0, 0.36 - i * 0.02, 0.5 - i * 0.22], [0.06, 0.2, 0.1], [-0.35, 0, 0], false);
+  }
+
+  // 네 개의 노 지느러미
+  add(body, G.sphereLow, m.dark, [0.52, -0.16, 0.42], [0.42, 0.06, 0.22], [0, 0.4, -0.25]);
+  add(body, G.sphereLow, m.dark, [-0.52, -0.16, 0.42], [0.42, 0.06, 0.22], [0, -0.4, 0.25]);
+  add(body, G.sphereLow, m.dark, [0.42, -0.16, -0.42], [0.32, 0.05, 0.18], [0, 0.2, -0.2]);
+  add(body, G.sphereLow, m.dark, [-0.42, -0.16, -0.42], [0.32, 0.05, 0.18], [0, -0.2, 0.2]);
+
+  // 긴 꼬리 · 꼬리지느러미
+  const tail = new THREE.Group();
+  tail.position.set(0, 0, -1.16);
+  body.add(tail); rig.tail = tail;
+  add(tail, G.cone, m.main, [0, 0, -0.34], [0.22, 0.8, 0.2], [-Math.PI / 2, 0, 0]);
+  add(tail, G.coneLow, m.dark, [0, 0.22, -0.6], [0.08, 0.4, 0.12], [0.5, 0, 0], false);
+  const tip = new THREE.Group(); tip.position.set(0, 0, -0.7); tail.add(tip); rig.tailTip = tip;
+
+  // 긴 악어 턱
+  const head = new THREE.Group();
+  head.position.set(0, 0.06, 0.94);
+  body.add(head); rig.head = head;
+  add(head, G.sphere, m.main, [0, 0, 0.06], [0.26, 0.22, 0.3]);
+  add(head, G.box, m.main, [0, 0.02, 0.5], [0.3, 0.2, 0.66]);
+  add(head, G.sphereLow, m.accent, [0, 0.14, 0.28], [0.16, 0.08, 0.24], null, false);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.1, 0.2);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.box, m.belly, [0, 0.01, 0.36], [0.26, 0.1, 0.68]);
+  for (let i = 0; i < 6; i++) {
+    add(head, G.coneLow, m.accent, [0.13, -0.06, 0.22 + i * 0.1], [0.03, 0.12, 0.03], [Math.PI, 0, 0], false);
+    add(head, G.coneLow, m.accent, [-0.13, -0.06, 0.22 + i * 0.1], [0.03, 0.12, 0.03], [Math.PI, 0, 0], false);
+  }
+  add(head, G.sphereLow, m.eye, [0.16, 0.1, 0.12], [0.045, 0.05, 0.04], null, false);
+  add(head, G.sphereLow, m.eye, [-0.16, 0.1, 0.12], [0.045, 0.05, 0.04], null, false);
+  add(head, G.coneLow, m.dark, [0.14, 0.22, -0.04], [0.05, 0.16, 0.05], [0, 0, -0.3], false);
+  add(head, G.coneLow, m.dark, [-0.14, 0.22, -0.04], [0.05, 0.16, 0.05], [0, 0, 0.3], false);
+  rig.height = 1.45;
+}
+
+/* ───────────────────────────── 레비아탄 ───────────────────────────── */
+function buildLeviathan(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 1.15;
+  g.add(body); rig.body = body; rig.bodyY = 1.15;
+
+  // 심해 바다벰 — 아래로 감긴 몸통
+  add(body, G.sphereLow, m.main, [0, -0.62, -0.1], [0.72, 0.4, 0.78]);
+  add(body, G.capsule, m.main, [0, 0.1, 0], [0.78, 0.86, 0.72], [0.1, 0, 0]);
+  add(body, G.sphereLow, m.belly, [0, -0.1, 0.24], [0.5, 0.34, 0.4], null, false);
+  // 빛나는 등지느러미
+  for (let i = 0; i < 5; i++) {
+    const y = 0.42 - i * 0.24;
+    add(body, G.coneLow, m.accent, [0, y, -0.42 + i * 0.02], [0.08, 0.34, 0.24], [1.1, 0, 0], false);
+  }
+  add(body, G.sphereLow, m.accent, [0.44, 0.02, 0.1], [0.3, 0.05, 0.2], [0, 0.5, 0.2], false);
+  add(body, G.sphereLow, m.accent, [-0.44, 0.02, 0.1], [0.3, 0.05, 0.2], [0, -0.5, -0.2], false);
+
+  // 바닥을 받치는 지느러미
+  add(body, G.sphereLow, m.dark, [0.46, -0.86, 0.02], [0.34, 0.06, 0.26], [0, 0.2, -0.1]);
+  add(body, G.sphereLow, m.dark, [-0.46, -0.86, 0.02], [0.34, 0.06, 0.26], [0, -0.2, 0.1]);
+
+  // 긴 목 · 뱀 머리
+  const head = new THREE.Group();
+  head.position.set(0, 0.98, 0.44);
+  body.add(head); rig.head = head;
+  add(head, G.cyl, m.main, [0, -0.34, -0.26], [0.18, 0.72, 0.18], [0.75, 0, 0]);
+  add(head, G.sphere, m.main, [0, 0.02, 0.1], [0.28, 0.24, 0.34]);
+  add(head, G.box, m.main, [0, 0.0, 0.42], [0.28, 0.18, 0.44]);
+  add(head, G.sphereLow, m.accent, [0, 0.12, 0.26], [0.14, 0.08, 0.24], null, false);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.1, 0.14);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.box, m.belly, [0, 0.0, 0.32], [0.24, 0.09, 0.5]);
+  for (let i = 0; i < 4; i++) {
+    add(head, G.coneLow, m.accent, [0.12, -0.07, 0.2 + i * 0.09], [0.028, 0.12, 0.028], [Math.PI, 0, 0], false);
+    add(head, G.coneLow, m.accent, [-0.12, -0.07, 0.2 + i * 0.09], [0.028, 0.12, 0.028], [Math.PI, 0, 0], false);
+  }
+  add(head, G.sphereLow, m.accent, [0.15, 0.12, 0.14], [0.05, 0.05, 0.04], null, false);
+  add(head, G.sphereLow, m.accent, [-0.15, 0.12, 0.14], [0.05, 0.05, 0.04], null, false);
+  // 뿔
+  add(head, G.coneLow, m.accent, [0.16, 0.26, -0.04], [0.06, 0.3, 0.05], [0.2, 0, -0.4]);
+  add(head, G.coneLow, m.accent, [-0.16, 0.26, -0.04], [0.06, 0.3, 0.05], [0.2, 0, 0.4]);
+
+  // 긴 꼬리
+  const tail = new THREE.Group();
+  tail.position.set(0, -0.42, -0.62);
+  body.add(tail); rig.tail = tail;
+  add(tail, G.cone, m.main, [0, 0, -0.5], [0.26, 1.05, 0.2], [-Math.PI / 2 - 0.25, 0, 0]);
+  add(tail, G.sphereLow, m.accent, [0, 0.0, -1.0], [0.24, 0.08, 0.26], [0, 0, 0], false);
+  const tip = new THREE.Group(); tip.position.set(0, 0, -0.94); tail.add(tip); rig.tailTip = tip;
+  rig.height = 2.4;
+}
+
+/* ───────────────────────────── 스톤골렘 ───────────────────────────── */
+function buildStoneGolem(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 1.05;
+  g.add(body); rig.body = body; rig.bodyY = 1.05;
+
+  // 바위 덩어리 몸통
+  add(body, G.box, m.main, [0, 0.06, 0], [1.18, 0.96, 0.82], [0, 0, 0]);
+  add(body, G.box, m.dark, [0, 0.38, 0.02], [0.96, 0.4, 0.7], [0.06, 0.1, 0]);
+  add(body, G.sphereLow, m.main, [0.3, 0.5, 0.22], [0.34, 0.3, 0.3]);
+  add(body, G.sphereLow, m.main, [-0.3, 0.5, 0.22], [0.34, 0.3, 0.3]);
+  add(body, G.sphereLow, m.dark, [0.02, 0.1, 0.44], [0.34, 0.3, 0.2], null, false);
+  // 빛나는 룬
+  add(body, G.box, m.accent, [0, 0.1, 0.42], [0.1, 0.34, 0.03], null, false);
+  add(body, G.box, m.accent, [0.16, 0.3, 0.42], [0.1, 0.04, 0.03], null, false);
+  add(body, G.box, m.accent, [-0.16, -0.06, 0.42], [0.1, 0.04, 0.03], null, false);
+
+  // 짧은 바위 다리
+  rig.legs = quadLegs(body, m.dark, { x: 0.4, zf: 0.22, zb: -0.24, len: 0.62, r: 0.2 });
+  rig.legs.forEach((l) => { l.pivot.position.x += l.left ? 0.06 : -0.06; });
+
+  // 거대한 주먹
+  const arms = [];
+  [1, -1].forEach((side) => {
+    const sh = new THREE.Group();
+    sh.position.set(side * 0.72, 0.4, 0.02);
+    body.add(sh);
+    add(sh, G.box, m.dark, [0, -0.36, 0], [0.32, 0.72, 0.3]);
+    add(sh, G.box, m.main, [0, -0.82, 0.02], [0.5, 0.44, 0.48]);
+    add(sh, G.sphereLow, m.accent, [0, -0.82, 0.26], [0.06, 0.06, 0.05], null, false);
+    arms.push({ pivot: sh, side });
+  });
+  rig.arms = arms;
+
+  const head = new THREE.Group();
+  head.position.set(0, 0.78, 0.14);
+  body.add(head); rig.head = head;
+  add(head, G.box, m.main, [0, 0, 0], [0.56, 0.46, 0.5]);
+  add(head, G.box, m.dark, [0, -0.06, 0.22], [0.4, 0.18, 0.1], null, false);
+  add(head, G.box, m.accent, [0.13, 0.1, 0.24], [0.09, 0.07, 0.04], null, false);
+  add(head, G.box, m.accent, [-0.13, 0.1, 0.24], [0.09, 0.07, 0.04], null, false);
+  add(head, G.box, m.dark, [0, 0.26, -0.02], [0.62, 0.1, 0.5], null, false);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.16, 0.12);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.box, m.dark, [0, 0, 0.08], [0.38, 0.1, 0.24], null, false);
+  rig.height = 2.2;
+  rig.upright = true;
+}
+
+/* ───────────────────────────── 드래곤 ───────────────────────────── */
+function buildDragon(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 1.3;
+  g.add(body); rig.body = body; rig.bodyY = 1.3;
+
+  add(body, G.sphere, m.main, [0, 0, 0.02], [0.4, 0.42, 0.86]);
+  add(body, G.sphereLow, m.belly, [0, -0.18, 0.1], [0.3, 0.22, 0.66], null, false);
+  // 등 가시
+  for (let i = 0; i < 5; i++) {
+    add(body, G.coneLow, m.dark, [0, 0.4, 0.4 - i * 0.22], [0.07, 0.24, 0.1], [0.15, 0, 0], false);
+  }
+
+  // 거대한 날개
+  const wings = [];
+  [1, -1].forEach((side) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.32, 0.18, 0.02);
+    body.add(pivot);
+    add(pivot, G.sphereLow, m.main, [side * 0.58, 0.05, -0.06], [0.62, 0.07, 0.38], [0, side * 0.12, 0]);
+    add(pivot, G.sphereLow, m.dark, [side * 0.94, -0.02, -0.34], [0.42, 0.05, 0.3], [0, side * 0.22, 0], false);
+    add(pivot, G.sphereLow, m.dark, [side * 0.7, 0.02, 0.28], [0.38, 0.04, 0.2], [0, side * 0.1, 0], false);
+    for (let i = 0; i < 3; i++) {
+      add(pivot, G.coneLow, m.accent, [side * (0.5 + i * 0.28), 0.04, -0.42 - i * 0.04], [0.03, 0.3, 0.03], [1.4, 0, side * 0.2], false);
+    }
+    wings.push({ pivot, side });
+  });
+  rig.wings = wings;
+
+  // 네 발
+  const legs = [];
+  [[1, 0.34], [-1, 0.34], [1, -0.34], [-1, -0.34]].forEach(([side, z], i) => {
+    const pivot = new THREE.Group();
+    pivot.position.set(side * 0.34, -0.16, z);
+    body.add(pivot);
+    add(pivot, G.cyl, m.dark, [0, -0.3, 0], [0.1, 0.6, 0.1]);
+    add(pivot, G.box, m.accent, [0, -0.58, 0.08], [0.18, 0.09, 0.28], null, false);
+    legs.push({ pivot, phase: i * (Math.PI / 2), front: z > 0, left: side > 0 });
+  });
+  rig.legs = legs;
+
+  // 긴 목 · 뿔 달린 머리
+  const head = new THREE.Group();
+  head.position.set(0, 0.62, 0.74);
+  body.add(head); rig.head = head;
+  add(head, G.cyl, m.main, [0, -0.2, -0.22], [0.15, 0.62, 0.15], [0.9, 0, 0]);
+  add(head, G.sphere, m.main, [0, 0.06, 0.12], [0.24, 0.22, 0.3]);
+  add(head, G.box, m.main, [0, 0.02, 0.42], [0.24, 0.18, 0.4]);
+  add(head, G.sphereLow, m.accent, [0, 0.14, 0.3], [0.12, 0.07, 0.22], null, false);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.1, 0.16);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.box, m.belly, [0, 0, 0.3], [0.2, 0.08, 0.5]);
+  for (let i = 0; i < 4; i++) {
+    add(head, G.coneLow, m.accent, [0.1, -0.07, 0.26 + i * 0.08], [0.025, 0.1, 0.025], [Math.PI, 0, 0], false);
+    add(head, G.coneLow, m.accent, [-0.1, -0.07, 0.26 + i * 0.08], [0.025, 0.1, 0.025], [Math.PI, 0, 0], false);
+  }
+  add(head, G.sphereLow, m.eye, [0.14, 0.12, 0.16], [0.045, 0.05, 0.035], null, false);
+  add(head, G.sphereLow, m.eye, [-0.14, 0.12, 0.16], [0.045, 0.05, 0.035], null, false);
+  add(head, G.coneLow, m.dark, [0.13, 0.3, -0.02], [0.06, 0.3, 0.05], [0.15, 0, -0.3]);
+  add(head, G.coneLow, m.dark, [-0.13, 0.3, -0.02], [0.06, 0.3, 0.05], [0.15, 0, 0.3]);
+  add(head, G.coneLow, m.accent, [0, 0.26, -0.18], [0.05, 0.22, 0.05], [-0.3, 0, 0], false);
+
+  // 가시 달린 꼬리
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.04, -0.86);
+  body.add(tail); rig.tail = tail;
+  add(tail, G.cone, m.main, [0, 0, -0.42], [0.2, 0.95, 0.16], [-Math.PI / 2, 0, 0]);
+  add(tail, G.coneLow, m.accent, [0, 0.02, -0.92], [0.14, 0.3, 0.1], [-Math.PI / 2 - 0.3, 0, 0], false);
+  const tip = new THREE.Group(); tip.position.set(0, 0, -0.86); tail.add(tip); rig.tailTip = tip;
+  rig.height = 2.2;
+  rig.air = true;
+}
+
+/* ───────────────────────────── 고블린 ───────────────────────────── */
+function buildGoblin(g, m, rig) {
+  const def = rig.def;
+  const body = new THREE.Group();
+  body.position.y = 0.62;
+  g.add(body); rig.body = body; rig.bodyY = 0.62;
+
+  // 작고 구부정한 몸
+  add(body, G.capsule, m.main, [0, 0.02, 0], [0.42, 0.5, 0.36], [0.22, 0, 0]);
+  add(body, G.sphereLow, m.belly, [0, -0.14, 0.16], [0.26, 0.2, 0.16], null, false);
+  add(body, G.sphereLow, m.dark, [0, -0.06, -0.2], [0.2, 0.18, 0.1], null, false);
+
+  // 짧은 다리
+  rig.legs = [];
+  [1, -1].forEach((side, i) => {
+    const piv = new THREE.Group();
+    piv.position.set(side * 0.16, -0.26, 0.02);
+    body.add(piv);
+    add(piv, G.cyl, m.dark, [0, -0.2, 0], [0.08, 0.4, 0.08]);
+    add(piv, G.box, m.accent, [0, -0.4, 0.08], [0.14, 0.08, 0.22], null, false);
+    rig.legs.push({ pivot: piv, phase: i * Math.PI, front: false, left: side > 0 });
+  });
+
+  // 팔 + 몽둥이
+  rig.arms = [];
+  [1, -1].forEach((side) => {
+    const piv = new THREE.Group();
+    piv.position.set(side * 0.28, 0.16, 0.02);
+    body.add(piv);
+    add(piv, G.cyl, m.main, [0, -0.2, 0.02], [0.06, 0.4, 0.06], [0.2, 0, 0]);
+    add(piv, G.sphereLow, m.main, [0, -0.4, 0.06], [0.075, 0.07, 0.075], null, false);
+    const arm = { pivot: piv, side };
+    if (side > 0) {
+      const club = new THREE.Group();
+      club.position.set(0, -0.42, 0.1);
+      club.rotation.x = 0.6;
+      piv.add(club);
+      add(club, G.cyl, m.dark, [0, 0, 0.22], [0.04, 0.46, 0.04], [Math.PI / 2, 0, 0], false);
+      add(club, G.sphereLow, m.accent, [0, 0, 0.5], [0.1, 0.1, 0.12], null, false);
+      for (let i = 0; i < 3; i++) {
+        add(club, G.coneLow, m.dark, [Math.cos(i * 2.1) * 0.08, 0.06, 0.54], [0.025, 0.08, 0.025], [0.6, 0, 0], false);
+      }
+      arm.sword = true;
+    }
+    rig.arms.push(arm);
+  });
+
+  // 큰 머리 · 뾰족귀 · 코
+  const head = new THREE.Group();
+  head.position.set(0, 0.36, 0.12);
+  body.add(head); rig.head = head;
+  add(head, G.sphere, m.main, [0, 0, 0], [0.3, 0.27, 0.28]);
+  add(head, G.sphereLow, m.accent, [0, -0.06, 0.22], [0.16, 0.1, 0.14], null, false);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.14, 0.12);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.box, m.belly, [0, 0, 0.1], [0.18, 0.05, 0.16], null, false);
+  for (let i = 0; i < 2; i++) {
+    add(head, G.coneLow, m.accent, [0.06 + i * 0.05, -0.1, 0.2], [0.018, 0.06, 0.018], [Math.PI, 0, 0], false);
+    add(head, G.coneLow, m.accent, [-0.06 - i * 0.05, -0.1, 0.2], [0.018, 0.06, 0.018], [Math.PI, 0, 0], false);
+  }
+  add(head, G.sphereLow, m.eye, [0.12, 0.06, 0.18], [0.05, 0.05, 0.04], null, false);
+  add(head, G.sphereLow, m.eye, [-0.12, 0.06, 0.18], [0.05, 0.05, 0.04], null, false);
+  // 뾰족한 귀
+  add(head, G.coneLow, m.main, [0.3, 0.12, -0.02], [0.09, 0.34, 0.06], [0.2, 0, -1.1]);
+  add(head, G.coneLow, m.main, [-0.3, 0.12, -0.02], [0.09, 0.34, 0.06], [0.2, 0, 1.1]);
+  add(head, G.sphereLow, m.dark, [0, 0.24, -0.06], [0.2, 0.08, 0.16], null, false);
+  rig.height = 1.15;
+  rig.upright = true;
+  void def;
+}
+
 const BUILDERS = {
   lion: buildLion, tiger: buildTiger, elephant: buildElephant, bear: buildBear,
   wolf: buildWolf, eagle: buildEagle, crocodile: buildCrocodile, rhino: buildRhino,
@@ -1214,6 +1619,9 @@ const BUILDERS = {
   raptor: buildRaptor, wyvern: buildWyvern, titan: buildTitan,
   zombie: buildZombie, skeleton: buildSkeleton, snake: buildSnake,
   hyena: buildHyena, drex: buildDRex,
+  shark: buildShark, megalodon: buildMegalodon, mosasaurus: buildMosasaurus,
+  leviathan: buildLeviathan, stone_golem: buildStoneGolem, dragon: buildDragon,
+  goblin: buildGoblin,
 };
 
 export const TEAM_TINTS = { blue: 0x3b7bff, red: 0xff4b3b, green: 0x35d47c, gold: 0xffbe3f };
@@ -1226,6 +1634,8 @@ export const ATTACK_STYLE = {
   gorilla: 'smash', titan: 'smash', bear: 'smash',
   eagle: 'swoop', wyvern: 'swoop',
   zombie: 'claw', skeleton: 'slash', drex: 'combo',
+  shark: 'bite', megalodon: 'bite', mosasaurus: 'bite', leviathan: 'bite',
+  stone_golem: 'smash', dragon: 'swoop', goblin: 'slash',
 };
 
 /* ─────────────────── 대량 난전용 초간단 모델 (드로우 콜 절약) ─────────────────── */

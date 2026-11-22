@@ -31,23 +31,31 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
 const P = (id, x, z, weapon = 'none') => ({ id, x, z, weapon });
 
 /* ─────────────── 1. 데이터 ─────────────── */
-check(ANIMALS.length === 14, `동물 14종 (현재 ${ANIMALS.length})`);
-check(DINOS.length === 7, `공룡·거대종 7종 (현재 ${DINOS.length})`);
-check(MONSTERS.length === 2, `괴수·언데드 2종 (현재 ${MONSTERS.length})`);
-check(CREATURES.length === 23, `전체 23종 (현재 ${CREATURES.length})`);
+check(ANIMALS.length === 15, `동물 15종 (현재 ${ANIMALS.length})`);
+check(DINOS.length === 9, `공룡·거대종 9종 (현재 ${DINOS.length})`);
+check(MONSTERS.length === 6, `괴수·언데드 6종 (현재 ${MONSTERS.length})`);
+check(CREATURES.length === 30, `전체 30종 (현재 ${CREATURES.length})`);
 check(new Set(CREATURE_IDS).size === CREATURES.length, '유닛 id 중복 없음');
 check(CATEGORIES.length === 4, '카테고리 4개');
-check(creaturesOf('animal').length === 14 && creaturesOf('dino').length === 6 && creaturesOf('monster').length === 3, '카테고리별 분류 (14/6/3)');
-check(creaturesOf('all').length === 23, '전체 카테고리');
+check(creaturesOf('animal').length === 15 && creaturesOf('dino').length === 8 && creaturesOf('monster').length === 7, '카테고리별 분류 (15/8/7)');
+check(creaturesOf('all').length === 30, '전체 카테고리');
 for (const id of ['zombie', 'skeleton', 'snake', 'hyena', 'drex']) {
+  check(!!CREATURE_BY_ID[id], `기존 유닛 ${id} 등록`);
+}
+for (const id of ['shark', 'megalodon', 'mosasaurus', 'leviathan', 'stone_golem', 'dragon', 'goblin']) {
   check(!!CREATURE_BY_ID[id], `신규 유닛 ${id} 등록`);
 }
 check(CREATURE_BY_ID.drex.cost === 10 && CREATURE_BY_ID.drex.hp >= 650, '디-렉스 보스급 능력치');
+check(CREATURE_BY_ID.shark.cat === 'animal' && CREATURE_BY_ID.megalodon.cat === 'dino' && CREATURE_BY_ID.mosasaurus.cat === 'dino', '신규 해양 유닛 카테고리');
+check(CREATURE_BY_ID.leviathan.cost === 10 && CREATURE_BY_ID.dragon.cost === 10 && CREATURE_BY_ID.goblin.cost === 2, '신규 유닛 비용');
+check(CREATURE_BY_ID.stone_golem.armor >= 0.2 && CREATURE_BY_ID.stone_golem.hp >= 400, '스톤골렘 단단한 방어');
+check(CREATURE_BY_ID.leviathan.hp > CREATURE_BY_ID.dragon.hp, '레비아탄이 드래곤보다 단단함');
 
 const SKILL_KINDS = new Set([
   'roar', 'pounce', 'charge', 'slam', 'pack', 'dive', 'chomp', 'gore', 'evade', 'smash', 'sprint', 'gore2',
   'crunch', 'sailSlash', 'hornCharge', 'packPounce', 'flame', 'titanSlam',
   'infect', 'boneSlash', 'coil', 'frenzy', 'drexCombo',
+  'bloodFrenzy', 'deepBite', 'tidalJaw', 'abyssVortex', 'rockCrush', 'dragonBreath', 'sneakStrike',
 ]);
 for (const a of CREATURES) {
   const tag = `[${a.id}]`;
@@ -64,7 +72,7 @@ for (const a of CREATURES) {
   }
   check(powerOf(a) > 0, `${tag} 전투력 계산`);
 }
-check(new Set(CREATURES.map((a) => a.skill.kind)).size === 23, '서로 다른 스킬 23가지');
+check(new Set(CREATURES.map((a) => a.skill.kind)).size === 30, '서로 다른 스킬 30가지');
 
 check(WEAPONS.length === 5, '무기 5종');
 check(WEAPON_BY_ID.none && WEAPON_BY_ID.gatling && WEAPON_BY_ID.rocket && WEAPON_BY_ID.laser && WEAPON_BY_ID.shield, '무기 id');
@@ -220,8 +228,8 @@ for (const blue of CREATURE_IDS) {
     pairCount++;
   }
 }
-check(pairCount === 23 * 23, '1:1 전 조합 529판 실행');
-check(skillSeen.size === 23, `모든 스킬 23종 발동 (미발동: ${[...SKILL_KINDS].filter((k) => !skillSeen.has(k)).join(',')})`);
+check(pairCount === 30 * 30, '1:1 전 조합 900판 실행');
+check(skillSeen.size === 30, `모든 스킬 30종 발동 (미발동: ${[...SKILL_KINDS].filter((k) => !skillSeen.has(k)).join(',')})`);
 
 // 프리셋 × 전장
 for (const p of PRESETS) {
@@ -343,9 +351,26 @@ function explodeWatch(s) { return s.stats.explosions > 0 && s.time > 3; }
   const trex = s.units.find((u) => u.team === 'blue');
   applyDamage(s, trex, fox, 999, { unavoidable: true });
   check(fox.dead, '치명타 사망');
-  check(fox.vy > 0 || fox.spinVel !== 0, '무거운 일격 → 공중으로 튕김/회전');
+  check(fox.vy > 0, '무거운 일격 → 몸이 튕겨 오름');
+  check(fox.spin === 0 && fox.spinVel === 0, '사망 즉시 회전 0 (죽은 몹이 돌지 않는다)');
   step(s, TUNING.SIM_DT);
   check(fox.y > 0 || fox.vy !== 0, '래그돌 상승 시작');
+}
+
+// 회귀: 사망한 유닛은 계속 돌지 않고 쓰러진 채 정지한다
+{
+  const s = createBattle({ blue: [P('trex', -4, 0)], red: [P('fox', 3, 0), P('bear', 5, 3)], seed: 23 });
+  const fox = s.units.find((u) => u.team === 'red' && u.id === 'fox');
+  const trex = s.units.find((u) => u.team === 'blue');
+  applyDamage(s, trex, fox, 400, { unavoidable: true });
+  let spun = false;
+  for (let i = 0; i < 600; i++) {           // 10초
+    step(s, TUNING.SIM_DT);
+    if (fox.spin !== 0 || fox.spinVel !== 0) spun = true;
+  }
+  check(!spun, '사망 후 10초간 spin/spinVel 0 유지 (죽은 몹 회전 버그 없음)');
+  check(Number.isFinite(fox.spin) && fox.spin === 0, '사망한 유닛 각도 0 으로 고정');
+  check(fox.y === 0 && fox.vy === 0, '사망한 유닛은 결국 땅에 내려와 정지');
 }
 
 // 결정론
@@ -498,8 +523,9 @@ for (const def of CREATURES) {
   check(Number.isFinite(rig.height) && rig.height > 0.6, `[${def.id}] 공격 중 높이 유효`);
   check(STYLE_EXPECT[style](m), `[${def.id}] ${style} 공격 모션 (${JSON.stringify(m)})`);
 }
-check(Object.keys(ATTACK_STYLE).length === CREATURES.length, '23종 모두 공격 스타일 지정');
+check(Object.keys(ATTACK_STYLE).length === CREATURES.length, '30종 모두 공격 스타일 지정');
 check(ATTACK_STYLE.drex === 'combo', '디-렉스는 물기+주먹 콤보');
+check(ATTACK_STYLE.stone_golem === 'smash' && ATTACK_STYLE.goblin === 'slash' && ATTACK_STYLE.dragon === 'swoop', '신규 유닛 공격 모션');
 
 // 무기 발사는 근접 공격 모션을 쓰지 않는다
 triggerShoot(buildAnimalModel(CREATURE_BY_ID.lion, 'blue', { weapon: 'gatling' }));
