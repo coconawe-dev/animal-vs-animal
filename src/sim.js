@@ -526,6 +526,8 @@ function startDash(u, opts) {
     knock: opts.knock || 0, hit: new Set(), pierce: !!opts.pierce,
     kind: opts.kind, aoe: opts.aoe || 0, bleed: opts.bleed || 0, bleedTime: opts.bleedTime || 0,
     crit: !!opts.crit,
+    land: opts.land || null, landStun: opts.landStun || 0, landKnock: opts.landKnock || 0,
+    landPower: opts.landPower || 0,
     stopOnObstacle: opts.stopOnObstacle !== false,
   };
   u.ccImmune = opts.immune ? 0.6 : 0;
@@ -572,6 +574,12 @@ function updateDash(state, u, dt) {
       u.y = 0;
       areaBurst(state, u, u.x, u.z, dash.aoe || 2.2, dash.dmg * 0.5, 0.3, dash.knock * 0.5);
       emit(state, { type: 'diveLand', uid: u.uid, x: u.x, z: u.z });
+    } else if (dash.land === 'tuskQuake') {
+      // 매머드 — 들이받은 뒤 착지 지점에 지진 (높이 띄우고 주변 기절)
+      const r = dash.aoe || 4.8;
+      areaBurst(state, u, u.x, u.z, r, dash.dmg * (dash.landPower || 1.4), dash.landStun, dash.landKnock, null, { launch: true });
+      emit(state, { type: 'tuskQuakeLand', uid: u.uid, x: u.x, z: u.z, r });
+      emit(state, { type: 'quake', x: u.x, z: u.z, r, big: true });
     }
     u.dash = null;
     u.state = 'idle';
@@ -771,6 +779,51 @@ function castSansKit(state, u, target, s, k) {
       }
     }
     emit(state, { type: 'boneSpikes', uid: u.uid, x: u.x, z: u.z, r: k.radius });
+  } else if (k.id === 'gasterHandPunch') {
+    // 가스터손 펀치 — 손바닥에 검은 구멍이 뚫린 거대 해골 손 두 개가 번갈아/동시에 내려찍는다
+    const pts = [];
+    if (target) pts.push({ x: target.x, z: target.z });
+    // 두 번째 손은 목표 외 다른 적을 노린다 (없으면 목표 주변)
+    let second = null;
+    let sd = Infinity;
+    for (const e of state.units) {
+      if (e.dead || e.team === u.team || e === target) continue;
+      const dd = dist2(tx, tz, e.x, e.z);
+      if (dd < sd) { sd = dd; second = e; }
+    }
+    if (second && sd <= (k.range || 12)) pts.push({ x: second.x, z: second.z });
+    else if (target) pts.push({ x: tx + Math.sin(ang + Math.PI / 2) * 2.6, z: tz + Math.cos(ang + Math.PI / 2) * 2.6 });
+    pts.forEach((pt, i) => {
+      emit(state, { type: 'gasterHand', uid: u.uid, x: pt.x, z: pt.z, i, side: i % 2 === 0 ? 1 : -1, r: k.radius });
+      areaBurst(state, u, pt.x, pt.z, k.radius, atk * k.power, k.stun, k.knock, null, { launch: true });
+    });
+    emit(state, { type: 'quake', x: pts[0] ? pts[0].x : tx, z: pts[0] ? pts[0].z : tz, r: k.radius, big: true });
+    state.stats.shots++;
+  } else if (k.id === 'rudeAttack') {
+    // 불미스러운 공격 — 가운뎃손가락을 치켜든 픽셀 손들이 사방에 떠올라 적을 조준해 폭발한다
+    const count = k.count || 5;
+    const pool = state.units
+      .filter((e) => !e.dead && e.team !== u.team && dist2(u.x, u.z, e.x, e.z) <= (k.range || 16))
+      .sort((a, b) => dist2(tx, tz, a.x, a.z) - dist2(tx, tz, b.x, b.z))
+      .slice(0, count);
+    if (!pool.length && target) pool.push(target);
+    pool.forEach((e, i) => {
+      emit(state, { type: 'rudeAttack', uid: u.uid, x: e.x, z: e.z, i, count });
+      const dmg = applyDamage(state, u, e, atk * k.power, { element: 'poison' });
+      if (dmg > 0) {
+        knock(state, e, e.x - u.x, e.z - u.z, 8, { launch: true });
+        slowUnit(state, e, k.slow || 0.5, k.slowTime || 2.4);
+      }
+      if (dist2(e.x, e.z, tx, tz) < k.radius + 0.5) {
+        areaBurst(state, u, e.x, e.z, k.radius * 0.8, atk * k.power * 0.35, 0, 4);
+      }
+    });
+    if (target) {
+      emit(state, {
+        type: 'rudeText', uid: u.uid, x: tx, z: tz, text: '🖕 불미스러운 공격!',
+      });
+    }
+    state.stats.shots++;
   }
   void s;
 }
@@ -853,6 +906,23 @@ function tryCastSkill(state, u, target, d) {
     }
     case 'drexCombo': {
       if (d > s.range + 0.7 || !target) return false;
+      break;
+    }
+    case 'tuskQuake': {
+      if (d > s.range || d < 2.2) return false;
+      break;
+    }
+    case 'tripleVenom': {
+      if (d > s.range + 0.7 || !target) return false;
+      break;
+    }
+    case 'kongQuake': {
+      const r = s.radius || u.range;
+      if (d > r + 1.2 || countEnemiesIn(state, u, r) < 1) return false;
+      break;
+    }
+    case 'heroPunch': {
+      if (!target || d > castRange + 1.0) return false;
       break;
     }
     case 'evade': {
@@ -1141,6 +1211,83 @@ function tryCastSkill(state, u, target, d) {
       });
       break;
     }
+    case 'tuskQuake': {
+      // 매머드 — 긴 엄니로 전방을 들이받고 착지 지점에 지진
+      const dist = Math.min(s.dash || 9.5, Math.max(3, d - 1.0));
+      startDash(u, {
+        vx: (dirX / dirLen) * 20, vz: (dirZ / dirLen) * 20, dist,
+        width: s.width || 2.7, dmg: u.atk * s.power * 0.7, stun: s.stun * 0.5,
+        knock: s.knock * 0.55, kind: 'tuskQuake', aoe: s.radius,
+        land: 'tuskQuake', landStun: s.stun, landKnock: s.knock, landPower: 1.35,
+      });
+      emit(state, { type: 'quakeLine', x: u.x, z: u.z, dx: dirX / dirLen, dz: dirZ / dirLen, len: dist, kind: 'tuskQuake' });
+      break;
+    }
+    case 'tripleVenom': {
+      // 히드라 — 세 머리가 동시에 초록·보라 맹독을 뿜는다
+      if (target) u.facing = Math.atan2(target.x - u.x, target.z - u.z);
+      const lanes = [-1, 0, 1];
+      const spread = s.spread || 0.34;
+      for (const lane of lanes) {
+        const a = u.facing + lane * spread;
+        emit(state, { type: 'tripleVenom', uid: u.uid, x: u.x, z: u.z, ang: a, lane, r: s.range });
+        for (const e of state.units) {
+          if (e.dead || e.team === u.team) continue;
+          const dd = dist2(u.x, u.z, e.x, e.z);
+          if (dd > s.range + 0.6) continue;
+          const ea = Math.atan2(e.x - u.x, e.z - u.z);
+          const tol = 0.16 + 0.4 / Math.max(3, dd);
+          if (Math.abs(shortenAngle(ea - a)) > tol) continue;
+          applyDamage(state, u, e, u.atk * s.power * 0.95, { element: 'poison' });
+          addBleed(state, e, u, s.bleed, s.bleedTime);
+          slowUnit(state, e, s.slow, s.slowTime);
+        }
+      }
+      break;
+    }
+    case 'kongQuake': {
+      // 킹콩 — 가슴을 두드려 포효한 뒤 양 주먹으로 땅을 내리찍는다
+      emit(state, { type: 'chestBeat', uid: u.uid, x: u.x, z: u.z });
+      areaBurst(state, u, u.x, u.z, s.radius, u.atk * s.power, s.stun, s.knock, null, { launch: true });
+      emit(state, { type: 'quake', x: u.x, z: u.z, r: s.radius, big: true });
+      break;
+    }
+    case 'heroPunch': {
+      // 영웅 — 강력펀치 · 연속펀치 · 어퍼컷을 돌려 쓴다
+      const hk = kitSkill || s;
+      const style = hk.id || 'powerPunch';
+      if (!target) break;
+      u.facing = Math.atan2(target.x - u.x, target.z - u.z);
+      if (style === 'rapidPunch') {
+        const strikes = hk.strikes || 7;
+        let landed = 0;
+        const comboTx = target.x;
+        const comboTz = target.z;
+        for (let i = 0; i < strikes; i++) {
+          if (!target || target.dead) break;
+          emit(state, { type: 'heroStrike', uid: u.uid, x: target.x, z: target.z, i, style: 'rapid' });
+          applyDamage(state, u, target, u.atk * hk.power, {});
+          landed++;
+        }
+        // 주변 적에게도 파편 피해
+        coneBurst(state, u, hk.radius, Math.PI * 0.5, u.atk * hk.power * 1.6, { knock: 3 });
+        emit(state, { type: 'heroCombo', uid: u.uid, x: comboTx, z: comboTz, count: landed });
+      } else if (style === 'uppercut') {
+        applyDamage(state, u, target, u.atk * hk.power, {});
+        stunUnit(state, target, hk.stun || 1.2);
+        knock(state, target, target.x - u.x, target.z - u.z, hk.knock || 10, { launch: true });
+        target.vy = Math.max(target.vy, 9.5);
+        emit(state, { type: 'heroStrike', uid: u.uid, x: target.x, z: target.z, i: 0, style: 'uppercut' });
+        emit(state, { type: 'quake', x: u.x, z: u.z, r: hk.radius || 3, big: false });
+      } else {
+        applyDamage(state, u, target, u.atk * hk.power, {});
+        knock(state, target, target.x - u.x, target.z - u.z, hk.knock || 20, { launch: true });
+        if (hk.stun) stunUnit(state, target, hk.stun);
+        areaBurst(state, u, target.x, target.z, (hk.radius || 3) * 0.7, u.atk * hk.power * 0.3, 0, 4);
+        emit(state, { type: 'heroStrike', uid: u.uid, x: target.x, z: target.z, i: 0, style: 'power' });
+      }
+      break;
+    }
     case 'evade': {
       u.dodgeBonus = s.dodge; u.dodgeT = s.dodgeTime;
       haste(u, s.haste, s.hasteTime);
@@ -1228,7 +1375,7 @@ function actUnit(state, u, dt) {
 
   const target = ensureTarget(state, u);
   // 샌즈: 근접 위협을 받으면 잔상을 남기며 뒤로 순간이동
-  if (u.def.id === 'sans') tryBlink(state, u);
+  if (u.def.blink) tryBlink(state, u);
   if (!target) { u.state = 'idle'; return; }
   const d = dist2(u.x, u.z, target.x, target.z);
   const desired = Math.atan2(target.x - u.x, target.z - u.z);

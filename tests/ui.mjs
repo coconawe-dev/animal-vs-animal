@@ -63,8 +63,10 @@ const ui = new UI(app, {
   onNextStage: (id) => calls.nextStage.push(id),
 });
 
+const CARDS = CREATURES.filter((c) => !c.variantOf).length; // 샌즈 페이즈는 카드 하나로 묶인다
+
 /* ── 초기 렌더 ── */
-check($$('#unit-bar .ucard').length === CREATURES.length, `유닛 카드 ${CREATURES.length}장`);
+check($$('#unit-bar .ucard').length === CARDS, `유닛 카드 ${CARDS}장 (샌즈 페이즈 3종은 카드 1장)`);
 check($$('#weapon-row .wchip').length === WEAPONS.length, '무기 칩 5개');
 check($$('#cat-row .cat').length === CATEGORIES.length, '카테고리 탭 4개');
 check($$('#preset-list [data-preset]').length === PRESETS.length, '프리셋 목록');
@@ -104,7 +106,7 @@ $('#cat-row [data-cat="dino"]').click();
 check(app.activeCat === 'dino', '공룡 카테고리');
 check($$('#unit-bar .ucard:not(.hide)').length === 8, '공룡 8종만 표시');
 $('#cat-row [data-cat="all"]').click();
-check($$('#unit-bar .ucard:not(.hide)').length === CREATURES.length, '전체 표시');
+check($$('#unit-bar .ucard:not(.hide)').length === CARDS, '전체 표시');
 
 /* ── 무기 / 수량 ── */
 $('#weapon-row [data-weapon="rocket"]').click();
@@ -287,6 +289,48 @@ for (const a of CREATURES) {
   check($('#detail-line').textContent.includes(a.name), `[${a.id}] 상세 표시`);
 }
 check(CREATURE_BY_ID.titan.name === '거대 타이탄', '타이탄 데이터');
+
+/* ── 샌즈 1·2·3페이즈 선택 ── */
+{
+  app.mode = 'sandbox';
+  app.challenge = null;
+  app.activeCat = 'all';
+  app.selected = 'trex';
+  ui.render();
+  check($('#phase-row').classList.contains('hidden'), '샌즈가 아니면 페이즈 버튼 숨김');
+
+  $('.ucard[data-id="sans"]').click();
+  check(app.selected === 'sans', '샌즈 카드 선택');
+  check(!$('#phase-row').classList.contains('hidden'), '샌즈를 고르면 페이즈 버튼 표시');
+  check($$('#phase-row .pchip').length === 3, '페이즈 버튼 3개');
+  check($('#phase-row .pchip[data-phase="sans"]').classList.contains('on'), '1페이즈 선택 표시');
+  const phaseText = $('#phase-row').textContent;
+  check(phaseText.includes('15') && phaseText.includes('25') && phaseText.includes('50'), `페이즈 코스트 15·25·50 (${phaseText})`);
+  check($('.ucard[data-id="sans"] .u-phases') !== null, '샌즈 카드에 페이즈 배지');
+
+  $('#phase-row .pchip[data-phase="sans_p3"]').click();
+  check(app.selected === 'sans_p3', '3페이즈 선택');
+  check($('.ucard[data-id="sans"]').classList.contains('sel'), '페이즈를 바꿔도 샌즈 카드는 선택 상태');
+  check($('#phase-row .pchip[data-phase="sans_p3"]').classList.contains('on'), '3페이즈 버튼 활성');
+  check($('#detail-line').textContent.includes('샌즈 3페이즈'), '3페이즈 상세 이름');
+  check($('#detail-line').textContent.includes('50'), '3페이즈 코스트 50 표시');
+
+  $('#phase-row .pchip[data-phase="sans_p2"]').click();
+  check(app.selected === 'sans_p2' && $('#place-hint').textContent.includes('샌즈 P2'), '2페이즈 선택');
+
+  ui.setSelected('trex');
+  check($('#phase-row').classList.contains('hidden'), '다른 유닛을 고르면 페이즈 버튼이 다시 숨는다');
+  app.selected = 'trex';
+  ui.render();
+}
+
+/* ── 신규 4종 카드 ── */
+for (const id of ['mammoth', 'hydra', 'king_kong', 'hero']) {
+  const card = $(`.ucard[data-id="${id}"]`);
+  check(card !== null, `[${id}] 유닛 카드`);
+  ui.setSelected(id);
+  check($('#detail-line').textContent.includes(CREATURE_BY_ID[id].name), `[${id}] 상세 표시`);
+}
 
 /* ── 챌린지 6단계 표시 ── */
 app.maxCleared = 6;

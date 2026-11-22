@@ -213,6 +213,81 @@ export class Effects {
     this.boneMat = new THREE.MeshStandardMaterial({
       color: 0xf4f9ff, roughness: 0.5, flatShading: true, emissive: 0x2a5c70, emissiveIntensity: 0.3,
     });
+
+    /* ── 가스터손 (손바닥에 검은 구멍이 뚫린 거대 해골 손) ── */
+    this.gasterHands = [];
+    for (let i = 0; i < 4; i++) {
+      const grp = new THREE.Group();
+      const bone = new THREE.MeshStandardMaterial({
+        color: 0xf8fbff, roughness: 0.4, metalness: 0.04, flatShading: true,
+        emissive: 0x2f7f96, emissiveIntensity: 0.25, transparent: true, opacity: 1,
+      });
+      const palm = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.55, 1.5), bone);
+      grp.add(palm);
+      const hole = new THREE.Mesh(
+        new THREE.CircleGeometry(0.36, 18),
+        new THREE.MeshBasicMaterial({ color: 0x061018, side: THREE.DoubleSide, transparent: true }),
+      );
+      hole.position.set(0, 0.29, 0);
+      hole.rotation.x = -Math.PI / 2;
+      grp.add(hole);
+      const rim = new THREE.Mesh(
+        new THREE.RingGeometry(0.36, 0.5, 18),
+        new THREE.MeshBasicMaterial({ color: 0x9ff4ff, side: THREE.DoubleSide, transparent: true }),
+      );
+      rim.position.set(0, 0.3, 0);
+      rim.rotation.x = -Math.PI / 2;
+      grp.add(rim);
+      for (let f = 0; f < 4; f++) {
+        const tip = f === 3 ? 0.9 : 1.05;
+        const finger = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.11, tip, 6), bone);
+        finger.position.set(-0.54 + f * 0.36, -0.06, 0.95 + (f === 1 || f === 2 ? 0.12 : 0));
+        finger.rotation.x = Math.PI / 2;
+        grp.add(finger);
+      }
+      const thumb = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.85, 6), bone);
+      thumb.position.set(0.9, -0.05, 0.1);
+      thumb.rotation.set(0.3, 0, -1.1);
+      grp.add(thumb);
+      grp.visible = false;
+      this.group.add(grp);
+      this.gasterHands.push({ grp, life: 0, max: 0.72 });
+    }
+    this.gasterHandIdx = 0;
+
+    /* ── 불미스러운 공격 (가운뎃손가락을 든 픽셀 손) ── */
+    this.rudeHands = [];
+    for (let i = 0; i < 12; i++) {
+      const grp = new THREE.Group();
+      const a = new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 1 });
+      const b = new THREE.MeshBasicMaterial({ color: 0xff8a3a, transparent: true, opacity: 1 });
+      const palm = new THREE.Mesh(new THREE.BoxGeometry(0.52, 0.46, 0.18), a);
+      grp.add(palm);
+      for (const k of [-1, 1]) {
+        const bent = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.22, 0.18), b);
+        bent.position.set(k * 0.18, 0.31, 0);
+        grp.add(bent);
+        for (let t = 0; t < 2; t++) {
+          const knuckle = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.12, 0.18), a);
+          knuckle.position.set(k * 0.18, 0.4 + t * 0.11, 0.03);
+          grp.add(knuckle);
+        }
+      }
+      const mid = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.66, 0.18), a);
+      mid.position.set(0, 0.52, 0);
+      grp.add(mid);
+      const nail = new THREE.Mesh(new THREE.BoxGeometry(0.17, 0.1, 0.2), b);
+      nail.position.set(0, 0.88, 0);
+      grp.add(nail);
+      const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.34, 0.18), b);
+      thumb.position.set(-0.33, 0.1, 0);
+      thumb.rotation.z = 0.55;
+      grp.add(thumb);
+      grp.visible = false;
+      this.group.add(grp);
+      this.rudeHands.push({ grp, life: 0, max: 1.0, matA: a, matB: b, baseY: 2.4, spin: 0 });
+    }
+    this.rudeHandIdx = 0;
   }
 
   /* ───────── 강하닭 · 샌즈 스킬 연출 ───────── */
@@ -309,6 +384,82 @@ export class Effects {
     this.flash(x2, 1.7, z2, 1.3, 0x9ff4ff, 0.28);
     this.ring(x2, z2, 0.5, 1.7, 0x9ff4ff, 0.3);
     this.burst(x2, 1.1, z2, 0xdffbff, 10, 3.6, { grav: -1 });
+  }
+
+  /* ───────── 라스트 브레스 3페이즈 · 신규 유닛 연출 ───────── */
+
+  // 손바닥에 검은 구멍이 뚫린 거대 가스터 손이 하늘에서 내려찍는다
+  gasterHand(x, z, side = 1, r = 4.4) {
+    const h = this.gasterHands[this.gasterHandIdx];
+    this.gasterHandIdx = (this.gasterHandIdx + 1) % this.gasterHands.length;
+    h.grp.position.set(x, 8.2, z);
+    h.grp.rotation.set(0.1, side > 0 ? 0.4 : -0.4, side * 0.12);
+    h.grp.scale.setScalar(1.35);
+    h.grp.visible = true;
+    h.grp.traverse((o) => { if (o.material) o.material.opacity = 1; });
+    h.life = 0.72; h.max = 0.72;
+    h.x = x; h.z = z; h.side = side;
+    this.flash(x, 5.6, z, 2.4, 0x9ff4ff, 0.3);
+    this.flash(x, 1.1, z, 2.0, 0xdff6ff, 0.34);
+    this.ring(x, z, 0.8, r * 1.05, 0x9ff4ff, 0.5);
+    this.ring(x, z, 0.4, r * 0.7, 0xffffff, 0.42);
+    this.burst(x, 0.8, z, 0xdff6ff, 24, 7.5);
+    this.dust(x, z, 16, 0xbfe6f2);
+  }
+
+  // 가운뎃손가락을 치켜든 픽셀 손이 둥둥 떠오른다
+  rudeHand(x, z, i = 0) {
+    const h = this.rudeHands[this.rudeHandIdx];
+    this.rudeHandIdx = (this.rudeHandIdx + 1) % this.rudeHands.length;
+    const a = Math.random() * Math.PI * 2;
+    const rr = 0.6 + Math.random() * 1.5;
+    h.baseY = 2.1 + Math.random() * 0.9;
+    h.grp.position.set(x + Math.cos(a) * rr, h.baseY, z + Math.sin(a) * rr);
+    h.grp.rotation.set(0.1, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.35);
+    h.grp.scale.setScalar(1.15 + (i % 3) * 0.12);
+    h.grp.visible = true;
+    h.matA.opacity = 1; h.matB.opacity = 1;
+    h.life = 1.0; h.max = 1.0;
+    h.spin = (Math.random() - 0.5) * 2.4;
+    h.x = x; h.z = z;
+    this.flash(x, h.baseY, z, 1.1, 0xffe066, 0.24);
+    this.burst(x, h.baseY, z, 0xffe066, 10, 4.4);
+  }
+
+  rudeText(x, z, text = '🖕 불미스러운 공격!') {
+    this.text(x, 5.2, z, text, { color: '#ffe066', size: 1.7, life: 1.7 });
+    this.ring(x, z, 0.6, 4.6, 0xffe066, 0.6);
+    this.dust(x, z, 10, 0xffd166);
+  }
+
+  // 히드라 — 세 갈래 맹독 브레스
+  venomBreath(x, z, ang = 0, len = 12) {
+    const steps = 7;
+    for (let i = 1; i <= steps; i++) {
+      const t = i / steps;
+      const bx = x + Math.sin(ang) * len * t;
+      const bz = z + Math.cos(ang) * len * t;
+      const col = i % 2 ? 0x9bf06a : 0x9f4aff;
+      this.burst(bx, 1.1 + t * 0.5, bz, col, 5, 3.2, { grav: -1 });
+      this.flash(bx, 1.4, bz, 0.9 + t * 1.3, col, 0.24);
+    }
+    this.ring(x, z, 0.5, len * 0.55, 0x9bf06a, 0.4);
+  }
+
+  // 매머드 — 엄니 돌진이 끝나고 착지한 자리의 지진
+  tuskQuakeGround(x, z, r = 4.8) {
+    this.ring(x, z, 0.8, r * 1.15, 0xffd9a0, 0.5);
+    this.ring(x, z, 0.5, r * 0.8, 0xfff2d0, 0.42);
+    this.burst(x, 0.7, z, 0xd9c08a, 26, 7.2);
+    this.dust(x, z, 22, 0xe8d9b0);
+  }
+
+  // 킹콩 — 가슴 두드리기
+  chestBeat(x, y, z) {
+    this.ring(x, z, 0.5, 2.6, 0xffb066, 0.45);
+    this.flash(x, y, z, 1.5, 0xffb066, 0.26);
+    this.burst(x, y, z, 0xffc98a, 12, 4.2);
+    this.text(x, y + 1.6, z, '🦍 두근! 두근!', { color: '#ffc98a', size: 0.62, life: 0.8 });
   }
 
   /* ───────── 피해 숫자 ───────── */
@@ -608,6 +759,31 @@ export class Effects {
       s.mesh.material.opacity = Math.max(0, 1 - fall);
       if (s.life <= 0) s.mesh.visible = false;
     }
+    // 가스터손 — 하늘에서 내려찍고 사라진다
+    for (const h of this.gasterHands) {
+      if (h.life <= 0) continue;
+      h.life -= dt;
+      const k = 1 - Math.max(0, h.life) / h.max;
+      const drop = Math.min(1, k / 0.34);
+      const ease = 1 - Math.pow(1 - drop, 3);
+      h.grp.position.y = 8.2 - ease * 7.05;
+      h.grp.rotation.z = (h.side || 1) * (0.12 + Math.sin(k * Math.PI) * 0.12);
+      const fade = k > 0.72 ? Math.max(0, 1 - (k - 0.72) / 0.28) : 1;
+      h.grp.traverse((o) => { if (o.material && o.material.transparent) o.material.opacity = fade; });
+      if (h.life <= 0) h.grp.visible = false;
+    }
+    // 불미스러운 공격 — 손들이 떠서 흔들리다 터진다
+    for (const h of this.rudeHands) {
+      if (h.life <= 0) continue;
+      h.life -= dt;
+      const k = 1 - Math.max(0, h.life) / h.max;
+      h.grp.position.y = h.baseY + Math.sin(this.time * 9 + h.baseY) * 0.12 + k * 0.5;
+      h.grp.rotation.y += h.spin * dt;
+      const fade = k > 0.6 ? Math.max(0, 1 - (k - 0.6) / 0.4) : 1;
+      h.matA.opacity = fade;
+      h.matB.opacity = fade;
+      if (h.life <= 0) h.grp.visible = false;
+    }
   }
 
   clear() {
@@ -621,6 +797,8 @@ export class Effects {
     for (const b of this.blasters) { b.life = 0; b.grp.visible = false; }
     for (const b of this.bigBeams) { b.life = 0; b.mesh.visible = false; }
     for (const s of this.spikes) { s.life = 0; s.mesh.visible = false; }
+    for (const h of this.gasterHands) { h.life = 0; h.grp.visible = false; }
+    for (const h of this.rudeHands) { h.life = 0; h.grp.visible = false; }
     for (const [, mesh] of this.projectileMeshes) this.group.remove(mesh);
     this.projectileMeshes.clear();
   }

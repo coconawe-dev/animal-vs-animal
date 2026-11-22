@@ -2,7 +2,7 @@
 import {
   CREATURES, CREATURE_BY_ID, CATEGORIES, WEAPONS, WEAPON_BY_ID,
   ARENAS, PRESETS, CHALLENGES, TUNING, animalTierStars, placementCost,
-  PARTY, TEAM_ORDER, teamDef, partyTeams,
+  PARTY, TEAM_ORDER, teamDef, partyTeams, SANS_PHASES, isVariant, phaseIdsOf,
 } from './config.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -28,6 +28,7 @@ export class UI {
       hint: $('#place-hint'), budget: $('#budget'),
       leaveChallenge: $('#btn-leave-challenge'),
       catRow: $('#cat-row'), unitBar: $('#unit-bar'), detail: $('#detail-line'),
+      phaseRow: $('#phase-row'),
       modeTabs: $('#mode-tabs'), random: $('#btn-random'),
       dockCount: $('#dock-count'), dockTitle: $('#dock-title'), fight: $('#btn-fight'),
       challengePanel: $('#challenge-panel'), challengeList: $('#challenge-list'),
@@ -81,15 +82,40 @@ export class UI {
   }
 
   buildUnitBar() {
-    this.el.unitBar.innerHTML = CREATURES.map((a) => {
+    // 샌즈 1·2·3페이즈는 카드 하나로 묶고, 고르면 아래에 페이즈 버튼이 열린다
+    this.el.unitBar.innerHTML = CREATURES.filter((a) => !isVariant(a)).map((a) => {
       const color = '#' + a.colors.main.toString(16).padStart(6, '0');
+      const phases = phaseIdsOf(a);
       return `<button class="ucard" data-id="${a.id}" data-cat="${a.cat}" style="--accent:${color}" aria-label="${a.name}">
         <span class="u-cost">${a.cost}</span>
+        ${phases ? '<span class="u-phases">1·2·3</span>' : ''}
         <span class="u-emoji">${a.emoji}</span>
         <span class="u-name">${shortName(a)}</span>
         <span class="u-stars">${animalTierStars(a.tier)}</span>
       </button>`;
     }).join('');
+  }
+
+  // 선택된 유닛이 샌즈면 1·2·3페이즈 선택 버튼을 보여 준다
+  renderPhaseRow() {
+    const row = this.el.phaseRow;
+    if (!row) return;
+    const a = this.app;
+    const ids = phaseIdsOf(CREATURE_BY_ID[a.selected]);
+    if (!ids) {
+      if (this._phaseSig !== '') { this._phaseSig = ''; row.innerHTML = ''; }
+      row.classList.add('hidden');
+      return;
+    }
+    if (this._phaseSig !== 'sans') {
+      this._phaseSig = 'sans';
+      row.innerHTML = SANS_PHASES.map((p) => (
+        `<button class="pchip" data-phase="${p.id}" title="${p.note}">`
+        + `<b>${p.label}</b><i>${p.cost}</i><small>${p.note}</small></button>`
+      )).join('');
+    }
+    row.classList.remove('hidden');
+    $$('#phase-row .pchip').forEach((b) => b.classList.toggle('on', b.dataset.phase === a.selected));
   }
 
   buildWeapons() {
@@ -144,6 +170,15 @@ export class UI {
       if (!b) return;
       this.app.activeCat = b.dataset.cat;
       this.render();
+    });
+
+    this.el.phaseRow?.addEventListener('click', (e) => {
+      const b = e.target.closest('[data-phase]');
+      if (!b) return;
+      this.app.selected = b.dataset.phase;
+      this.app.eraser = false;
+      this.render();
+      this.hooks.onSelectUnit?.(b.dataset.phase);
     });
 
     this.el.weaponRow.addEventListener('click', (e) => {
@@ -372,11 +407,14 @@ export class UI {
     $$('[data-weapon]').forEach((b) => b.classList.toggle('on', b.dataset.weapon === a.weapon));
     // 카테고리
     $$('.cat').forEach((b) => b.classList.toggle('on', b.dataset.cat === a.activeCat));
+    const selDef = CREATURE_BY_ID[a.selected];
+    const selRoot = selDef ? (selDef.variantOf || selDef.id) : a.selected;
     $$('.ucard').forEach((c) => {
       const show = a.activeCat === 'all' || c.dataset.cat === a.activeCat;
       c.classList.toggle('hide', !show);
-      c.classList.toggle('sel', c.dataset.id === a.selected);
+      c.classList.toggle('sel', c.dataset.id === a.selected || c.dataset.id === selRoot);
     });
+    this.renderPhaseRow();
     // 전장
     $$('[data-arena]').forEach((b) => b.classList.toggle('on', b.dataset.arena === a.arenaId));
     // 도구

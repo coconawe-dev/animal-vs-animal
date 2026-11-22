@@ -5,7 +5,7 @@ import * as THREE from '../vendor/three.module.js';
 import {
   ANIMALS, DINOS, MONSTERS, CREATURES, CREATURE_IDS, CREATURE_BY_ID, ANIMAL_BY_ID,
   ARENAS, ARENA_BY_ID, PRESETS, CHALLENGES, WEAPONS, WEAPON_BY_ID, TUNING,
-  DEFAULT_PLACEMENTS, CATEGORIES, powerOf, placementCost, creaturesOf,
+  DEFAULT_PLACEMENTS, CATEGORIES, powerOf, placementCost, creaturesOf, SANS_PHASES,
   PARTY, TEAM_ORDER, TEAM_DEFS, teamDef, partyTeams, sectorBounds, clampToSector,
 } from '../src/config.js';
 import {
@@ -31,14 +31,14 @@ const near = (a, b, eps = 1e-6) => Math.abs(a - b) <= eps;
 const P = (id, x, z, weapon = 'none') => ({ id, x, z, weapon });
 
 /* ─────────────── 1. 데이터 ─────────────── */
-check(ANIMALS.length === 15, `동물 15종 (현재 ${ANIMALS.length})`);
+check(ANIMALS.length === 17, `동물 17종 (현재 ${ANIMALS.length})`);
 check(DINOS.length === 9, `공룡·거대종 9종 (현재 ${DINOS.length})`);
-check(MONSTERS.length === 8, `괴수·언데드 8종 (현재 ${MONSTERS.length})`);
-check(CREATURES.length === 32, `전체 32종 (현재 ${CREATURES.length})`);
+check(MONSTERS.length === 12, `괴수·언데드 12종 (현재 ${MONSTERS.length})`);
+check(CREATURES.length === 38, `전체 38종 (현재 ${CREATURES.length})`);
 check(new Set(CREATURE_IDS).size === CREATURES.length, '유닛 id 중복 없음');
 check(CATEGORIES.length === 4, '카테고리 4개');
-check(creaturesOf('animal').length === 15 && creaturesOf('dino').length === 8 && creaturesOf('monster').length === 9, '카테고리별 분류 (15/8/9)');
-check(creaturesOf('all').length === 32, '전체 카테고리');
+check(creaturesOf('animal').length === 17 && creaturesOf('dino').length === 8 && creaturesOf('monster').length === 13, '카테고리별 분류 (17/8/13)');
+check(creaturesOf('all').length === 38, '전체 카테고리');
 for (const id of ['zombie', 'skeleton', 'snake', 'hyena', 'drex']) {
   check(!!CREATURE_BY_ID[id], `기존 유닛 ${id} 등록`);
 }
@@ -63,12 +63,39 @@ check(CREATURE_BY_ID.sans.hp < CREATURE_BY_ID.strong_chicken.hp && CREATURE_BY_I
 check(CREATURE_BY_ID.sans.skill.kit.length === 3 && CREATURE_BY_ID.sans.skill.kit.map((k) => k.id).join(',') === 'gasterBlast,boneBarrage,boneSpikes',
   '샌즈 — 가스터 블래스터 · 뼈 발사 · 뼈 가시');
 
+/* ── 샌즈 1·2·3페이즈 (라스트 브레스) ── */
+for (const id of ['sans_p2', 'sans_p3']) check(!!CREATURE_BY_ID[id], `샌즈 페이즈 유닛 ${id} 등록`);
+check(SANS_PHASES.length === 3 && SANS_PHASES.map((p) => p.id).join(',') === 'sans,sans_p2,sans_p3', '샌즈 페이즈 3단계');
+check(CREATURE_BY_ID.sans.cost === 15 && CREATURE_BY_ID.sans_p2.cost === 25 && CREATURE_BY_ID.sans_p3.cost === 50, '페이즈 코스트 15·25·50');
+check(CREATURE_BY_ID.sans_p2.atk > CREATURE_BY_ID.sans.atk * 1.5 && CREATURE_BY_ID.sans_p2.hp > CREATURE_BY_ID.sans.hp, '2페이즈 — 같은 기술, 훨씬 강한 공격력');
+check(CREATURE_BY_ID.sans_p2.skill.kit.map((k) => k.id).join(',') === 'gasterBlast,boneBarrage,boneSpikes', '2페이즈 — 1페이즈와 같은 기술 구성');
+check(CREATURE_BY_ID.sans_p3.hp === CREATURE_BY_ID.strong_chicken.hp, '3페이즈 — 체력이 강하닭과 동급 (2100)');
+check(CREATURE_BY_ID.sans_p3.skill.kit.length === 5
+  && CREATURE_BY_ID.sans_p3.skill.kit.map((k) => k.id).join(',') === 'gasterBlast,boneBarrage,boneSpikes,gasterHandPunch,rudeAttack',
+  '3페이즈 — 2페이즈 기술 + 가스터손 펀치 + 불미스러운 공격');
+check(CREATURE_BY_ID.sans_p3.evasion >= CREATURE_BY_ID.sans.evasion && CREATURE_BY_ID.sans_p3.armor > 0, '3페이즈 — 높은 회피/생존력');
+check(CREATURE_BY_ID.sans_p2.variantOf === 'sans' && CREATURE_BY_ID.sans_p3.phase === 3, '페이즈 변종 표시');
+check([CREATURE_BY_ID.sans, CREATURE_BY_ID.sans_p2, CREATURE_BY_ID.sans_p3].every((d) => d.blink === true), '세 페이즈 모두 순간이동');
+
+/* ── 신규 4종 — 매머드 · 히드라 · 킹콩 · 영웅 ── */
+for (const id of ['mammoth', 'hydra', 'king_kong', 'hero']) check(!!CREATURE_BY_ID[id], `신규 유닛 ${id} 등록`);
+check(CREATURE_BY_ID.mammoth.cost >= 8 && CREATURE_BY_ID.mammoth.cost <= 9 && CREATURE_BY_ID.mammoth.cat === 'animal', '매머드 — 동물 8~9코스트');
+check(CREATURE_BY_ID.hydra.cost >= 11 && CREATURE_BY_ID.hydra.cost <= 12 && CREATURE_BY_ID.hydra.cat === 'monster', '히드라 — 괴수 11~12코스트');
+check(CREATURE_BY_ID.king_kong.cost >= 10 && CREATURE_BY_ID.king_kong.cost <= 12 && CREATURE_BY_ID.king_kong.hp > CREATURE_BY_ID.gorilla.hp * 3,
+  '킹콩 — 고릴라보다 훨씬 거대한 영장류');
+check(CREATURE_BY_ID.hero.cost >= 12 && CREATURE_BY_ID.hero.cost <= 14, '영웅 — 12~14코스트');
+check(CREATURE_BY_ID.hero.skill.kit.map((k) => k.name).join(',') === '강력펀치,연속펀치,어퍼컷', '영웅 — 강력펀치·연속펀치·어퍼컷 3스킬');
+check(CREATURE_BY_ID.mammoth.skill.kind === 'tuskQuake' && CREATURE_BY_ID.hydra.skill.kind === 'tripleVenom'
+  && CREATURE_BY_ID.king_kong.skill.kind === 'kongQuake' && CREATURE_BY_ID.hero.skill.kind === 'heroPunch', '신규 4종 스킬 종류');
+check(['mammoth', 'hydra', 'king_kong', 'hero'].every((id) => CREATURE_BY_ID[id].cost <= PARTY.BUDGET), '신규 4종 모두 파티 예산 60 이내');
+
 const SKILL_KINDS = new Set([
   'roar', 'pounce', 'charge', 'slam', 'pack', 'dive', 'chomp', 'gore', 'evade', 'smash', 'sprint', 'gore2',
   'crunch', 'sailSlash', 'hornCharge', 'packPounce', 'flame', 'titanSlam',
   'infect', 'boneSlash', 'coil', 'frenzy', 'drexCombo',
   'bloodFrenzy', 'deepBite', 'tidalJaw', 'abyssVortex', 'rockCrush', 'dragonBreath', 'sneakStrike',
   'featherStorm', 'gasterBlast',
+  'tuskQuake', 'tripleVenom', 'kongQuake', 'heroPunch',
 ]);
 for (const a of CREATURES) {
   const tag = `[${a.id}]`;
@@ -85,7 +112,7 @@ for (const a of CREATURES) {
   }
   check(powerOf(a) > 0, `${tag} 전투력 계산`);
 }
-check(new Set(CREATURES.map((a) => a.skill.kind)).size === 32, '서로 다른 스킬 32가지');
+check(new Set(CREATURES.map((a) => a.skill.kind)).size === 36, '서로 다른 스킬 36가지');
 
 check(WEAPONS.length === 5, '무기 5종');
 check(WEAPON_BY_ID.none && WEAPON_BY_ID.gatling && WEAPON_BY_ID.rocket && WEAPON_BY_ID.laser && WEAPON_BY_ID.shield, '무기 id');
@@ -126,6 +153,9 @@ check(raptorPreset && Math.max(...raptorPreset.blue.map((q) => Math.hypot(q.x, q
 check(PRESETS.some((p) => p.id === 'rocket-elephants' && p.blue.every((q) => q.weapon === 'rocket')), '로켓 코끼리 프리셋');
 check(PRESETS.some((p) => p.id === 'boss-raid' && p.blue.length >= 10), '보스 레이드 프리셋');
 check(PRESETS.some((p) => p.id === 'chicken-sans' && p.blue[0].id === 'strong_chicken' && p.red[0].id === 'sans'), '강하닭 vs 샌즈 프리셋');
+check(PRESETS.some((p) => p.id === 'lastbreath-p3' && p.blue[0].id === 'sans_p3' && p.red[0].id === 'strong_chicken'), '라스트 브레스 3페이즈 vs 강하닭 프리셋');
+check(PRESETS.some((p) => p.id === 'new-units-2026'
+  && ['mammoth', 'hydra', 'king_kong', 'hero'].every((id) => p.blue.some((q) => q.id === id))), '신규 4종 쇼케이스 프리셋');
 const mega = PRESETS.find((p) => p.id === 'mega-swarm');
 check(!!mega && mega.blue.length === 50 && mega.red.length === 50, '100마리 대난전 프리셋 (50 vs 50)');
 
@@ -269,8 +299,8 @@ for (const blue of CREATURE_IDS) {
     pairCount++;
   }
 }
-check(pairCount === 32 * 32, '1:1 전 조합 1024판 실행');
-check(skillSeen.size === 32, `모든 스킬 32종 발동 (미발동: ${[...SKILL_KINDS].filter((k) => !skillSeen.has(k)).join(',')})`);
+check(pairCount === CREATURES.length * CREATURES.length, `1:1 전 조합 ${CREATURES.length ** 2}판 실행`);
+check(skillSeen.size === 36, `모든 스킬 36종 발동 (미발동: ${[...SKILL_KINDS].filter((k) => !skillSeen.has(k)).join(',')})`);
 
 // 프리셋 × 전장
 for (const p of PRESETS) {
@@ -428,6 +458,83 @@ function explodeWatch(s) { return s.stats.explosions > 0 && s.time > 3; }
     if (s.winner === 'blue') wins++;
   });
   check(wins >= 2, `강하닭이 10코스트와의 1:1에서 우세 (${wins}/3)`);
+}
+
+/* ── 샌즈 3페이즈 — 가스터손 펀치 · 불미스러운 공격까지 5기술 ── */
+{
+  const s = createBattle({ blue: [P('sans_p3', -6, 0)], red: [P('strong_chicken', 6, 0)], seed: 2026 });
+  s.units.forEach((u) => { u.hp = u.maxHp = 40000; });
+  const names = new Set();
+  const seenTypes = new Set();
+  for (let i = 0; i < 3600; i++) {
+    step(s, TUNING.SIM_DT);
+    for (const ev of drainEvents(s)) {
+      seenTypes.add(ev.type);
+      if (ev.type === 'skill') names.add(ev.name);
+    }
+  }
+  check(names.has('가스터손 펀치') && names.has('불미스러운 공격'), `3페이즈 — 신규 2기술 사용 (${[...names].join(',')})`);
+  check(names.has('가스터 블래스터') && names.has('뼈 발사') && names.has('뼈 가시'), '3페이즈 — 2페이즈 기술도 함께 사용');
+  for (const t of ['gasterHand', 'rudeAttack', 'rudeText']) check(seenTypes.has(t), `[${t}] 3페이즈 3D 연출 이벤트`);
+  check(s.units.some((u) => u.id === 'sans_p3' && u.skillCasts >= 5), '3페이즈가 여러 기술을 반복 사용');
+}
+
+/* ── 영웅 — 강력펀치 · 연속펀치 · 어퍼컷 ── */
+{
+  const s = createBattle({ blue: [P('hero', -6, 0)], red: [P('strong_chicken', 6, 0)], seed: 411 });
+  s.units.forEach((u) => { u.hp = u.maxHp = 40000; });
+  const names = new Set();
+  const styles = new Set();
+  for (let i = 0; i < 3600; i++) {
+    step(s, TUNING.SIM_DT);
+    for (const ev of drainEvents(s)) {
+      if (ev.type === 'skill') names.add(ev.name);
+      if (ev.type === 'heroStrike') styles.add(ev.style);
+    }
+  }
+  check(names.has('강력펀치') && names.has('연속펀치') && names.has('어퍼컷'), `영웅 — 세 가지 펀치 사용 (${[...names].join(',')})`);
+  check(styles.has('power') && styles.has('rapid') && styles.has('uppercut'), '영웅 — 펀치별 타격 연출');
+}
+
+/* ── 매머드 · 히드라 · 킹콩 스킬 연출 ── */
+for (const [id, skillName, evType] of [
+  ['mammoth', '엄니 대지진', 'tuskQuakeLand'],
+  ['hydra', '삼두 맹독 브레스', 'tripleVenom'],
+  ['king_kong', '가슴 두드리기 대지 강타', 'chestBeat'],
+]) {
+  const s = createBattle({ blue: [P(id, -6, 0)], red: [P('strong_chicken', 6, 0)], seed: 77 });
+  s.units.forEach((u) => { u.hp = u.maxHp = 20000; });
+  const names = new Set();
+  let sawEvent = false;
+  for (let i = 0; i < 2400 && !s.over; i++) {
+    step(s, TUNING.SIM_DT);
+    for (const ev of drainEvents(s)) {
+      if (ev.type === 'skill') names.add(ev.name);
+      if (ev.type === evType) sawEvent = true;
+    }
+  }
+  check(names.has(skillName), `[${id}] 「${skillName}」 사용`);
+  check(sawEvent, `[${id}] [${evType}] 연출 이벤트`);
+}
+{
+  // 매머드 엄니 돌진은 적을 띄우고, 히드라는 맹독 둔화를 남긴다
+  const s = createBattle({ blue: [P('mammoth', -4, 0)], red: [P('lion', 2, 0)], seed: 91 });
+  s.units.forEach((u) => { u.hp = u.maxHp = 30000; });
+  let launched = false;
+  for (let i = 0; i < 1800 && !launched; i++) {
+    step(s, TUNING.SIM_DT);
+    launched = s.units.some((u) => u.team === 'red' && u.y > 0.3);
+  }
+  check(launched, '매머드 엄니 — 적을 공중으로 띄움');
+
+  const h = createBattle({ blue: [P('hydra', -4, 0)], red: [P('bear', 2, 0)], seed: 92 });
+  h.units.forEach((u) => { u.hp = u.maxHp = 30000; });
+  let slowed = false;
+  for (let i = 0; i < 900 && !slowed; i++) {
+    step(h, TUNING.SIM_DT);
+    slowed = h.units.some((u) => u.team === 'red' && (u.slow > 0 || u.bleeding.length > 0));
+  }
+  check(slowed, '히드라 맹독 — 둔화/지속 피해');
 }
 
 // 래그돌: 무거운 일격에 가벼운 유닛이 공중으로
@@ -609,7 +716,7 @@ for (const def of CREATURES) {
   check(Number.isFinite(rig.height) && rig.height > 0.6, `[${def.id}] 공격 중 높이 유효`);
   check(STYLE_EXPECT[style](m), `[${def.id}] ${style} 공격 모션 (${JSON.stringify(m)})`);
 }
-check(Object.keys(ATTACK_STYLE).length === CREATURES.length, '32종 모두 공격 스타일 지정');
+check(Object.keys(ATTACK_STYLE).length === CREATURES.length, `${CREATURES.length}종 모두 공격 스타일 지정`);
 check(ATTACK_STYLE.drex === 'combo', '디-렉스는 물기+주먹 콤보');
 check(ATTACK_STYLE.stone_golem === 'smash' && ATTACK_STYLE.goblin === 'slash' && ATTACK_STYLE.dragon === 'swoop', '신규 유닛 공격 모션');
 check(ATTACK_STYLE.strong_chicken === 'bite' && ATTACK_STYLE.sans === 'claw', '강하닭·샌즈 공격 모션');
@@ -861,6 +968,19 @@ for (const n of [3, 4]) {
   const back = unpackEvent(packEvent(ev));
   check(back.type === 'hit' && back.uid === 3 && Math.abs(back.x - 12.35) < 0.02 && back.crit === true && back.dot === false, '이벤트 압축 왕복');
   check(packEvent({ type: 'nope' }) === null, '모르는 이벤트는 보내지 않음');
+
+  // 라스트 브레스 · 신규 4종 이벤트도 파티에서 동기화된다
+  const hand = unpackEvent(packEvent({ type: 'gasterHand', uid: 9, x: 3.2, z: -1.4, side: -1, i: 1, r: 4.4 }));
+  check(hand && hand.type === 'gasterHand' && hand.i === 1 && hand.side === -1, '가스터손 이벤트 압축');
+  const rude = unpackEvent(packEvent({ type: 'rudeAttack', uid: 9, x: 1, z: 2, i: 3, count: 5 }));
+  check(rude && rude.type === 'rudeAttack' && rude.count === 5, '불미스러운 공격 이벤트 압축');
+  const hero = unpackEvent(packEvent({ type: 'heroStrike', uid: 4, x: 0, z: 0, i: 2, style: 'uppercut' }));
+  check(hero && hero.type === 'heroStrike' && hero.style === 'uppercut', '영웅 펀치 이벤트 압축');
+  const venom = unpackEvent(packEvent({ type: 'tripleVenom', uid: 4, x: 0, z: 0, ang: 1.2, lane: 0, r: 12 }));
+  check(venom && venom.type === 'tripleVenom' && Math.abs(venom.ang - 1.2) < 0.02, '히드라 브레스 이벤트 압축');
+  for (const t of ['rudeText', 'gasterHand', 'tripleVenom', 'heroStrike', 'heroCombo', 'chestBeat', 'tuskQuakeLand']) {
+    check(!!unpackEvent(packEvent({ type: t, uid: 1, x: 1, z: 1, text: '🖕', style: 'power', lane: 0, r: 3, i: 0, count: 2, side: 1 })), `[${t}] 파티 이벤트 등록`);
+  }
 }
 
 /* ── 4인 파티 루프백 ── */

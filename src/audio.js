@@ -94,7 +94,11 @@ export class Sfx {
   }
 
   skill(kind) {
-    if (kind === 'roar' || kind === 'smash' || kind === 'titanSlam' || kind === 'rockCrush' || kind === 'abyssVortex') return this.roar();
+    if (kind === 'titanSlam' || kind === 'rockCrush' || kind === 'abyssVortex') return this.roar();
+    if (kind === 'kongQuake') return this.roar();
+    if (kind === 'tuskQuake') return this.slam();
+    if (kind === 'tripleVenom') return this.venom();
+    if (kind === 'heroPunch') return this.hero('power');
     if (kind === 'slam' || kind === 'quake') return this.slam();
     if (kind === 'charge' || kind === 'gore' || kind === 'gore2' || kind === 'hornCharge') return this.whoosh();
     if (kind === 'pounce' || kind === 'packPounce' || kind === 'sailSlash') return this.whoosh();
@@ -138,6 +142,65 @@ export class Sfx {
 
   feather() {
     this.noiseBurst({ dur: 0.32, freq: 900, q: 0.7, gain: 0.1, type: 'bandpass', sweep: 320 });
+  }
+
+  // 가스터손 — 하늘에서 내려찍는 거대한 손
+  gasterHand() {
+    this.boom();
+    this.tone({ freq: 68, freq2: 28, dur: 0.55, gain: 0.46, type: 'sine' });
+    this.noiseBurst({ dur: 0.4, freq: 700, q: 0.8, gain: 0.3, sweep: 90 });
+    this.tone({ freq: 320, freq2: 120, dur: 0.22, gain: 0.14, type: 'sawtooth' });
+  }
+
+  // 불미스러운 공격 — 발랄한 삐- 소리
+  rude() {
+    if (!this.ok) return;
+    const now = performance.now();
+    if (now - (this.lastRude || 0) < 70) return;
+    this.lastRude = now;
+    this.tone({ freq: 660, freq2: 990, dur: 0.1, gain: 0.16, type: 'square' });
+    this.tone({ freq: 990, freq2: 1320, dur: 0.08, gain: 0.1, type: 'square', delay: 0.07 });
+    this.noiseBurst({ dur: 0.14, freq: 2200, q: 1.2, gain: 0.1, type: 'bandpass', sweep: 900 });
+  }
+
+  // 히드라 맹독 브레스
+  venom() {
+    if (!this.ok) return;
+    const now = performance.now();
+    if (now - (this.lastVenom || 0) < 90) return;
+    this.lastVenom = now;
+    this.noiseBurst({ dur: 0.5, freq: 1400, q: 0.6, gain: 0.24, type: 'lowpass', sweep: 260 });
+    this.tone({ freq: 180, freq2: 92, dur: 0.4, gain: 0.16, type: 'sawtooth' });
+  }
+
+  // 킹콩 가슴 두드리기
+  chest() {
+    if (!this.ok) return;
+    const now = performance.now();
+    if (now - (this.lastChest || 0) < 60) return;
+    this.lastChest = now;
+    this.tone({ freq: 110, freq2: 70, dur: 0.16, gain: 0.34, type: 'sine' });
+    this.noiseBurst({ dur: 0.16, freq: 320, gain: 0.26, sweep: 120 });
+  }
+
+  // 영웅 펀치 3종
+  hero(style = 'power') {
+    if (!this.ok) return;
+    const now = performance.now();
+    if (now - (this.lastHero || 0) < 55) return;
+    this.lastHero = now;
+    if (style === 'rapid') {
+      this.noiseBurst({ dur: 0.07, freq: 2400, q: 1.3, gain: 0.16, type: 'bandpass', sweep: 1400 });
+      this.tone({ freq: 420, freq2: 260, dur: 0.06, gain: 0.1, type: 'square' });
+      return;
+    }
+    if (style === 'uppercut') {
+      this.noiseBurst({ dur: 0.22, freq: 900, q: 0.9, gain: 0.34, type: 'bandpass', sweep: 2600 });
+      this.tone({ freq: 260, freq2: 760, dur: 0.24, gain: 0.22, type: 'triangle' });
+      return;
+    }
+    this.noiseBurst({ dur: 0.26, freq: 700, q: 0.8, gain: 0.44, sweep: 140 });
+    this.tone({ freq: 120, freq2: 48, dur: 0.3, gain: 0.4, type: 'sine' });
   }
 
   laser() {

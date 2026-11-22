@@ -929,6 +929,7 @@ const SK_COLORS = {
   abyssVortex: 0x4a8aff, rockCrush: 0xc0a878, dragonBreath: 0xff6a2a,
   sneakStrike: 0xa8ff6a,
   featherStorm: 0xffe9a8, gasterBlast: 0x9ff4ff,
+  tuskQuake: 0xffd9a0, tripleVenom: 0x9bf06a, kongQuake: 0xffb066, heroPunch: 0xffd166,
 };
 
 function handleEvent(ev) {
@@ -1063,6 +1064,67 @@ function handleEvent(ev) {
     case 'blink': {
       effects.blink(ev.x, ev.z, ev.x2 == null ? ev.x : ev.x2, ev.z2 == null ? ev.z : ev.z2);
       sfx.blink();
+      break;
+    }
+    case 'gasterHand': {
+      effects.gasterHand(ev.x, ev.z, ev.side || 1, ev.r || 4.4);
+      sfx.gasterHand();
+      stage.shake = Math.max(stage.shake, 0.5);
+      break;
+    }
+    case 'rudeAttack': {
+      effects.rudeHand(ev.x, ev.z, ev.i || 0);
+      sfx.rude();
+      break;
+    }
+    case 'rudeText': {
+      effects.rudeText(ev.x, ev.z, ev.text || '🖕 불미스러운 공격!');
+      break;
+    }
+    case 'tripleVenom': {
+      effects.venomBreath(ev.x, ev.z, ev.ang || 0, ev.r || 12);
+      sfx.venom();
+      break;
+    }
+    case 'chestBeat': {
+      effects.chestBeat(ev.x, 2.2, ev.z);
+      sfx.chest();
+      stage.shake = Math.max(stage.shake, 0.22);
+      break;
+    }
+    case 'tuskQuakeLand': {
+      effects.tuskQuakeGround(ev.x, ev.z, ev.r || 4.8);
+      sfx.slam();
+      stage.shake = Math.max(stage.shake, 0.52);
+      break;
+    }
+    case 'heroStrike': {
+      const style = ev.style || 'power';
+      if (style === 'rapid') {
+        effects.burst(ev.x, 1.3 + ((ev.i || 0) % 3) * 0.28, ev.z, 0xffe066, 6, 3.6);
+        effects.slash(ev.x, 1.2 + ((ev.i || 0) % 3) * 0.3, ev.z, Math.random() * 6, 1.2, 0xfff0c0);
+        sfx.hero('rapid');
+      } else if (style === 'uppercut') {
+        effects.ring(ev.x, ev.z, 0.5, 4.2, 0xffd166, 0.5);
+        effects.flash(ev.x, 1.4, ev.z, 1.8, 0xffe9a8, 0.28);
+        effects.burst(ev.x, 1.2, ev.z, 0xfff2b0, 20, 6.5, { grav: -2 });
+        effects.text(ev.x, 3.2, ev.z, '어퍼컷!', { color: '#ffe066', size: 0.9, crit: true, life: 1.0 });
+        sfx.hero('uppercut');
+        stage.shake = Math.max(stage.shake, 0.36);
+      } else {
+        effects.flash(ev.x, 1.4, ev.z, 2.2, 0xffe9a8, 0.3);
+        effects.ring(ev.x, ev.z, 0.6, 4.6, 0xffd166, 0.45);
+        effects.slash(ev.x, 1.3, ev.z, Math.random() * 6, 2.4, 0xfff0c0);
+        effects.burst(ev.x, 1.3, ev.z, 0xffd166, 22, 7);
+        effects.text(ev.x, 3.2, ev.z, '강력펀치!', { color: '#ffe066', size: 0.9, crit: true, life: 1.0 });
+        sfx.hero('power');
+        stage.shake = Math.max(stage.shake, 0.46);
+      }
+      break;
+    }
+    case 'heroCombo': {
+      effects.text(ev.x, 4.0, ev.z, `연속펀치! ×${ev.count || 0}`, { color: '#ffe066', size: 0.95, life: 1.2 });
+      effects.ring(ev.x, ev.z, 0.6, 3.4, 0xffd166, 0.42);
       break;
     }
     case 'dashStart': sfx.whoosh(); break;

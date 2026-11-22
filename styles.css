@@ -296,6 +296,32 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
   border-radius: 5px; background: rgba(0,0,0,.55); color: var(--gold);
   font-size: 8.5px; font-weight: 800; display: grid; place-items: center;
 }
+.u-phases {
+  position: absolute; top: 3px; right: 3px; padding: 0 3px; height: 14px;
+  border-radius: 5px; background: rgba(159,244,255,.18); color: #9ff4ff;
+  font-size: 7.5px; font-weight: 800; display: grid; place-items: center; letter-spacing: -0.04em;
+}
+
+/* ── 샌즈 1·2·3페이즈 선택 ── */
+.phase-row { display: flex; gap: 5px; padding: 2px 1px 6px; overflow-x: auto; scrollbar-width: none; }
+.phase-row::-webkit-scrollbar { display: none; }
+.phase-row.hidden { display: none; }
+.pchip {
+  position: relative; flex: 0 0 auto; min-width: 78px; padding: 5px 9px;
+  border-radius: 10px; border: 1px solid var(--line);
+  background: linear-gradient(160deg, rgba(159,244,255,.10), rgba(255,255,255,.02));
+  display: flex; flex-direction: column; align-items: flex-start; gap: 0; line-height: 1.15;
+  white-space: nowrap; transition: transform .14s, border-color .2s, background .2s;
+}
+.pchip:active { transform: scale(.96); }
+.pchip b { font-size: 10px; font-weight: 900; color: #dff6ff; }
+.pchip i { font-style: normal; font-size: 9px; font-weight: 800; color: var(--gold); }
+.pchip small { font-size: 7.5px; color: var(--muted-2); }
+.pchip.on {
+  border-color: rgba(159,244,255,.85);
+  background: linear-gradient(160deg, rgba(159,244,255,.28), rgba(159,244,255,.05));
+  box-shadow: 0 0 0 1px rgba(159,244,255,.3) inset;
+}
 
 .detail-line {
   min-height: 26px; padding: 4px 8px; margin-bottom: 5px;

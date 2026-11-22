@@ -285,6 +285,28 @@ const ANIMAL_LIST = [
     evasion: 0.08,
   },
   {
+    id: 'mammoth', name: '매머드', emoji: '🦣', cat: 'animal', tier: 4, cost: 9, role: '돌격 탱커',
+    hp: 520, atk: 36, spd: 2.7, range: 3.5, atkInterval: 1.3,
+    colors: { main: 0x6b4a2f, dark: 0x3a2415, accent: 0xf2e8d4, belly: 0x8f6a44 },
+    scale: 1.26, size: 1.5,
+    desc: '빙하기의 거대한 털복숭이. 길게 휘어진 엄니로 상대를 들이받아 하늘로 띄운다.',
+    skill: { kind: 'tuskQuake', name: '엄니 대지진', icon: '🦣', cd: 8.4, range: 10.5, radius: 4.8, power: 1.75, stun: 1.3, knock: 19, dash: 9.5, width: 2.7,
+      desc: '엄니로 전방을 들이받아 띄우고, 착지 지점에 지진을 일으켜 기절시킨다' },
+    passive: '넉백 저항 75% · 두꺼운 털',
+    armor: 0.12, kbResist: 0.75,
+  },
+  {
+    id: 'king_kong', name: '킹콩', emoji: '🦍', cat: 'animal', tier: 4, cost: 11, role: '거대 영장류',
+    hp: 700, atk: 48, spd: 3.2, range: 3.8, atkInterval: 1.3,
+    colors: { main: 0x3a2a24, dark: 0x1a1210, accent: 0xc8b8a0, belly: 0x5d4536 },
+    scale: 1.4, size: 1.7,
+    desc: '고릴라를 아득히 넘어선 거대 영장류. 가슴을 두드려 포효한 뒤 양 주먹으로 땅을 내리찍는다.',
+    skill: { kind: 'kongQuake', name: '가슴 두드리기 대지 강타', icon: '🦍', cd: 9.0, range: 5.2, radius: 8.2, power: 2.15, stun: 1.6, knock: 21,
+      desc: '가슴을 두드려 포효한 뒤 양 주먹으로 땅을 찍어 광역 넉백·기절' },
+    passive: '거대 체력 · 넉백 저항 85%',
+    armor: 0.14, kbResist: 0.85,
+  },
+  {
     id: 'shark', name: '상어', emoji: '🦈', cat: 'animal', tier: 2, cost: 4, role: '출혈 추격자',
     hp: 156, atk: 18, spd: 4.5, range: 2.7, atkInterval: 0.85, evasion: 0.06,
     colors: { main: 0x6f8ea8, dark: 0x2f4356, accent: 0xe8f2f8, belly: 0xcfdde6 },
@@ -460,6 +482,35 @@ const MONSTER_LIST = [
     kbResist: 0.45,
   },
   {
+    id: 'hydra', name: '히드라', emoji: '🐍', cat: 'monster', tier: 4, cost: 12, role: '다두룡',
+    hp: 600, atk: 40, spd: 3.0, range: 4.6, atkInterval: 1.25,
+    colors: { main: 0x2f6b52, dark: 0x14322a, accent: 0x9bf06a, belly: 0x6fa87a },
+    scale: 1.3, size: 1.6,
+    desc: '목이 셋으로 갈라진 거대한 다두룡. 세 머리가 동시에 맹독을 뿜어 적을 녹인다.',
+    skill: { kind: 'tripleVenom', name: '삼두 맹독 브레스', icon: '🐍', cd: 7.6, range: 12, radius: 3.4, spread: 0.34, power: 1.5, bleed: 5, bleedTime: 5, slow: 0.5, slowTime: 3.4,
+      desc: '세 머리가 초록·보라 맹독을 뿜어 광역 지속 피해 + 강한 둔화' },
+    passive: '거대 체력 · 독에 강하다',
+    armor: 0.1, kbResist: 0.6,
+  },
+  {
+    id: 'hero', name: '영웅', emoji: '🦸', cat: 'monster', tier: 4, cost: 13, role: '히어로',
+    hp: 560, atk: 44, spd: 4.2, range: 3.0, atkInterval: 0.95,
+    colors: { main: 0x2f57c8, dark: 0x17306e, accent: 0xffd24a, belly: 0xe8eefc },
+    scale: 1.18, size: 1.12,
+    desc: '망토를 휘날리며 빛나는 주먹으로 싸우는 히어로. 강력펀치·연속펀치·어퍼컷을 번갈아 날린다.',
+    skill: {
+      kind: 'heroPunch', name: '강력펀치', icon: '🦸', cd: 5.2, range: 8.0, radius: 4.2, power: 1.9,
+      desc: '강력펀치 · 연속펀치 · 어퍼컷을 전투 중 번갈아 사용한다',
+      kit: [
+        { id: 'powerPunch', name: '강력펀치', icon: '👊', range: 4.4, radius: 3.4, power: 2.05, knock: 22, stun: 0.4 },
+        { id: 'rapidPunch', name: '연속펀치', icon: '🥊', range: 4.0, radius: 2.8, power: 0.46, strikes: 7 },
+        { id: 'uppercut', name: '어퍼컷', icon: '☝️', range: 4.0, radius: 3.0, power: 1.7, stun: 1.3, knock: 12 },
+      ],
+    },
+    passive: '방어 12% · 넉백 저항 50%',
+    armor: 0.12, kbResist: 0.5,
+  },
+  {
     id: 'goblin', name: '고블린', emoji: '👺', cat: 'monster', tier: 1, cost: 2, role: '비열한 습격자',
     hp: 84, atk: 13, spd: 5.6, range: 2.0, atkInterval: 0.62, evasion: 0.14, crit: 0.15,
     colors: { main: 0x6fa03a, dark: 0x2e4a18, accent: 0xc8a040, belly: 0xa8c870 },
@@ -509,8 +560,73 @@ const MONSTER_LIST = [
     },
     passive: '기본 회피 24% · 순간이동',
     evasion: 0.24,
+    blink: true,
+    phase: 1,
+  },
+  /* ── 샌즈 2페이즈 · 3페이즈 (라스트 브레스) ──
+     1페이즈와 같은 가스터/뼈 기술을 쓰되, 페이즈가 올라갈수록 공격력과 체력이 치솟는다.
+     3페이즈는 가스터손 펀치 · 불미스러운 공격을 추가로 익힌다. */
+  {
+    id: 'sans_p2', name: '샌즈 2페이즈', short: '샌즈 P2', emoji: '💀', cat: 'monster', tier: 4, cost: 25, role: '라스트 브레스',
+    hp: 680, atk: 82, spd: 5.2, range: 6.6, atkInterval: 0.92, ranged: true,
+    colors: { main: 0x3b6fd4, dark: 0x1b2a4a, accent: 0xffffff, belly: 0xf2f4fa },
+    scale: 1.1, size: 1.02,
+    variantOf: 'sans', phase: 2, blink: true,
+    desc: '가슴이 날카롭게 베이고 입가에 피가 번진 샌즈. 왼손에 뼈다귀를 쥐고, 1페이즈와 같은 기술을 훨씬 무겁게 내리친다.',
+    skill: {
+      kind: 'gasterBlast', name: '가스터 블래스터', icon: '💀', cd: 4.0, range: 15, radius: 5.8, power: 2.1,
+      desc: '가스터 블래스터 · 뼈 발사 · 뼈 가시를 1페이즈와 같게 쓰되 위력이 크게 강화됐다',
+      kit: [
+        { id: 'gasterBlast', name: '가스터 블래스터', icon: '💀', radius: 1.8, range: 15, power: 2.1 },
+        { id: 'boneBarrage', name: '뼈 발사', icon: '🦴', radius: 1.0, range: 15, power: 0.46, count: 10 },
+        { id: 'boneSpikes', name: '뼈 가시', icon: '⛏️', radius: 6.8, range: 8.0, power: 1.55, stun: 0.7, slow: 0.45, slowTime: 2.2 },
+      ],
+    },
+    passive: '기본 회피 26% · 순간이동 · 강화된 공격력',
+    evasion: 0.26,
+  },
+  {
+    id: 'sans_p3', name: '샌즈 3페이즈', short: '샌즈 P3', emoji: '💀', cat: 'monster', tier: 4, cost: 50, role: '최종 보스',
+    hp: 2100, atk: 115, spd: 5.4, range: 7.0, atkInterval: 0.86, ranged: true,
+    colors: { main: 0x3b6fd4, dark: 0x1b2a4a, accent: 0xffffff, belly: 0xf2f4fa },
+    scale: 1.12, size: 1.04,
+    variantOf: 'sans', phase: 3, blink: true,
+    desc: '두개골이 깨지고 눈이 새까맣게 변 샌즈. 등 뒤로 가스터의 그림자가 드리우고, 가스터손 펀치와 불미스러운 공격까지 퍼붓는다.',
+    skill: {
+      kind: 'gasterBlast', name: '가스터 블래스터', icon: '💀', cd: 3.4, range: 16, radius: 6.2, power: 2.3,
+      desc: '가스터 블래스터·뼈 발사·뼈 가시에 가스터손 펀치·불미스러운 공격까지 다섯 기술을 돌려 쓴다',
+      kit: [
+        { id: 'gasterBlast', name: '가스터 블래스터', icon: '💀', radius: 2.0, range: 16, power: 2.3 },
+        { id: 'boneBarrage', name: '뼈 발사', icon: '🦴', radius: 1.0, range: 16, power: 0.5, count: 12 },
+        { id: 'boneSpikes', name: '뼈 가시', icon: '⛏️', radius: 7.0, range: 8.4, power: 1.7, stun: 0.8, slow: 0.5, slowTime: 2.4 },
+        { id: 'gasterHandPunch', name: '가스터손 펀치', icon: '🖐️', radius: 4.4, range: 12, power: 1.85, stun: 1.5, knock: 24 },
+        { id: 'rudeAttack', name: '불미스러운 공격', icon: '🖕', radius: 3.0, range: 16, power: 1.15, count: 5, slow: 0.5, slowTime: 2.4 },
+      ],
+    },
+    passive: '체력 2100 (강하닭과 동급) · 회피 30% · 순간이동 · 5가지 기술',
+    evasion: 0.3, armor: 0.12, kbResist: 0.6,
   },
 ];
+
+/* 샌즈 페이즈 선택 (유닛 카드 하나 → 1·2·3페이즈 버튼) */
+export const SANS_PHASES = [
+  { id: 'sans', phase: 1, label: '1페이즈', cost: 15, note: '기본 샌즈' },
+  { id: 'sans_p2', phase: 2, label: '2페이즈', cost: 25, note: '공격력 강화' },
+  { id: 'sans_p3', phase: 3, label: '3페이즈', cost: 50, note: '체력 2100 · 5기술' },
+];
+export const SANS_PHASE_IDS = SANS_PHASES.map((p) => p.id);
+
+// 유닛 카드에 하나로 묶어 보여줄 변종 (샌즈 1·2·3페이즈)
+export function isVariant(def) {
+  return !!(def && def.variantOf);
+}
+
+export function phaseIdsOf(def) {
+  if (!def) return null;
+  const root = def.variantOf || def.id;
+  if (root !== 'sans') return null;
+  return SANS_PHASE_IDS;
+}
 
 export const ANIMALS = ANIMAL_LIST;
 export const DINOS = DINO_LIST;
@@ -756,6 +872,20 @@ const PRESET_DATA = [
     blue: [P('strong_chicken', -6.4, 0)],
     red: [P('sans', 6.4, 0)],
     arena: 'tundra',
+  },
+  {
+    id: 'lastbreath-p3', name: '라스트 브레스 3페이즈 vs 강하닭', emoji: '💀⚔️🐔',
+    desc: '코스트 50 샌즈 3페이즈(가스터손 펀치·불미스러운 공격) vs 코스트 20 강하닭 — 체력 2100 대결',
+    blue: [P('sans_p3', -6.4, 0)],
+    red: [P('strong_chicken', 6.4, 0)],
+    arena: 'tundra',
+  },
+  {
+    id: 'new-units-2026', name: '신규 4종 쇼케이스', emoji: '🦣🐍🦍🦸',
+    desc: '매머드·히드라·킹콩·영웅 vs 티라노·트리케·사자·곰',
+    blue: lineup('blue', ['mammoth', 'hydra', 'king_kong', 'hero'], { x0: 5.6, dz: 3.4 }),
+    red: lineup('red', ['trex', 'triceratops', 'lion', 'bear'], { x0: 5.6, dz: 3.4 }),
+    arena: 'savanna',
   },
   {
     id: 'seven-new', name: '신규 7종 쇼케이스', emoji: '🦈🐉🗿',

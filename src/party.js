@@ -50,6 +50,15 @@ const EV_FIELDS = {
   gasterBlast: ['uid', 'x', 'z', 'ang', 'len', 'tx', 'tz'],
   boneBarrage: ['uid', 'x', 'z', 'ang', 'count'],
   boneSpikes: ['uid', 'x', 'z', 'r'],
+  // 라스트 브레스 · 신규 4종 연출
+  gasterHand: ['uid', 'x', 'z', 'side', 'i', 'r'],
+  rudeAttack: ['uid', 'x', 'z', 'i', 'count'],
+  rudeText: ['uid', 'x', 'z', 'text'],
+  tripleVenom: ['uid', 'x', 'z', 'ang', 'lane', 'r'],
+  heroStrike: ['uid', 'x', 'z', 'i', 'style'],
+  heroCombo: ['uid', 'x', 'z', 'count'],
+  chestBeat: ['uid', 'x', 'z'],
+  tuskQuakeLand: ['uid', 'x', 'z', 'r'],
 };
 const EV_CODES = Object.keys(EV_FIELDS);
 const EV_INDEX = Object.fromEntries(EV_CODES.map((k, i) => [k, i]));
