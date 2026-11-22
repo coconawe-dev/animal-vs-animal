@@ -452,17 +452,19 @@ export class Effects {
     const ex = x + Math.sin(ang) * len;
     const ez = z + Math.cos(ang) * len;
     // 굵은 맹독 줄기 (초록 + 보라)
-    this.bigBeam(x, 1.6, z, ex, 0.95, ez, 0x9bf06a, 0.4, 0.5, 0.34);
-    this.bigBeam(x, 1.5, z, ex, 1.05, ez, 0x9f4aff, 0.22, 0.6, 0.3);
+    this.bigBeam(x, 1.7, z, ex, 1.0, ez, 0x7dff5c, 0.46, 0.42, 0.4);
+    this.bigBeam(x, 1.5, z, ex, 1.15, ez, 0xa03cff, 0.3, 0.5, 0.34);
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
       const bx = x + Math.sin(ang) * len * t;
       const bz = z + Math.cos(ang) * len * t;
-      const col = i % 2 ? 0x9bf06a : 0x9f4aff;
-      this.burst(bx, 1.1 + t * 0.7, bz, col, 6, 3.4, { grav: -1 });
+      const col = i % 2 ? 0x7dff5c : 0xa03cff;
+      // 피어오르는 독기
+      this.burst(bx, 1.1 + t * 0.9, bz, col, 9, 5, { grav: -2.4 });
+      this.dust(bx, bz, 3, 0x6f8a4a);
     }
-    this.flash(x, 1.6, z, 1.3, 0x9bf06a, 0.26);
-    this.ring(x, z, 0.4, 2.6, 0x9bf06a, 0.35);
+    this.flash(x, 1.7, z, 1.2, 0x7dff5c, 0.24);
+    this.ring(x, z, 0.4, 2.2, 0x7dff5c, 0.32);
   }
 
   // 매머드 — 엄니 돌진이 끝나고 착지한 자리의 지진
