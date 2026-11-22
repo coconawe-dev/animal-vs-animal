@@ -1965,23 +1965,23 @@ function buildMammoth(g, m, rig) {
   add(head, G.sphereLow, m.eye, [0.22, 0.1, 0.28], [0.05, 0.055, 0.04], null, false);
   add(head, G.sphereLow, m.eye, [-0.22, 0.1, 0.28], [0.05, 0.055, 0.04], null, false);
 
-  // 길게 휘어 올라간 하얀 엄니 2개 (마디를 이어 굽힌다)
+  // 길게 앞으로 휘어 올라간 하얀 엄니 2개 (마디를 이어 굽힌다)
   [1, -1].forEach((side) => {
     const root = new THREE.Group();
-    root.position.set(side * 0.24, -0.28, 0.26);
-    root.rotation.set(0.45, 0, side * -0.22);
+    root.position.set(side * 0.26, -0.3, 0.24);
+    root.rotation.set(-0.52, 0, side * -0.24);
     head.add(root);
-    add(root, G.cyl, tuskMat, [0, -0.34, 0], [0.075, 0.62, 0.075]);
+    add(root, G.cyl, tuskMat, [0, -0.38, 0], [0.085, 0.72, 0.085]);
     const seg = new THREE.Group();
-    seg.position.set(0, -0.64, 0);
-    seg.rotation.x = 1.0;
+    seg.position.set(0, -0.74, 0);
+    seg.rotation.x = -0.85;
     root.add(seg);
-    add(seg, G.cyl, tuskMat, [0, -0.3, 0], [0.062, 0.5, 0.062]);
+    add(seg, G.cyl, tuskMat, [0, -0.32, 0], [0.068, 0.62, 0.068]);
     const tip = new THREE.Group();
-    tip.position.set(0, -0.56, 0);
-    tip.rotation.x = 1.15;
+    tip.position.set(0, -0.63, 0);
+    tip.rotation.x = -0.9;
     seg.add(tip);
-    add(tip, G.cone, tuskMat, [0, -0.26, 0], [0.058, 0.52, 0.058]);
+    add(tip, G.cone, tuskMat, [0, -0.3, 0], [0.062, 0.66, 0.062]);
   });
 
   // 긴 코 (3마디)
