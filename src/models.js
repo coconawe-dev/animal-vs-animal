@@ -1769,6 +1769,7 @@ function buildStrongChicken(g, m, rig) {
   rig.auraRing = aura;
 
   rig.height = 2.5;
+  rig.glowScale = 0.42;
 }
 
 /* ───────────────────────────── 샌즈 (언더테일) ───────────────────────────── */
@@ -1851,6 +1852,7 @@ function buildSans(g, m, rig) {
 
   rig.height = 2.1;
   rig.upright = true;
+  rig.glowScale = 0.62;
 }
 
 const BUILDERS = {
@@ -2217,8 +2219,8 @@ export function animateRig(rig, s) {
     }
   }
 
-  // 피격/스킬 발광
-  const glow = rig.hurt * 0.9 + sk * 0.35;
+  // 피격/스킬 발광 (큰 유닛은 발광을 줄여 본래 색이 살아 있게)
+  const glow = (rig.hurt * 0.9 + sk * 0.35) * (rig.glowScale == null ? 1 : rig.glowScale);
   for (const m of rig.matList) {
     if (m === rig.mats.eye) continue;
     if (glow > 0.02) {
