@@ -18,7 +18,8 @@
 // 스킬 연출만 따로 떼어 정지 프레임으로 확인하는 뷰어.
 // 예) /tests/fx.html?fx=gasterHand&t=0.34     /tests/fx.html?fx=hero&t=0.3
 import * as THREE from '../vendor/three.module.js';
-import { Effects } from '../src/effects.js';
+// 배포 캐시(10분)에 묶이지 않게 항상 새 effects.js 를 불러온다
+const { Effects } = await import(`../src/effects.js?dev=${Date.now()}`);
 
 const params = new URLSearchParams(location.search);
 const kind = params.get('fx') || 'gasterHand';
