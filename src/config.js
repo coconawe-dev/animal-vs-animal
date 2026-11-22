@@ -401,7 +401,7 @@ const DINO_LIST = [
   },
 ];
 
-/* ──────────────────────────── 괴수 / 언데드 / 신화 (6종) ──────────────────────────── */
+/* ──────────────────────────── 괴수 / 언데드 / 신화 (8종) ──────────────────────────── */
 
 const MONSTER_LIST = [
   {
@@ -469,6 +469,46 @@ const MONSTER_LIST = [
       desc: '달려들어 급소를 찔러 확정 치명타와 출혈을 남긴다' },
     passive: '기본 회피 14% · 치명타 15%',
     evasion: 0.14,
+  },
+  /* ── 우리가 만든 RPG 게임의 최종 보스 — 강하닭 ──
+     깃털 폭풍 · 거대 부리 강타 · 황금 알 폭격을 쿨타임마다 번갈아 쓴다. */
+  {
+    id: 'strong_chicken', name: '강하닭', short: '강하닭', emoji: '🐔', cat: 'monster', tier: 4, cost: 20, role: '최종 보스',
+    hp: 2100, atk: 88, spd: 2.9, range: 4.4, atkInterval: 1.35,
+    colors: { main: 0xf2e4c4, dark: 0xe8a24a, accent: 0xffc23a, belly: 0xfaeecf },
+    scale: 1.72, size: 1.85,
+    desc: '우리가 만든 RPG 게임의 마지막 보스. 황금 왕관을 쓴 거대한 닭으로, 깃털과 부리와 황금 알로 전장을 쓸어버린다.',
+    skill: {
+      kind: 'featherStorm', name: '깃털 폭풍', icon: '🪶', cd: 5.2, range: 13, radius: 5.8, power: 1.0,
+      desc: '깃털 폭풍 · 거대 부리 강타 · 황금 알 폭격을 번갈아 퍼붓는다',
+      kit: [
+        { id: 'featherStorm', name: '깃털 폭풍', icon: '🪶', radius: 5.8, range: 13, power: 0.95, slow: 0.32, slowTime: 2.6 },
+        { id: 'beakSmash', name: '거대 부리 강타', icon: '💥', radius: 6.4, range: 7.6, power: 1.6, stun: 1.2, knock: 16 },
+        { id: 'eggBarrage', name: '황금 알 폭격', icon: '🥚', radius: 2.5, range: 17, power: 0.72, count: 4, knock: 9 },
+      ],
+    },
+    passive: '최종 보스의 체력 · 넉백 저항 90%',
+    armor: 0.22, kbResist: 0.9,
+  },
+  /* ── 언더테일의 그 샌즈 ──
+     가스터 블래스터 · 뼈 발사 · 뼈 가시를 번갈아 쓰고, 근접 위협에는 잔상을 남기며 순간이동한다. */
+  {
+    id: 'sans', name: '샌즈', short: '샌즈', emoji: '💀', cat: 'monster', tier: 4, cost: 15, role: '원거리 스킬형',
+    hp: 430, atk: 46, spd: 5.0, range: 6.4, atkInterval: 1.0, ranged: true,
+    colors: { main: 0x3b6fd4, dark: 0x1b2a4a, accent: 0xffffff, belly: 0xf2f4fa },
+    scale: 1.08, size: 1.0,
+    desc: '파란 후드에 분홍 슬리퍼를 신은 해골. 왼쪽 눈이 하늘색으로 빛나고, 가스터 블래스터와 뼈로 상대를 몰아간다.',
+    skill: {
+      kind: 'gasterBlast', name: '가스터 블래스터', icon: '💀', cd: 4.4, range: 15, radius: 5.6, power: 1.55,
+      desc: '가스터 블래스터 · 뼈 발사 · 뼈 가시를 번갈아 쓰고, 다가오면 순간이동한다',
+      kit: [
+        { id: 'gasterBlast', name: '가스터 블래스터', icon: '💀', radius: 1.5, range: 15, power: 1.55 },
+        { id: 'boneBarrage', name: '뼈 발사', icon: '🦴', radius: 1.0, range: 15, power: 0.3, count: 8 },
+        { id: 'boneSpikes', name: '뼈 가시', icon: '⛏️', radius: 6.4, range: 7.6, power: 1.15, stun: 0.6, slow: 0.42, slowTime: 2 },
+      ],
+    },
+    passive: '기본 회피 24% · 순간이동',
+    evasion: 0.24,
   },
 ];
 
@@ -709,6 +749,13 @@ const PRESET_DATA = [
     blue: lineup('blue', ['tiger', 'crocodile', 'boar', 'fox'], { x0: 5.8, dz: 2.7 }),
     red: lineup('red', ['lion', 'elephant', 'cheetah'], { x0: 5.8, dz: 2.9 }),
     arena: 'savanna',
+  },
+  {
+    id: 'chicken-sans', name: '강하닭 vs 샌즈', emoji: '🐔⚔️💀',
+    desc: '코스트 20 최종 보스 강하닭 vs 코스트 15 가스터 샌즈 — 깃털·부리·황금 알 대 가스터 블래스터·뼈',
+    blue: [P('strong_chicken', -6.4, 0)],
+    red: [P('sans', 6.4, 0)],
+    arena: 'tundra',
   },
   {
     id: 'seven-new', name: '신규 7종 쇼케이스', emoji: '🦈🐉🗿',

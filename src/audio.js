@@ -101,6 +101,8 @@ export class Sfx {
     if (kind === 'bloodFrenzy' || kind === 'deepBite' || kind === 'tidalJaw' || kind === 'sneakStrike') return this.whoosh();
     if (kind === 'flame' || kind === 'dragonBreath') return this.flame();
     if (kind === 'crunch') return this.boom();
+    if (kind === 'gasterBlast') return this.laser();
+    if (kind === 'featherStorm') return this.whoosh();
     this.tone({ freq: 520, freq2: 900, dur: 0.16, gain: 0.2, type: 'triangle' });
     this.noiseBurst({ dur: 0.2, freq: 1600, gain: 0.18, sweep: 900 });
   }
@@ -115,9 +117,31 @@ export class Sfx {
     this.tone({ freq: 320, freq2: 160, dur: 0.05, gain: 0.1, type: 'square' });
   }
 
+  gaster() {
+    this.laser();
+    this.tone({ freq: 96, freq2: 42, dur: 0.6, gain: 0.32, type: 'sawtooth' });
+    this.noiseBurst({ dur: 0.45, freq: 2200, q: 1.1, gain: 0.22, type: 'bandpass', sweep: 400 });
+  }
+
+  bones() {
+    const now = performance.now();
+    if (now - (this.lastBone || 0) < 70) return;
+    this.lastBone = now;
+    this.noiseBurst({ dur: 0.06, freq: 1900, q: 1.6, gain: 0.13, type: 'bandpass', sweep: 900 });
+    this.tone({ freq: 280, freq2: 190, dur: 0.05, gain: 0.08, type: 'square' });
+  }
+
+  blink() {
+    this.tone({ freq: 820, freq2: 2400, dur: 0.14, gain: 0.14, type: 'sine' });
+    this.noiseBurst({ dur: 0.16, freq: 2600, q: 1.4, gain: 0.1, type: 'bandpass', sweep: 1400 });
+  }
+
+  feather() {
+    this.noiseBurst({ dur: 0.32, freq: 900, q: 0.7, gain: 0.1, type: 'bandpass', sweep: 320 });
+  }
+
   laser() {
-    if (!this.ok) return;
-    if (performance.now() - (this.lastLaser || 0) < 90) return;
+    if (!this.ok) return;    if (performance.now() - (this.lastLaser || 0) < 90) return;
     this.lastLaser = performance.now();
     this.tone({ freq: 1400, freq2: 260, dur: 0.22, gain: 0.2, type: 'sawtooth' });
     this.noiseBurst({ dur: 0.16, freq: 3200, gain: 0.14, type: 'highpass', sweep: 800 });

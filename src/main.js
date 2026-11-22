@@ -928,6 +928,7 @@ const SK_COLORS = {
   bloodFrenzy: 0xff5a8a, deepBite: 0xd8e8ff, tidalJaw: 0x6fd8ff,
   abyssVortex: 0x4a8aff, rockCrush: 0xc0a878, dragonBreath: 0xff6a2a,
   sneakStrike: 0xa8ff6a,
+  featherStorm: 0xffe9a8, gasterBlast: 0x9ff4ff,
 };
 
 function handleEvent(ev) {
@@ -1022,6 +1023,46 @@ function handleEvent(ev) {
     }
     case 'tail': {
       effects.ring(ev.x, ev.z, 1.2, 5.2, 0xffc247, 0.44);
+      break;
+    }
+    case 'featherRain': {
+      effects.featherRain(ev.x, ev.z, ev.r || 5.8);
+      sfx.feather();
+      break;
+    }
+    case 'beakSlam': {
+      effects.ring(ev.x, ev.z, 0.9, (ev.r || 6.4) * 1.15, 0xffc247, 0.5);
+      effects.dust(ev.x, ev.z, 24, 0xe8d9b0);
+      effects.burst(ev.x, 1.2, ev.z, 0xffd24a, 26, 7);
+      sfx.slam();
+      stage.shake = Math.max(stage.shake, 0.5);
+      break;
+    }
+    case 'eggLaunch': {
+      effects.flash(ev.tx, 1.0, ev.tz, 1.4, 0xffd24a, 0.2);
+      effects.ring(ev.tx, ev.tz, 0.6, 3.0, 0xffd24a, 0.4);
+      break;
+    }
+    case 'gasterBlast': {
+      effects.gasterBlast(ev.x, ev.z, ev.ang || 0, ev.len || 26);
+      sfx.gaster();
+      stage.shake = Math.max(stage.shake, 0.36);
+      break;
+    }
+    case 'boneBarrage': {
+      effects.boneBarrage(ev.x, ev.z, ev.ang || 0);
+      sfx.bones();
+      break;
+    }
+    case 'boneSpikes': {
+      effects.boneSpikes(ev.x, ev.z, ev.r || 6.4);
+      sfx.bones();
+      stage.shake = Math.max(stage.shake, 0.26);
+      break;
+    }
+    case 'blink': {
+      effects.blink(ev.x, ev.z, ev.x2 == null ? ev.x : ev.x2, ev.z2 == null ? ev.z : ev.z2);
+      sfx.blink();
       break;
     }
     case 'dashStart': sfx.whoosh(); break;

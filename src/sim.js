@@ -132,6 +132,8 @@ function makeUnit(state, def, team, x, z, weaponId, teams = null) {
     evasion: def.evasion || 0, crit: def.crit || 0.07,
     attackTimer: 0.35 + state.rng() * 0.35,
     skillTimer: 2.4 + state.rng() * 3.2,
+    kitIndex: 0, kitPick: null,
+    blinkCd: 1.1 + state.rng() * 1.2,
     targetId: null,
     stun: 0, slow: 0, slowFactor: 1,
     haste: 0, hasteT: 0, speedMul: 1, speedT: 0,
@@ -474,11 +476,13 @@ function updateProjectiles(state, dt) {
     p.x += p.vx * dt;
     p.z += p.vz * dt;
 
-    // 명중 판정
+    // 명중 판정 (황금 알은 머리 위로 날아가 착탄 지점에서 터진다)
     let hitUnit = null;
-    for (const e of state.units) {
-      if (e.dead || e.team === p.team) continue;
-      if (dist2(p.x, p.z, e.x, e.z) < (p.kind === 'rocket' ? 0.95 : 0.7)) { hitUnit = e; break; }
+    if (p.kind !== 'egg') {
+      for (const e of state.units) {
+        if (e.dead || e.team === p.team) continue;
+        if (dist2(p.x, p.z, e.x, e.z) < (p.kind === 'rocket' ? 0.95 : 0.7)) { hitUnit = e; break; }
+      }
     }
     const hitTarget = tgt && !tgt.dead && dist2(p.x, p.z, tgt.x, tgt.z) < 0.95;
     const outOfArena = Math.hypot(p.x, p.z) > TUNING.ARENA_RADIUS + 2.2;
@@ -487,8 +491,9 @@ function updateProjectiles(state, dt) {
       if (dist2(p.x, p.z, ob.x, ob.z) < ob.r * 0.85) { obstacleHit = true; break; }
     }
 
-    if (p.kind === 'rocket') {
-      if (hitUnit || hitTarget || p.ttl <= 0 || outOfArena || obstacleHit) {
+    if (p.kind === 'rocket' || p.kind === 'egg') {
+      const boom = p.ttl <= 0 || outOfArena || obstacleHit || (p.kind === 'rocket' && (hitUnit || hitTarget));
+      if (boom) {
         explode(state, p, p.x, p.z);
         state.projectiles.splice(i, 1);
       }
@@ -598,6 +603,31 @@ function slowUnit(state, u, factor, time) {
   emit(state, { type: 'slow', uid: u.uid });
 }
 
+// 샌즈 — 근접 위협에서 잔상을 남기며 뒤로 순간이동한다
+function tryBlink(state, u) {
+  if (u.blinkCd > 0 || u.dash || u.stun > 0) return;
+  let best = null, bd = Infinity;
+  for (const e of state.units) {
+    if (e.dead || e.team === u.team) continue;
+    const dd = dist2(u.x, u.z, e.x, e.z);
+    if (dd < bd) { bd = dd; best = e; }
+  }
+  if (!best || bd > 3.8) return;
+  const ax = u.x - best.x, az = u.z - best.z;
+  const l = Math.hypot(ax, az) || 1;
+  let nx = u.x + (ax / l) * 6.2, nz = u.z + (az / l) * 6.2;
+  const r = Math.hypot(nx, nz);
+  const max = TUNING.ARENA_RADIUS - 2.5;
+  if (r > max) { nx = (nx / r) * max; nz = (nz / r) * max; }
+  emit(state, { type: 'blink', uid: u.uid, x: u.x, z: u.z, x2: nx, z2: nz });
+  u.x = nx; u.z = nz;
+  u.facing = Math.atan2(best.x - u.x, best.z - u.z);
+  u.blinkCd = 3.6;
+  u.invuln = Math.max(u.invuln, 0.3);
+  u.dodgeBonus = Math.max(u.dodgeBonus, 0.3);
+  u.dodgeT = Math.max(u.dodgeT, 0.35);
+}
+
 function areaBurst(state, u, x, z, radius, dmg, stun = 0, knockForce = 0, exclude = null, opts = {}) {
   emit(state, { type: 'burst', x, z, r: radius, uid: u ? u.uid : null, kind: u ? u.def.skill.kind : 'generic' });
   for (const e of state.units) {
@@ -639,6 +669,112 @@ function countEnemiesIn(state, u, radius, cx = u.x, cz = u.z) {
 
 /* ─────────────────────────────── 스킬 ─────────────────────────────── */
 
+/* ─────────── 세 가지 기술을 번갈아 쓰는 보스 (강하닭 · 샌즈) ─────────── */
+
+function castChickenKit(state, u, target, s, k) {
+  const rng = state.rng;
+  const atk = u.atk;
+  const tx = target ? target.x : u.x + Math.sin(u.facing) * 6;
+  const tz = target ? target.z : u.z + Math.cos(u.facing) * 6;
+
+  if (k.id === 'featherStorm') {
+    // 적들 위로 황금·흰 깃털이 쏟아지며 광역 피해
+    emit(state, { type: 'featherRain', uid: u.uid, x: tx, z: tz, r: k.radius });
+    areaBurst(state, u, tx, tz, k.radius, atk * k.power, 0, 3, null, {});
+    for (const e of state.units) {
+      if (!e.dead && e.team !== u.team && dist2(tx, tz, e.x, e.z) <= k.radius + 0.5) {
+        slowUnit(state, e, k.slow, k.slowTime);
+      }
+    }
+    if (countEnemiesIn(state, u, k.radius * 0.85) > 0) {
+      emit(state, { type: 'featherRain', uid: u.uid, x: u.x, z: u.z, r: k.radius * 0.85 });
+      areaBurst(state, u, u.x, u.z, k.radius * 0.85, atk * k.power * 0.5, 0, 2);
+    }
+  } else if (k.id === 'beakSmash') {
+    // 전방 넓은 범위를 내리찍어 기절 + 강넉백
+    u.facing = Math.atan2(tx - u.x, tz - u.z);
+    coneBurst(state, u, k.radius, Math.PI * 0.58, atk * k.power, { stun: k.stun, knock: k.knock });
+    emit(state, { type: 'beakSlam', uid: u.uid, x: u.x, z: u.z, r: k.radius, ang: u.facing });
+    emit(state, { type: 'quake', x: u.x, z: u.z, r: k.radius, big: true });
+  } else if (k.id === 'eggBarrage') {
+    // 황금 알 여러 개를 포물선으로 발사해 착탄 지점에서 광역 폭발
+    const count = k.count || 4;
+    for (let i = 0; i < count; i++) {
+      const a = (i / count) * Math.PI * 2 + rng() * 0.8;
+      const rr = 1.4 + rng() * 2.8;
+      const ex = tx + Math.sin(a) * rr, ez = tz + Math.cos(a) * rr;
+      const dx = ex - u.x, dz = ez - u.z;
+      const dd = Math.hypot(dx, dz) || 1;
+      const speed = 24;
+      state.projectiles.push({
+        pid: state.nextPid++, kind: 'egg', fromUid: u.uid, targetUid: null, team: u.team,
+        x: u.x, y: 3.1, z: u.z,
+        vx: (dx / dd) * speed, vz: (dz / dd) * speed, speed,
+        dmg: atk * k.power, ttl: Math.min(2.6, dd / speed + 0.05),
+        aoe: k.radius || 2.5, knock: k.knock || 9, color: 0xffd24a,
+        x0: u.x, z0: u.z,
+      });
+    }
+    state.stats.shots++;
+    emit(state, { type: 'eggLaunch', uid: u.uid, x: u.x, z: u.z, tx, tz });
+  }
+  void s;
+}
+
+function castSansKit(state, u, target, s, k) {
+  const rng = state.rng;
+  const atk = u.atk;
+  const tx = target ? target.x : u.x + Math.sin(u.facing) * 8;
+  const tz = target ? target.z : u.z + Math.cos(u.facing) * 8;
+  const ang = Math.atan2(tx - u.x, tz - u.z);
+
+  if (k.id === 'gasterBlast') {
+    // 샌즈 옆 공중에 해골 블래스트를 소환해 굵은 하늘색 레이저를 발사 (관통)
+    const side = rng() < 0.5 ? 1 : -1;
+    const bx = u.x + Math.sin(ang + Math.PI / 2) * 2.0 * side;
+    const bz = u.z + Math.cos(ang + Math.PI / 2) * 2.0 * side;
+    const len = 30;
+    const ex = bx + Math.sin(ang) * len, ez = bz + Math.cos(ang) * len;
+    emit(state, { type: 'gasterBlast', uid: u.uid, x: bx, z: bz, ang, len, tx, tz });
+    state.stats.shots++;
+    for (const e of state.units) {
+      if (e.dead || e.team === u.team) continue;
+      if (pointSegDist(e.x, e.z, bx, bz, ex, ez) <= (k.radius || 1.5)) {
+        applyDamage(state, u, e, atk * k.power, { pierce: true, element: 'cyan' });
+        knock(state, e, e.x - bx, e.z - bz, 3.5);
+      }
+    }
+  } else if (k.id === 'boneBarrage') {
+    // 날카로운 뼈 다발을 연사
+    const count = k.count || 8;
+    for (let i = 0; i < count; i++) {
+      const spread = (i - (count - 1) / 2) * 0.075 + (rng() - 0.5) * 0.03;
+      const a = ang + spread;
+      const speed = 34 + i * 1.4;
+      state.projectiles.push({
+        pid: state.nextPid++, kind: 'bone', fromUid: u.uid, targetUid: null, team: u.team,
+        x: u.x + Math.sin(a) * 0.7, y: u.y + 1.3, z: u.z + Math.cos(a) * 0.7,
+        vx: Math.sin(a) * speed, vz: Math.cos(a) * speed, speed,
+        dmg: atk * k.power, ttl: 0.95, aoe: 0, knock: 1.5,
+        color: i % 3 === 0 ? 0x9ff4ff : 0xf2f7ff,
+        x0: u.x, z0: u.z,
+      });
+    }
+    state.stats.shots++;
+    emit(state, { type: 'boneBarrage', uid: u.uid, x: u.x, z: u.z, ang, count });
+  } else if (k.id === 'boneSpikes') {
+    // 바닥에서 뼈 가시가 솟아오른다
+    areaBurst(state, u, u.x, u.z, k.radius, atk * k.power, k.stun, 7);
+    for (const e of state.units) {
+      if (!e.dead && e.team !== u.team && dist2(u.x, u.z, e.x, e.z) <= k.radius + 0.5) {
+        slowUnit(state, e, k.slow, k.slowTime);
+      }
+    }
+    emit(state, { type: 'boneSpikes', uid: u.uid, x: u.x, z: u.z, r: k.radius });
+  }
+  void s;
+}
+
 function skillReady(state, u) {
   return u.skillTimer <= 0 && !u.dash;
 }
@@ -647,8 +783,21 @@ function tryCastSkill(state, u, target, d) {
   if (!u.def.skill || !skillReady(state, u)) return false;
   const s = u.def.skill;
   const rng = state.rng;
+  // 강하닭·샌즈: 세 가지 기술을 순서대로 돌려 쓴다 (이번에 나갈 기술을 먼저 고른다)
+  const kitSkill = s.kit && s.kit.length ? s.kit[(u.kitIndex || 0) % s.kit.length] : null;
+  const castRange = kitSkill ? (kitSkill.range || s.range) : s.range;
+  const castName = kitSkill ? kitSkill.name : s.name;
 
   switch (s.kind) {
+    case 'featherStorm':
+    case 'gasterBlast': {
+      if (!target) return false;
+      if (kitSkill && kitSkill.id === 'boneSpikes') {
+        if (countEnemiesIn(state, u, castRange) < 1) return false;
+      }
+      if (d > castRange + 0.8) return false;
+      break;
+    }
     case 'roar':
     case 'slam':
     case 'smash':
@@ -717,18 +866,26 @@ function tryCastSkill(state, u, target, d) {
   u.skillTimer = s.cd * (0.92 + rng() * 0.16);
   u.skillCasts++;
   u.lastSkill = s.kind;
+  u.kitPick = kitSkill;
+  if (kitSkill) u.kitIndex = ((u.kitIndex || 0) + 1) % s.kit.length;
   u.state = 'skill';
   u.castLock = 0.4;
   state.stats.skills++;
 
-  emit(state, { type: 'skill', uid: u.uid, kind: s.kind, name: s.name, x: u.x, z: u.z, team: u.team });
-  pushLog(state, { text: `${u.emoji} ${u.name} 「${s.name}」`, team: u.team, kind: 'skill' });
+  emit(state, { type: 'skill', uid: u.uid, kind: s.kind, name: castName, x: u.x, z: u.z, team: u.team });
+  pushLog(state, { text: `${u.emoji} ${u.name} 「${castName}」`, team: u.team, kind: 'skill' });
 
   const dirX = target ? target.x - u.x : Math.sin(u.facing);
   const dirZ = target ? target.z - u.z : Math.cos(u.facing);
   const dirLen = Math.hypot(dirX, dirZ) || 1;
 
   switch (s.kind) {
+    case 'featherStorm':
+      castChickenKit(state, u, target, s, kitSkill);
+      break;
+    case 'gasterBlast':
+      castSansKit(state, u, target, s, kitSkill);
+      break;
     case 'roar': {
       areaBurst(state, u, u.x, u.z, s.radius, u.atk * s.power, s.stun, s.knock);
       u.dodgeBonus = 0.15; u.dodgeT = 0.6;
@@ -1014,6 +1171,7 @@ function tickEffects(state, u, dt) {
   if (u.ccImmune > 0) u.ccImmune = Math.max(0, u.ccImmune - dt);
   if (u.invuln > 0) u.invuln = Math.max(0, u.invuln - dt);
   if (u.castLock > 0) u.castLock = Math.max(0, u.castLock - dt);
+  if (u.blinkCd > 0) u.blinkCd = Math.max(0, u.blinkCd - dt);
   if (u.attackTimer > 0) u.attackTimer = Math.max(0, u.attackTimer - dt);
   if (u.skillTimer > 0) u.skillTimer = Math.max(0, u.skillTimer - dt);
 
@@ -1069,6 +1227,8 @@ function actUnit(state, u, dt) {
   if (u.stun > 0) { u.state = 'stun'; return; }
 
   const target = ensureTarget(state, u);
+  // 샌즈: 근접 위협을 받으면 잔상을 남기며 뒤로 순간이동
+  if (u.def.id === 'sans') tryBlink(state, u);
   if (!target) { u.state = 'idle'; return; }
   const d = dist2(u.x, u.z, target.x, target.z);
   const desired = Math.atan2(target.x - u.x, target.z - u.z);

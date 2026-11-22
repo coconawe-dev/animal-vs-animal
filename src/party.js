@@ -42,6 +42,14 @@ const EV_FIELDS = {
   land: ['x', 'z', 'force'],
   death: ['uid', 'x', 'z', 'heavy'],
   heal: ['uid', 'x', 'z', 'amount'],
+  // 강하닭 · 샌즈 연출
+  blink: ['uid', 'x', 'z', 'x2', 'z2'],
+  featherRain: ['x', 'z', 'r'],
+  beakSlam: ['uid', 'x', 'z', 'r', 'ang'],
+  eggLaunch: ['uid', 'x', 'z', 'tx', 'tz'],
+  gasterBlast: ['uid', 'x', 'z', 'ang', 'len', 'tx', 'tz'],
+  boneBarrage: ['uid', 'x', 'z', 'ang', 'count'],
+  boneSpikes: ['uid', 'x', 'z', 'r'],
 };
 const EV_CODES = Object.keys(EV_FIELDS);
 const EV_INDEX = Object.fromEntries(EV_CODES.map((k, i) => [k, i]));

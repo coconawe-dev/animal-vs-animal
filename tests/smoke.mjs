@@ -33,12 +33,12 @@ const P = (id, x, z, weapon = 'none') => ({ id, x, z, weapon });
 /* ─────────────── 1. 데이터 ─────────────── */
 check(ANIMALS.length === 15, `동물 15종 (현재 ${ANIMALS.length})`);
 check(DINOS.length === 9, `공룡·거대종 9종 (현재 ${DINOS.length})`);
-check(MONSTERS.length === 6, `괴수·언데드 6종 (현재 ${MONSTERS.length})`);
-check(CREATURES.length === 30, `전체 30종 (현재 ${CREATURES.length})`);
+check(MONSTERS.length === 8, `괴수·언데드 8종 (현재 ${MONSTERS.length})`);
+check(CREATURES.length === 32, `전체 32종 (현재 ${CREATURES.length})`);
 check(new Set(CREATURE_IDS).size === CREATURES.length, '유닛 id 중복 없음');
 check(CATEGORIES.length === 4, '카테고리 4개');
-check(creaturesOf('animal').length === 15 && creaturesOf('dino').length === 8 && creaturesOf('monster').length === 7, '카테고리별 분류 (15/8/7)');
-check(creaturesOf('all').length === 30, '전체 카테고리');
+check(creaturesOf('animal').length === 15 && creaturesOf('dino').length === 8 && creaturesOf('monster').length === 9, '카테고리별 분류 (15/8/9)');
+check(creaturesOf('all').length === 32, '전체 카테고리');
 for (const id of ['zombie', 'skeleton', 'snake', 'hyena', 'drex']) {
   check(!!CREATURE_BY_ID[id], `기존 유닛 ${id} 등록`);
 }
@@ -50,12 +50,25 @@ check(CREATURE_BY_ID.shark.cat === 'animal' && CREATURE_BY_ID.megalodon.cat === 
 check(CREATURE_BY_ID.leviathan.cost === 10 && CREATURE_BY_ID.dragon.cost === 10 && CREATURE_BY_ID.goblin.cost === 2, '신규 유닛 비용');
 check(CREATURE_BY_ID.stone_golem.armor >= 0.2 && CREATURE_BY_ID.stone_golem.hp >= 400, '스톤골렘 단단한 방어');
 check(CREATURE_BY_ID.leviathan.hp > CREATURE_BY_ID.dragon.hp, '레비아탄이 드래곤보다 단단함');
+for (const id of ['strong_chicken', 'sans']) {
+  check(!!CREATURE_BY_ID[id], `신규 유닛 ${id} 등록`);
+}
+check(CREATURE_BY_ID.strong_chicken.cost === 20 && CREATURE_BY_ID.strong_chicken.cat === 'monster', '강하닭 — 코스트 20 괴수');
+check(CREATURE_BY_ID.strong_chicken.hp > CREATURE_BY_ID.leviathan.hp * 2 && CREATURE_BY_ID.strong_chicken.atk > CREATURE_BY_ID.leviathan.atk * 1.5,
+  '강하닭 — 10코스트보다 훨씬 강한 체력·공격력');
+check(CREATURE_BY_ID.strong_chicken.skill.kit.length === 3 && CREATURE_BY_ID.strong_chicken.skill.kit.map((k) => k.id).join(',') === 'featherStorm,beakSmash,eggBarrage',
+  '강하닭 — 깃털 폭풍 · 거대 부리 강타 · 황금 알 폭격');
+check(CREATURE_BY_ID.sans.cost === 15 && CREATURE_BY_ID.sans.cat === 'monster' && CREATURE_BY_ID.sans.ranged === true, '샌즈 — 코스트 15 원거리 괴수');
+check(CREATURE_BY_ID.sans.hp < CREATURE_BY_ID.strong_chicken.hp && CREATURE_BY_ID.sans.evasion >= 0.2, '샌즈 — 낮은 체력 · 높은 회피');
+check(CREATURE_BY_ID.sans.skill.kit.length === 3 && CREATURE_BY_ID.sans.skill.kit.map((k) => k.id).join(',') === 'gasterBlast,boneBarrage,boneSpikes',
+  '샌즈 — 가스터 블래스터 · 뼈 발사 · 뼈 가시');
 
 const SKILL_KINDS = new Set([
   'roar', 'pounce', 'charge', 'slam', 'pack', 'dive', 'chomp', 'gore', 'evade', 'smash', 'sprint', 'gore2',
   'crunch', 'sailSlash', 'hornCharge', 'packPounce', 'flame', 'titanSlam',
   'infect', 'boneSlash', 'coil', 'frenzy', 'drexCombo',
   'bloodFrenzy', 'deepBite', 'tidalJaw', 'abyssVortex', 'rockCrush', 'dragonBreath', 'sneakStrike',
+  'featherStorm', 'gasterBlast',
 ]);
 for (const a of CREATURES) {
   const tag = `[${a.id}]`;
@@ -72,7 +85,7 @@ for (const a of CREATURES) {
   }
   check(powerOf(a) > 0, `${tag} 전투력 계산`);
 }
-check(new Set(CREATURES.map((a) => a.skill.kind)).size === 30, '서로 다른 스킬 30가지');
+check(new Set(CREATURES.map((a) => a.skill.kind)).size === 32, '서로 다른 스킬 32가지');
 
 check(WEAPONS.length === 5, '무기 5종');
 check(WEAPON_BY_ID.none && WEAPON_BY_ID.gatling && WEAPON_BY_ID.rocket && WEAPON_BY_ID.laser && WEAPON_BY_ID.shield, '무기 id');
@@ -112,6 +125,7 @@ check(raptorPreset && raptorPreset.red.length === 12, '티라노 vs 랩터 12마
 check(raptorPreset && Math.max(...raptorPreset.blue.map((q) => Math.hypot(q.x, q.z))) > 12, '3배 전장에 맞게 프리셋 좌표 확대');
 check(PRESETS.some((p) => p.id === 'rocket-elephants' && p.blue.every((q) => q.weapon === 'rocket')), '로켓 코끼리 프리셋');
 check(PRESETS.some((p) => p.id === 'boss-raid' && p.blue.length >= 10), '보스 레이드 프리셋');
+check(PRESETS.some((p) => p.id === 'chicken-sans' && p.blue[0].id === 'strong_chicken' && p.red[0].id === 'sans'), '강하닭 vs 샌즈 프리셋');
 const mega = PRESETS.find((p) => p.id === 'mega-swarm');
 check(!!mega && mega.blue.length === 50 && mega.red.length === 50, '100마리 대난전 프리셋 (50 vs 50)');
 
@@ -255,8 +269,8 @@ for (const blue of CREATURE_IDS) {
     pairCount++;
   }
 }
-check(pairCount === 30 * 30, '1:1 전 조합 900판 실행');
-check(skillSeen.size === 30, `모든 스킬 30종 발동 (미발동: ${[...SKILL_KINDS].filter((k) => !skillSeen.has(k)).join(',')})`);
+check(pairCount === 32 * 32, '1:1 전 조합 1024판 실행');
+check(skillSeen.size === 32, `모든 스킬 32종 발동 (미발동: ${[...SKILL_KINDS].filter((k) => !skillSeen.has(k)).join(',')})`);
 
 // 프리셋 × 전장
 for (const p of PRESETS) {
@@ -370,6 +384,51 @@ for (const p of PRESETS) {
 }
 
 function explodeWatch(s) { return s.stats.explosions > 0 && s.time > 3; }
+
+// 강하닭 · 샌즈 — 세 가지 기술을 번갈아 쓰고 3D 연출용 이벤트를 남긴다
+{
+  const s = createBattle({ blue: [P('strong_chicken', -6, 0)], red: [P('sans', 6, 0)], seed: 2026 });
+  s.units.forEach((u) => { u.hp = u.maxHp = 30000; });   // 두 보스가 세 기술을 모두 보여 줄 시간을 준다
+  const seenTypes = new Set();
+  const names = new Set();
+  for (let i = 0; i < 3600; i++) {                       // 60초
+    step(s, TUNING.SIM_DT);
+    for (const ev of drainEvents(s)) {
+      seenTypes.add(ev.type);
+      if (ev.type === 'skill') names.add(ev.name);
+    }
+  }
+  check(names.has('깃털 폭풍') && names.has('거대 부리 강타') && names.has('황금 알 폭격'),
+    `강하닭 세 기술 사용 (${[...names].join(',')})`);
+  check(names.has('가스터 블래스터') && names.has('뼈 발사') && names.has('뼈 가시'), '샌즈 세 기술 사용');
+  for (const t of ['featherRain', 'beakSlam', 'eggLaunch', 'gasterBlast', 'boneBarrage', 'boneSpikes']) {
+    check(seenTypes.has(t), `[${t}] 3D 연출 이벤트 발생`);
+  }
+}
+{
+  // 샌즈 — 근접 위협을 받으면 잔상을 남기며 뒤로 순간이동
+  const s = createBattle({ blue: [P('sans', -2, 0)], red: [P('fox', 1.2, 0)], seed: 5 });
+  let blinked = null;
+  for (let i = 0; i < 420 && !blinked; i++) {
+    step(s, TUNING.SIM_DT);
+    blinked = drainEvents(s).find((e) => e.type === 'blink') || null;
+  }
+  check(!!blinked, '샌즈 순간이동 이벤트');
+  if (blinked) {
+    check(Math.hypot(blinked.x2 - blinked.x, blinked.z2 - blinked.z) > 4, '순간이동 거리 4 이상');
+  }
+}
+{
+  // 강하닭 — 10코스트 최종 병기들을 상대로 우세
+  let wins = 0;
+  const foes = ['leviathan', 'dragon', 'drex'];
+  foes.forEach((foe, i) => {
+    const s = createBattle({ blue: [P('strong_chicken', -5, 0)], red: [P(foe, 5, 0)], seed: 301 + i });
+    simulate(s, TUNING.SIM_DT, 400);
+    if (s.winner === 'blue') wins++;
+  });
+  check(wins >= 2, `강하닭이 10코스트와의 1:1에서 우세 (${wins}/3)`);
+}
 
 // 래그돌: 무거운 일격에 가벼운 유닛이 공중으로
 {
@@ -550,9 +609,10 @@ for (const def of CREATURES) {
   check(Number.isFinite(rig.height) && rig.height > 0.6, `[${def.id}] 공격 중 높이 유효`);
   check(STYLE_EXPECT[style](m), `[${def.id}] ${style} 공격 모션 (${JSON.stringify(m)})`);
 }
-check(Object.keys(ATTACK_STYLE).length === CREATURES.length, '30종 모두 공격 스타일 지정');
+check(Object.keys(ATTACK_STYLE).length === CREATURES.length, '32종 모두 공격 스타일 지정');
 check(ATTACK_STYLE.drex === 'combo', '디-렉스는 물기+주먹 콤보');
 check(ATTACK_STYLE.stone_golem === 'smash' && ATTACK_STYLE.goblin === 'slash' && ATTACK_STYLE.dragon === 'swoop', '신규 유닛 공격 모션');
+check(ATTACK_STYLE.strong_chicken === 'bite' && ATTACK_STYLE.sans === 'claw', '강하닭·샌즈 공격 모션');
 
 // 무기 발사는 근접 공격 모션을 쓰지 않는다
 triggerShoot(buildAnimalModel(CREATURE_BY_ID.lion, 'blue', { weapon: 'gatling' }));

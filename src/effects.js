@@ -111,6 +111,195 @@ export class Effects {
     this.beamIdx = 0;
     this.up = new THREE.Vector3(0, 1, 0);
     this.tmpDir = new THREE.Vector3();
+
+    /* ── 강하닭 깃털 ── */
+    this.feathers = [];
+    const featherGeo = new THREE.PlaneGeometry(0.16, 0.52);
+    for (let i = 0; i < 44; i++) {
+      const fm = new THREE.MeshBasicMaterial({
+        color: 0xffe9a8, transparent: true, opacity: 0, side: THREE.DoubleSide, depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(featherGeo, fm);
+      mesh.visible = false;
+      this.group.add(mesh);
+      this.feathers.push({ mesh, life: 0, max: 1, vy: -5, drift: 0, spin: 0 });
+    }
+    this.featherIdx = 0;
+
+    /* ── 가스터 블래스터 해골 ── */
+    this.blasters = [];
+    for (let i = 0; i < 3; i++) {
+      const grp = new THREE.Group();
+      const boneMat = new THREE.MeshStandardMaterial({
+        color: 0xf6fbff, roughness: 0.4, metalness: 0.05, flatShading: true,
+        emissive: 0x2f7f96, emissiveIntensity: 0.55,
+      });
+      const eyeMat = new THREE.MeshBasicMaterial({ color: 0x9ff4ff });
+      const cranium = new THREE.Mesh(new THREE.SphereGeometry(0.9, 12, 9), boneMat);
+      cranium.scale.set(0.92, 0.82, 1.0);
+      grp.add(cranium);
+      const snout = new THREE.Mesh(new THREE.ConeGeometry(0.62, 2.1, 6), boneMat);
+      snout.rotation.x = Math.PI / 2;
+      snout.position.set(0, -0.24, 1.15);
+      grp.add(snout);
+      const upper = new THREE.Mesh(new THREE.ConeGeometry(0.54, 1.5, 6), boneMat);
+      upper.rotation.x = Math.PI / 2;
+      upper.position.set(0, 0.3, 1.0);
+      grp.add(upper);
+      for (const s2 of [-1, 1]) {
+        const eye = new THREE.Mesh(new THREE.SphereGeometry(0.2, 8, 6), eyeMat);
+        eye.position.set(s2 * 0.38, 0.22, 0.55);
+        grp.add(eye);
+        const horn = new THREE.Mesh(new THREE.ConeGeometry(0.16, 0.95, 5), boneMat);
+        horn.position.set(s2 * 0.62, 0.72, -0.15);
+        horn.rotation.z = -s2 * 0.55;
+        grp.add(horn);
+        for (let t = 0; t < 3; t++) {
+          const tooth = new THREE.Mesh(new THREE.ConeGeometry(0.1, 0.3, 4), boneMat);
+          tooth.position.set(s2 * (0.16 + t * 0.12), -0.42, 1.0 + t * 0.16);
+          tooth.rotation.x = Math.PI;
+          grp.add(tooth);
+        }
+      }
+      grp.visible = false;
+      this.group.add(grp);
+      this.blasters.push({ grp, life: 0, max: 0.6 });
+    }
+    this.blasterIdx = 0;
+
+    /* ── 굵은 빔 ── */
+    this.bigBeams = [];
+    const bigGeo = new THREE.CylinderGeometry(1, 1, 1, 10);
+    for (let i = 0; i < 6; i++) {
+      const m = new THREE.MeshBasicMaterial({
+        color: 0x9ff4ff, transparent: true, opacity: 0, blending: THREE.AdditiveBlending, depthWrite: false,
+      });
+      const mesh = new THREE.Mesh(bigGeo, m);
+      mesh.visible = false;
+      this.group.add(mesh);
+      this.bigBeams.push({ mesh, life: 0, max: 0.34 });
+    }
+    this.bigBeamIdx = 0;
+
+    /* ── 뼈 가시 ── */
+    this.spikes = [];
+    const spikeGeo = new THREE.ConeGeometry(1, 1, 5);
+    const spikeMat = new THREE.MeshStandardMaterial({
+      color: 0xf8fbff, roughness: 0.45, flatShading: true, emissive: 0x2f6f86, emissiveIntensity: 0.35,
+    });
+    for (let i = 0; i < 16; i++) {
+      const mesh = new THREE.Mesh(spikeGeo, spikeMat.clone());
+      mesh.visible = false;
+      this.group.add(mesh);
+      this.spikes.push({ mesh, life: 0, max: 1, x: 0, z: 0 });
+    }
+    this.spikeIdx = 0;
+    this.time = 0;
+
+    /* ── 황금 알 · 뼈 투사체 지오메트리 ── */
+    this.eggGeo = new THREE.SphereGeometry(0.24, 9, 7);
+    this.eggMat = new THREE.MeshStandardMaterial({
+      color: 0xffd24a, roughness: 0.35, metalness: 0.25, emissive: 0xffa020, emissiveIntensity: 0.55, flatShading: true,
+    });
+    this.boneMat = new THREE.MeshStandardMaterial({
+      color: 0xf4f9ff, roughness: 0.5, flatShading: true, emissive: 0x2a5c70, emissiveIntensity: 0.3,
+    });
+  }
+
+  /* ───────── 강하닭 · 샌즈 스킬 연출 ───────── */
+  featherRain(x, z, r = 5.8, count = 26, y0 = 8) {
+    for (let i = 0; i < count; i++) {
+      const f = this.feathers[this.featherIdx];
+      this.featherIdx = (this.featherIdx + 1) % this.feathers.length;
+      const a = Math.random() * Math.PI * 2;
+      const rr = Math.sqrt(Math.random()) * r;
+      f.mesh.position.set(x + Math.cos(a) * rr, y0 + Math.random() * 5, z + Math.sin(a) * rr);
+      f.mesh.rotation.set(Math.random() * 3, Math.random() * 3, Math.random() * 3);
+      f.mesh.material.color.setHex(Math.random() < 0.4 ? 0xffd24a : 0xffe9a8);
+      f.mesh.material.opacity = 0.95;
+      f.mesh.visible = true;
+      const life = 1.0 + Math.random() * 0.7;
+      f.life = life; f.max = life;
+      f.vy = -(5 + Math.random() * 4);
+      f.drift = (Math.random() - 0.5) * 1.6;
+      f.spin = (Math.random() - 0.5) * 5;
+    }
+    this.ring(x, z, 0.6, r * 1.05, 0xffe9a8, 0.45);
+    this.dust(x, z, 8, 0xf0e2b8);
+  }
+
+  bigBeam(x1, y1, z1, x2, y2, z2, color = 0x9ff4ff, radius = 0.5, opacity = 0.9, dur = 0.34) {
+    const b = this.bigBeams[this.bigBeamIdx];
+    this.bigBeamIdx = (this.bigBeamIdx + 1) % this.bigBeams.length;
+    const dx = x2 - x1, dy = y2 - y1, dz = z2 - z1;
+    const len = Math.hypot(dx, dy, dz) || 1;
+    b.mesh.position.set((x1 + x2) / 2, (y1 + y2) / 2, (z1 + z2) / 2);
+    this.tmpDir.set(dx / len, dy / len, dz / len);
+    b.mesh.quaternion.setFromUnitVectors(this.up, this.tmpDir);
+    b.mesh.scale.set(radius, len, radius);
+    b.mesh.material.color.setHex(color);
+    b.mesh.material.opacity = opacity;
+    b.mesh.visible = true;
+    b.life = dur; b.max = dur;
+  }
+
+  gasterBlast(x, z, ang = 0, len = 26, color = 0x9ff4ff) {
+    const b = this.blasters[this.blasterIdx];
+    this.blasterIdx = (this.blasterIdx + 1) % this.blasters.length;
+    b.grp.position.set(x, 3.5, z);
+    b.grp.rotation.set(0, ang, 0);
+    b.grp.scale.setScalar(1.9);
+    b.grp.visible = true;
+    b.life = 0.6; b.max = 0.6;
+
+    const sx = x + Math.sin(ang) * 3.2, sz = z + Math.cos(ang) * 3.2;
+    const ex = x + Math.sin(ang) * len, ez = z + Math.cos(ang) * len;
+    this.bigBeam(sx, 3.35, sz, ex, 3.35, ez, color, 0.75, 0.85, 0.4);
+    this.bigBeam(sx, 3.35, sz, ex, 3.35, ez, 0xffffff, 0.32, 0.95, 0.32);
+    this.flash(sx, 3.4, sz, 2.6, color, 0.26);
+    this.flash(ex, 1.6, ez, 2.4, color, 0.3);
+    this.ring(ex, ez, 0.8, 4.4, color, 0.45);
+    this.burst(ex, 1.2, ez, color, 24, 6.5);
+    this.dust(ex, ez, 10, 0xcfeaf6);
+  }
+
+  boneBarrage(x, z, ang = 0) {
+    this.ring(x, z, 0.5, 2.0, 0xcfeaff, 0.3);
+    this.flash(x, 1.7, z, 0.9, 0xcfeaff, 0.18);
+    for (let i = 0; i < 5; i++) {
+      this.burst(x + Math.sin(ang) * 0.7, 1.4, z + Math.cos(ang) * 0.7, 0xdff4ff, 3, 3.4);
+    }
+  }
+
+  boneSpikes(x, z, r = 6.4) {
+    const n = 10;
+    for (let i = 0; i < n; i++) {
+      const s = this.spikes[this.spikeIdx];
+      this.spikeIdx = (this.spikeIdx + 1) % this.spikes.length;
+      const a = (i / n) * Math.PI * 2 + Math.random() * 0.4;
+      const rr = 1.2 + Math.random() * r;
+      s.x = x + Math.cos(a) * rr;
+      s.z = z + Math.sin(a) * rr;
+      s.mesh.position.set(s.x, -1.9, s.z);
+      s.mesh.rotation.set((Math.random() - 0.5) * 0.5, Math.random() * 3, (Math.random() - 0.5) * 0.5);
+      s.mesh.scale.set(0.16 + Math.random() * 0.1, 1.1 + Math.random() * 0.9, 0.16 + Math.random() * 0.1);
+      s.mesh.material.opacity = 1;
+      s.mesh.material.transparent = true;
+      s.mesh.visible = true;
+      const life = 0.9 + Math.random() * 0.35;
+      s.life = life; s.max = life;
+    }
+    this.ring(x, z, 0.8, r * 1.02, 0xbfeaff, 0.5);
+    this.dust(x, z, 18, 0xcfe6f2);
+  }
+
+  blink(x, z, x2, z2) {
+    this.ring(x, z, 0.5, 1.9, 0x9ff4ff, 0.34);
+    this.burst(x, 1.1, z, 0x9ff4ff, 14, 4.4, { grav: -1 });
+    this.text(x, 2.6, z, '순간이동', { color: '#9ff4ff', size: 0.6, life: 0.7 });
+    this.flash(x2, 1.7, z2, 1.3, 0x9ff4ff, 0.28);
+    this.ring(x2, z2, 0.5, 1.7, 0x9ff4ff, 0.3);
+    this.burst(x2, 1.1, z2, 0xdffbff, 10, 3.6, { grav: -1 });
   }
 
   /* ───────── 피해 숫자 ───────── */
@@ -230,7 +419,11 @@ export class Effects {
           ? new THREE.Mesh(this.bulletGeo, this.bulletMat)
           : kind === 'rocket'
             ? new THREE.Mesh(this.rocketGeo, this.rocketMat)
-            : new THREE.Mesh(this.projGeo, this.projMat);
+            : kind === 'egg'
+              ? new THREE.Mesh(this.eggGeo, this.eggMat)
+              : kind === 'bone'
+                ? this.makeBoneMesh()
+                : new THREE.Mesh(this.projGeo, this.projMat);
         mesh.castShadow = false;
         this.group.add(mesh);
         this.projectileMeshes.set(p.pid, mesh);
@@ -279,7 +472,22 @@ export class Effects {
   }
 
   /* ───────── 프레임 갱신 ───────── */
+  makeBoneMesh() {
+    const g = new THREE.Group();
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.86, 6), this.boneMat);
+    g.add(shaft);
+    for (const y of [-0.43, 0.43]) {
+      for (const s of [-1, 1]) {
+        const knob = new THREE.Mesh(new THREE.SphereGeometry(0.09, 6, 5), this.boneMat);
+        knob.position.set(s * 0.07, y, 0);
+        g.add(knob);
+      }
+    }
+    return g;
+  }
+
   update(dt) {
+    this.time += dt;
     // 숫자
     for (const n of this.numbers) {
       if (n.life <= 0) continue;
@@ -352,6 +560,45 @@ export class Effects {
       b.mesh.material.opacity = Math.max(0, 0.95 * (1 - k));
       if (b.life <= 0) b.mesh.visible = false;
     }
+    // 깃털
+    for (const f of this.feathers) {
+      if (f.life <= 0) continue;
+      f.life -= dt;
+      f.mesh.position.y += f.vy * dt;
+      f.mesh.position.x += (f.drift + Math.sin(this.time * 2.4 + f.spin) * 0.5) * dt;
+      f.mesh.rotation.z += f.spin * dt;
+      f.mesh.rotation.x += f.spin * 0.6 * dt;
+      f.mesh.material.opacity = Math.max(0, 0.95 * Math.min(1, f.life / 0.35));
+      if (f.life <= 0 || f.mesh.position.y < 0.06) { f.mesh.visible = false; f.life = 0; }
+    }
+    // 해골 블래스터
+    for (const b of this.blasters) {
+      if (b.life <= 0) continue;
+      b.life -= dt;
+      const k = 1 - Math.max(0, b.life) / b.max;
+      b.grp.position.y = 3.5 + Math.sin(k * Math.PI) * 0.25;
+      b.grp.scale.setScalar(1.9 + Math.sin(k * Math.PI) * 0.22);
+      b.grp.visible = b.life > 0;
+    }
+    // 굵은 빔
+    for (const b of this.bigBeams) {
+      if (b.life <= 0) continue;
+      b.life -= dt;
+      const k = 1 - Math.max(0, b.life) / b.max;
+      b.mesh.material.opacity = Math.max(0, b.mesh.material.opacity * (1 - k * 0.85));
+      if (b.life <= 0) b.mesh.visible = false;
+    }
+    // 뼈 가시
+    for (const s of this.spikes) {
+      if (s.life <= 0) continue;
+      s.life -= dt;
+      const k = 1 - Math.max(0, s.life) / s.max;
+      const rise = Math.min(1, k / 0.25);
+      const fall = Math.max(0, (k - 0.72) / 0.28);
+      s.mesh.position.y = -1.9 + rise * 2.5 - fall * 2.2;
+      s.mesh.material.opacity = Math.max(0, 1 - fall);
+      if (s.life <= 0) s.mesh.visible = false;
+    }
   }
 
   clear() {
@@ -361,6 +608,10 @@ export class Effects {
     for (const b of this.beams) { b.life = 0; b.mesh.visible = false; }
     this.parts.length = 0;
     this.partGeo.setDrawRange(0, 0);
+    for (const f of this.feathers) { f.life = 0; f.mesh.visible = false; }
+    for (const b of this.blasters) { b.life = 0; b.grp.visible = false; }
+    for (const b of this.bigBeams) { b.life = 0; b.mesh.visible = false; }
+    for (const s of this.spikes) { s.life = 0; s.mesh.visible = false; }
     for (const [, mesh] of this.projectileMeshes) this.group.remove(mesh);
     this.projectileMeshes.clear();
   }

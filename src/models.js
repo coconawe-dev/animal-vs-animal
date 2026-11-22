@@ -1649,6 +1649,210 @@ function buildGoblin(g, m, rig) {
   void def;
 }
 
+/* ───────────────────────────── 강하닭 (RPG 최종 보스) ───────────────────────────── */
+function buildStrongChicken(g, m, rig) {
+  const combMat = mat(0xd83a3a, { roughness: 0.58, emissive: 0x5a0a0a, emissiveIntensity: 0.35 });
+  const beakMat = mat(0xffc23a, { roughness: 0.36, metalness: 0.24, emissive: 0x6a3a00, emissiveIntensity: 0.25 });
+  const goldMat = new THREE.MeshStandardMaterial({
+    color: 0xffe08a, emissive: 0xffa020, emissiveIntensity: 1.15, roughness: 0.3, metalness: 0.85, flatShading: true,
+  });
+  const wattlMat = mat(0xc8323a, { roughness: 0.62, emissive: 0x4a0608, emissiveIntensity: 0.3 });
+  rig.matList.push(combMat, beakMat, goldMat, wattlMat);
+
+  const body = new THREE.Group();
+  body.position.y = 1.12;
+  g.add(body); rig.body = body; rig.bodyY = 1.12;
+
+  // 거대하고 통통한 몸통 · 가슴 깃 · 등 깃
+  add(body, G.sphere, m.main, [0, 0, 0], [0.7, 0.72, 0.78]);
+  add(body, G.sphere, m.belly, [0, -0.06, 0.34], [0.54, 0.58, 0.44]);
+  add(body, G.sphereLow, m.main, [0, 0.2, -0.24], [0.56, 0.4, 0.56], null, false);
+  add(body, G.sphereLow, m.main, [0, 0.34, -0.06], [0.36, 0.2, 0.58], null, false);
+
+  // 굵은 닭다리 + 황금 발톱
+  rig.legs = [];
+  [1, -1].forEach((side, i) => {
+    const piv = new THREE.Group();
+    piv.position.set(side * 0.3, -0.46, 0);
+    body.add(piv);
+    add(piv, G.leg, m.dark, [0, -0.26, 0], [0.17, 0.56, 0.17]);
+    add(piv, G.box, m.dark, [0, -0.55, 0.1], [0.3, 0.12, 0.4], null, false);
+    for (let k = -1; k <= 1; k++) {
+      const claw = add(piv, G.cone, goldMat, [k * 0.09, -0.6, 0.34], [0.045, 0.2, 0.045], [Math.PI / 2.1, 0, 0], false);
+      claw.castShadow = false;
+    }
+    rig.legs.push({ pivot: piv, phase: i * Math.PI, front: false, left: side > 0 });
+  });
+
+  // 날개 (작은 밑동 + 여러 겹 깃털)
+  rig.wingFlap = [];
+  const wingMat = mat(0xeeddb4, { roughness: 0.86 });
+  rig.matList.push(wingMat);
+  [1, -1].forEach((side) => {
+    const piv = new THREE.Group();
+    piv.position.set(side * 0.58, 0.18, 0.04);
+    body.add(piv);
+    add(piv, G.sphereLow, wingMat, [side * 0.02, -0.04, 0], [0.1, 0.2, 0.32]);
+    for (let i = 0; i < 6; i++) {
+      const t = i / 5;
+      const f = add(piv, G.coneLow, i % 2 ? goldMat : m.main,
+        [side * (0.07 + t * 0.02), -0.08 - t * 0.16, -0.3 + t * 0.26],
+        [0.1 + t * 0.02, 0.5 - t * 0.08, 0.07], [0.62 + t * 0.2, 0, side * -0.4], false);
+      f.castShadow = false;
+    }
+    rig.wingFlap.push({ pivot: piv, side });
+  });
+
+  // 부채꼴 꼬리깃
+  const tail = new THREE.Group();
+  tail.position.set(0, 0.24, -0.66);
+  body.add(tail); rig.tail = tail;
+  for (let i = 0; i < 7; i++) {
+    const a = (i / 6 - 0.5) * 1.35;
+    const f = add(tail, G.cone, i % 2 ? goldMat : m.main,
+      [Math.sin(a) * 0.24, 0.3 + Math.cos(a) * 0.16, -0.14 - Math.cos(a) * 0.14],
+      [0.15, 0.72, 0.07], [-0.66 - Math.cos(a) * 0.32, 0, -Math.sin(a) * 0.55], false);
+    f.castShadow = false;
+  }
+
+  // 목 · 머리
+  const head = new THREE.Group();
+  head.position.set(0, 0.76, 0.48);
+  body.add(head); rig.head = head;
+  add(head, G.cyl, m.main, [0, -0.22, -0.02], [0.26, 0.52, 0.26], [0.14, 0, 0]);
+  add(head, G.sphere, m.main, [0, 0, 0], [0.38, 0.38, 0.36]);
+  add(head, G.sphereLow, m.belly, [0, -0.08, 0.2], [0.3, 0.24, 0.24], null, false);
+
+  // 붉은 벼슬
+  for (let i = 0; i < 4; i++) {
+    const c = add(head, G.sphereLow, combMat, [0, 0.34 + Math.sin(i * 0.9) * 0.05, 0.16 - i * 0.12], [0.1, 0.17, 0.09], null, false);
+    c.castShadow = false;
+  }
+
+  // 눈 · 눈썹
+  add(head, G.sphereLow, m.accent, [0.18, 0.07, 0.28], [0.1, 0.11, 0.09], null, false);
+  add(head, G.sphereLow, m.accent, [-0.18, 0.07, 0.28], [0.1, 0.11, 0.09], null, false);
+  add(head, G.sphereLow, m.eye, [0.2, 0.07, 0.34], [0.055, 0.06, 0.05], null, false);
+  add(head, G.sphereLow, m.eye, [-0.2, 0.07, 0.34], [0.055, 0.06, 0.05], null, false);
+  const browL = add(head, G.box, combMat, [0.19, 0.2, 0.3], [0.15, 0.05, 0.06], [0, 0, -0.36], false);
+  const browR = add(head, G.box, combMat, [-0.19, 0.2, 0.3], [0.15, 0.05, 0.06], [0, 0, 0.36], false);
+  browL.castShadow = false; browR.castShadow = false;
+
+  // 날카로운 황금 부리
+  add(head, G.cone, beakMat, [0, -0.03, 0.46], [0.2, 0.4, 0.16], [Math.PI / 2, Math.PI / 4, 0]);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.14, 0.34);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.cone, beakMat, [0, -0.02, 0.12], [0.15, 0.3, 0.11], [Math.PI / 2, Math.PI / 4, 0], false);
+  // 육수
+  add(jaw, G.sphereLow, wattlMat, [0.06, -0.13, 0.06], [0.06, 0.12, 0.06], null, false);
+  add(jaw, G.sphereLow, wattlMat, [-0.06, -0.13, 0.06], [0.06, 0.12, 0.06], null, false);
+
+  // 황금 왕관
+  const crown = new THREE.Group();
+  crown.position.set(0, 0.4, -0.02);
+  head.add(crown);
+  add(crown, G.cyl, goldMat, [0, 0, 0], [0.24, 0.11, 0.24], null, false);
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    add(crown, G.coneLow, goldMat, [Math.cos(a) * 0.2, 0.14, Math.sin(a) * 0.2], [0.055, 0.2, 0.055], null, false);
+  }
+
+  // 발밑 황금 오라
+  const aura = new THREE.Mesh(
+    new THREE.RingGeometry(0.9, 1.24, 32),
+    new THREE.MeshBasicMaterial({ color: 0xffd24a, transparent: true, opacity: 0.24, blending: THREE.AdditiveBlending, depthWrite: false, side: THREE.DoubleSide }),
+  );
+  aura.rotation.x = -Math.PI / 2;
+  aura.position.y = -1.06;
+  body.add(aura);
+  rig.auraRing = aura;
+
+  rig.height = 2.5;
+}
+
+/* ───────────────────────────── 샌즈 (언더테일) ───────────────────────────── */
+function buildSans(g, m, rig) {
+  const boneMat = mat(0xf8f8f2, { roughness: 0.55 });
+  const sockMat = mat(0xf7f7fb, { roughness: 0.7 });
+  const slipperMat = mat(0xff9ec4, { roughness: 0.72 });
+  const hoodTrim = mat(0xf4f4f8, { roughness: 0.85 });
+  const glowMat = new THREE.MeshBasicMaterial({ color: 0x9ff4ff });
+  rig.matList.push(boneMat, sockMat, slipperMat, hoodTrim);
+
+  const body = new THREE.Group();
+  body.position.y = 0.98;
+  g.add(body); rig.body = body; rig.bodyY = 0.98;
+
+  // 파란 후드 재킷 · 흰 셔츠 · 지퍼
+  add(body, G.box, m.main, [0, 0.02, -0.02], [0.58, 0.54, 0.38]);
+  add(body, G.box, m.main, [0, 0.06, 0.02], [0.62, 0.34, 0.3], null, false);
+  add(body, G.box, boneMat, [0, 0.0, 0.17], [0.22, 0.44, 0.05], null, false);
+  add(body, G.box, m.dark, [0, 0.0, 0.21], [0.03, 0.46, 0.03], null, false);
+  add(body, G.box, m.dark, [0, 0.24, 0.19], [0.3, 0.05, 0.04], null, false);
+  // 목의 하얀 털 후드 칼라 · 등 뒤 후드
+  add(body, G.sphereLow, hoodTrim, [0, 0.28, -0.08], [0.34, 0.13, 0.28]);
+  add(body, G.sphereLow, m.main, [0, 0.32, -0.2], [0.34, 0.28, 0.22], null, false);
+  add(body, G.torus, hoodTrim, [0, 0.3, 0.0], [0.19, 0.19, 0.16], [Math.PI / 2, 0, 0], false);
+
+  // 흰 줄무늬 검은 반바지
+  add(body, G.box, m.dark, [0, -0.32, 0.02], [0.5, 0.28, 0.38]);
+  add(body, G.box, boneMat, [0, -0.32, 0.2], [0.12, 0.05, 0.02], null, false);
+  add(body, G.box, boneMat, [0.26, -0.32, 0.02], [0.02, 0.06, 0.36], null, false);
+  add(body, G.box, boneMat, [-0.26, -0.32, 0.02], [0.02, 0.06, 0.36], null, false);
+
+  // 다리 · 흰 양말 · 분홍 슬리퍼
+  rig.legs = [];
+  [1, -1].forEach((side, i) => {
+    const piv = new THREE.Group();
+    piv.position.set(side * 0.15, -0.44, 0);
+    body.add(piv);
+    add(piv, G.cyl, sockMat, [0, -0.16, 0], [0.085, 0.34, 0.085]);
+    add(piv, G.box, slipperMat, [0, -0.36, 0.08], [0.19, 0.1, 0.34], null, false);
+    rig.legs.push({ pivot: piv, phase: i * Math.PI, front: false, left: side > 0 });
+  });
+
+  // 팔 (파란 소매 · 해골 손)
+  rig.arms = [];
+  [1, -1].forEach((side) => {
+    const piv = new THREE.Group();
+    piv.position.set(side * 0.34, 0.18, 0.02);
+    body.add(piv);
+    add(piv, G.cyl, m.main, [0, -0.2, 0], [0.12, 0.42, 0.12]);
+    add(piv, G.sphereLow, boneMat, [0, -0.42, 0.03], [0.1, 0.1, 0.09], null, false);
+    for (let f = 0; f < 3; f++) {
+      add(piv, G.box, boneMat, [-0.05 + f * 0.05, -0.5, 0.05], [0.025, 0.09, 0.03], null, false);
+    }
+    rig.arms.push({ pivot: piv, side });
+  });
+
+  // 동그란 해골 머리
+  const head = new THREE.Group();
+  head.position.set(0, 0.64, 0.06);
+  body.add(head); rig.head = head;
+  add(head, G.sphere, boneMat, [0, 0, 0], [0.36, 0.4, 0.34]);
+  add(head, G.sphereLow, boneMat, [0, -0.1, 0.12], [0.28, 0.2, 0.26], null, false);
+  // 검은 눈구멍
+  add(head, G.sphereLow, m.eye, [0.13, 0.06, 0.28], [0.1, 0.13, 0.06], null, false);
+  add(head, G.sphereLow, m.eye, [-0.13, 0.06, 0.28], [0.1, 0.13, 0.06], null, false);
+  // 빛나는 시안 왼쪽 눈
+  const eyeGlow = add(head, G.sphereLow, glowMat, [-0.13, 0.06, 0.33], [0.055, 0.07, 0.03], null, false);
+  rig.eyeGlow = eyeGlow;
+  // 코 · 장난기 있는 웃는 입
+  add(head, G.sphereLow, m.eye, [0, -0.04, 0.34], [0.045, 0.035, 0.03], null, false);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.14, 0.12);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.box, m.eye, [0, 0, 0.16], [0.3, 0.1, 0.1], null, false);
+  for (let i = 0; i < 5; i++) {
+    add(jaw, G.box, boneMat, [-0.12 + i * 0.06, 0.05, 0.2], [0.04, 0.06, 0.03], null, false);
+    add(jaw, G.box, boneMat, [-0.12 + i * 0.06, -0.05, 0.2], [0.04, 0.06, 0.03], null, false);
+  }
+
+  rig.height = 2.1;
+  rig.upright = true;
+}
+
 const BUILDERS = {
   lion: buildLion, tiger: buildTiger, elephant: buildElephant, bear: buildBear,
   wolf: buildWolf, eagle: buildEagle, crocodile: buildCrocodile, rhino: buildRhino,
@@ -1660,6 +1864,7 @@ const BUILDERS = {
   shark: buildShark, megalodon: buildMegalodon, mosasaurus: buildMosasaurus,
   leviathan: buildLeviathan, stone_golem: buildStoneGolem, dragon: buildDragon,
   goblin: buildGoblin,
+  strong_chicken: buildStrongChicken, sans: buildSans,
 };
 
 export const TEAM_TINTS = { blue: 0x3b7bff, red: 0xff4b3b, green: 0x35d47c, gold: 0xffbe3f };
@@ -1674,6 +1879,7 @@ export const ATTACK_STYLE = {
   zombie: 'claw', skeleton: 'slash', drex: 'combo',
   shark: 'bite', megalodon: 'bite', mosasaurus: 'bite', leviathan: 'bite',
   stone_golem: 'smash', dragon: 'swoop', goblin: 'slash',
+  strong_chicken: 'bite', sans: 'claw',
 };
 
 /* ─────────────────── 대량 난전용 초간단 모델 (드로우 콜 절약) ─────────────────── */
@@ -1911,6 +2117,22 @@ export function animateRig(rig, s) {
     const swing = Math.sin(rig.walk + (a.side > 0 ? 0 : Math.PI)) * 0.35 * hurry;
     a.pivot.rotation.x = swing + atk * 0.9 + sk * -1.1;
     a.pivot.rotation.z = a.side * (sk * 0.4);
+  }
+
+  // 날개 펄럭임 (강하닭) — rig.wings 와 별개로 부드러운 대기 모션
+  for (const w of rig.wingFlap || []) {
+    w.pivot.rotation.z = w.side * (0.12 + Math.sin(rig.t * 2.3) * 0.07 + sk * 0.7);
+    w.pivot.rotation.y = w.side * (0.1 + Math.sin(rig.t * 1.7) * 0.05);
+  }
+  // 발밑 황금 오라 (강하닭)
+  if (rig.auraRing) {
+    rig.auraRing.rotation.z += dt * 0.7;
+    rig.auraRing.material.opacity = 0.18 + Math.sin(rig.t * 2.1) * 0.05 + sk * 0.22;
+  }
+  // 빛나는 시안 눈 (샌즈)
+  if (rig.eyeGlow) {
+    const g2 = 0.9 + Math.sin(rig.t * 5.2) * 0.16 + sk * 0.7 + hurt * 0.2;
+    rig.eyeGlow.scale.set(0.055 * g2, 0.07 * g2, 0.03 * g2);
   }
 
   // 코 (코끼리)
