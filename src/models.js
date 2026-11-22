@@ -1237,7 +1237,6 @@ function buildShark(g, m, rig) {
   // 유선형 몸통
   add(body, G.sphere, m.main, [0, 0, 0], [0.34, 0.36, 1.1]);
   add(body, G.sphereLow, m.belly, [0, -0.14, 0.06], [0.27, 0.2, 0.9], null, false);
-  add(body, G.sphere, m.main, [0, 0.03, 0.9], [0.23, 0.21, 0.4]);
 
   // 등지느러미 · 작은 등지느러미 두 개
   add(body, G.coneLow, m.dark, [0, 0.36, -0.08], [0.1, 0.52, 0.3], [-0.55, 0, 0]);
@@ -1260,21 +1259,32 @@ function buildShark(g, m, rig) {
   tail.add(tip); rig.tailTip = tip;
   caudalFin(tip, m.dark, 1);
 
-  // 주둥이 · 아가리 · 이빨
+  // 머리: 몸통에서 바로 이어지는 쐐기형 주둥이 (앞으로 갈수록 납작해지고 뾰족해진다)
   const head = new THREE.Group();
   head.position.set(0, -0.02, 1.02);
   body.add(head); rig.head = head;
-  add(head, G.sphere, m.main, [0, 0, 0.1], [0.2, 0.17, 0.3]);
+  add(head, G.coneLow, m.main, [0, 0, 0.07], [0.24, 0.78, 0.235], [Math.PI / 2, 0, 0]);
+
+  // 아가리: 주둥이 아래 검은 입 테두리 + 흰 아래턱
+  add(head, G.sphereLow, m.dark, [0, -0.09, 0.15], [0.055, 0.022, 0.11], [-0.3, 0, 0], false);
   const jaw = new THREE.Group();
-  jaw.position.set(0, -0.1, 0.06);
+  jaw.position.set(0, -0.02, -0.1);
   head.add(jaw); rig.jaw = jaw;
-  add(jaw, G.sphereLow, m.belly, [0, 0.01, 0.18], [0.18, 0.07, 0.3], null, false);
-  for (let i = 0; i < 4; i++) {
-    add(head, G.coneLow, m.accent, [0.12, -0.07, 0.16 + i * 0.07], [0.028, 0.1, 0.028], [Math.PI, 0, 0], false);
-    add(head, G.coneLow, m.accent, [-0.12, -0.07, 0.16 + i * 0.07], [0.028, 0.1, 0.028], [Math.PI, 0, 0], false);
+  // 아래턱: 턱 관절에서 앞으로 뽑은 판 — 닫으면 주둥이 아래에 딱 붙는다
+  add(jaw, G.sphereLow, m.main, [0, -0.1, 0.15], [0.07, 0.026, 0.15], [-0.28, 0, 0], false);
+
+  // 이빨: 아가리 테두리에 짧게 붙어 있는 톱니
+  for (let i = 0; i < 3; i++) {
+    const zz = 0.235 - i * 0.045;
+    const xx = 0.034 - i * 0.002;
+    add(head, G.coneLow, m.accent, [xx, -0.104, zz], [0.01, 0.026, 0.01], [Math.PI - 0.05, 0, -0.03], false);
+    add(head, G.coneLow, m.accent, [-xx, -0.104, zz], [0.01, 0.026, 0.01], [Math.PI - 0.05, 0, 0.03], false);
+    add(jaw, G.coneLow, m.accent, [xx * 0.8, -0.075, zz - 0.06], [0.009, 0.022, 0.009], [0.08, 0, -0.03], false);
+    add(jaw, G.coneLow, m.accent, [-xx * 0.8, -0.075, zz - 0.06], [0.009, 0.022, 0.009], [0.08, 0, 0.03], false);
   }
-  add(head, G.sphereLow, m.eye, [0.15, 0.07, 0.12], [0.042, 0.05, 0.035], null, false);
-  add(head, G.sphereLow, m.eye, [-0.15, 0.07, 0.12], [0.042, 0.05, 0.035], null, false);
+  add(head, G.sphereLow, m.eye, [0.128, 0.05, -0.05], [0.021, 0.028, 0.023], null, false);
+  add(head, G.sphereLow, m.eye, [-0.128, 0.05, -0.05], [0.021, 0.028, 0.023], null, false);
+  add(head, G.sphereLow, m.eye, [-0.19, 0.055, 0.03], [0.036, 0.044, 0.032], null, false);
   // 아가미 틈
   for (let i = 0; i < 3; i++) {
     add(body, G.box, m.dark, [0.29, 0.02, 0.46 - i * 0.09], [0.02, 0.18, 0.025], [0, 0, 0.12], false);
