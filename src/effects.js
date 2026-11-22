@@ -451,18 +451,18 @@ export class Effects {
     const steps = 8;
     const ex = x + Math.sin(ang) * len;
     const ez = z + Math.cos(ang) * len;
-    // 굵은 맹독 줄기 (초록 + 보라 이중 빔)
-    this.beam(x, 1.65, z, ex, 0.95, ez, 0x9bf06a, 0.38);
-    this.beam(x, 1.6, z, ex, 1.05, ez, 0x9f4aff, 0.3);
+    // 굵은 맹독 줄기 (초록 + 보라)
+    this.bigBeam(x, 1.6, z, ex, 0.95, ez, 0x9bf06a, 0.4, 0.5, 0.34);
+    this.bigBeam(x, 1.5, z, ex, 1.05, ez, 0x9f4aff, 0.22, 0.6, 0.3);
     for (let i = 1; i <= steps; i++) {
       const t = i / steps;
       const bx = x + Math.sin(ang) * len * t;
       const bz = z + Math.cos(ang) * len * t;
       const col = i % 2 ? 0x9bf06a : 0x9f4aff;
-      this.burst(bx, 1.2 + t * 0.6, bz, col, 7, 3.8, { grav: -1 });
-      this.flash(bx, 1.4, bz, 0.9 + t * 1.4, col, 0.26);
+      this.burst(bx, 1.1 + t * 0.7, bz, col, 6, 3.4, { grav: -1 });
     }
-    this.ring(x, z, 0.5, len * 0.85, 0x9bf06a, 0.45);
+    this.flash(x, 1.6, z, 1.3, 0x9bf06a, 0.26);
+    this.ring(x, z, 0.4, 2.6, 0x9bf06a, 0.35);
   }
 
   // 매머드 — 엄니 돌진이 끝나고 착지한 자리의 지진
