@@ -417,6 +417,50 @@ check($('#battle-state').textContent === '배속', '점수 바 재구성 후 상
 ui.setSpeed(1);
 ui.setPaused(false);
 
+// 3팀 HUD · 파티 화면 표시 (3명 입장 시 모두 3팀으로 보는지)
+const teams3 = partyTeams(3);
+{
+  const battle3 = c4({ sides: { blue: [{ id: 'lion', x: -8, z: 0, weapon: 'none' }], red: [{ id: 'lion', x: 8, z: 6, weapon: 'none' }], green: [{ id: 'lion', x: 8, z: -6, weapon: 'none' }] }, teams: teams3, arenaId: 'savanna', seed: 9 });
+  ui.showBattleUI();
+  ui.buildBattle(battle3);
+  check($('#score-bar').classList.contains('multi'), '3팀 점수 바 표시');
+  check($$('#score-bar .team-score').length === 3, '점수 바 칩 3개 (블루·레드·그린)');
+  check($$('#team-hp-row .team-hp').length === 3, '체력 바 3개');
+  for (const t of teams3) check($(`#score-${t}`) !== null && $(`#hp-${t}`) !== null, `[${t}] 3팀 점수·체력 바`);
+  ui.updateBattle(battle3);
+  check($('#score-green').textContent === '1', '그린 점수');
+
+  // 파티 배치 화면도 3팀 표시 (app.partyTeamCount = 3)
+  app.partyTeamCount = 3;
+  app.mode = 'party';
+  app.activeTeam = 'green';
+  app.teams.green = [{ id: 'lion', x: 10, z: -8, weapon: 'none' }];
+  ui.render();
+  check($('#dock-title').textContent.includes('3팀'), '하단 타이틀에 3팀');
+  check($('#dock-count').textContent.includes('🟢'), '하단 인원 줄에 그린 표시');
+
+  // 파티 패널 3인 상태 — roster가 3명이면 teamCount도 3으로 그려진다
+  const roster3 = [
+    { pid: 'a', nick: '지우', team: 'blue', me: true, host: true, ready: true, count: 2, used: 8, budget: 35 },
+    { pid: 'b', nick: '친구2', team: 'red', me: false, host: false, ready: true, count: 2, used: 8, budget: 35 },
+    { pid: 'c', nick: '친구3', team: 'green', me: false, host: false, ready: false, count: 1, used: 4, budget: 35 },
+  ];
+  ui.renderParty({
+    phase: 'place', roomCode: '3TMP', isHost: true, teams: teams3, teamCount: 3,
+    players: roster3, maxPlayers: 4, budget: 35, canStart: false, myTeam: 'blue', myReady: true,
+    myPlaced: 2, myUsed: 8, status: '3/4명 · 3팀',
+  });
+  check($$('#party-roster .pr-row').length === 3, '3인 방 참가자 3명 표시');
+  check($('#party-room-status').textContent.includes('3팀'), '3인 방 상태 줄에 3팀');
+  ui.hideParty();
+
+  app.mode = 'sandbox';
+  app.activeTeam = 'blue';
+  app.partyTeamCount = 2;
+  app.teams.green = [];
+  ui.render();
+}
+
 // 2팀으로 돌아오기
 app.mode = 'sandbox';
 app.activeTeam = 'blue';

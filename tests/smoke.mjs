@@ -938,6 +938,58 @@ for (const n of [3, 4]) {
   host.leave();
 }
 
+// 회귀: 3명이 들어오면 방장·손님 전원 화면이 3팀(블루·레드·그린)으로 보인다
+{
+  const hub = new MemoryHub();
+  const [host, g2, g3] = makeLoopback(3, { hub });
+  const code = await host.host('지우');
+  await g2.join(code, '친구2');
+  await sleep(50);
+  // 2명 상태에서 3번째가 늦게 들어왔을 때 — 기존 손님(g2)도 3팀을 봐야 한다
+  await g3.join(code, '친구3');
+  await sleep(80);
+  const teamsStr = 'blue,red,green';
+  check(host.playerCount === 3 && host.teams.join(',') === teamsStr, '방장: 3명 → 3팀');
+  check(g2.playerCount === 3 && g2.teams.join(',') === teamsStr, '먼저 들어온 손님: 3명 → 3팀');
+  check(g3.playerCount === 3 && g3.teams.join(',') === teamsStr, '늦게 들어온 손님: 3명 → 3팀');
+  for (const [i, s] of [[0, host], [1, g2], [2, g3]]) {
+    const snap = s.snapshotState();
+    check(snap.teamCount === 3 && snap.teams.join(',') === teamsStr, `참가자 ${i + 1} UI 스냅샷 teamCount 3`);
+    check(snap.players.length === 3, `참가자 ${i + 1} UI 스냅샷 참가자 3명`);
+  }
+  check(host.players.get(g2.myPid).team === 'red' && host.players.get(g3.myPid).team === 'green', '진영 배정 블루·레드·그린');
+  check(g2.myTeam === 'red' && g3.myTeam === 'green', '손님들 자기 진영 인식');
+
+  // 배치 · 준비 후 시작 — 전투도 3팀으로
+  const spots = { blue: [-10, 0], red: [10, 6], green: [10, -6] };
+  for (const s of [host, g2, g3]) {
+    const [x, z] = spots[s.myTeam];
+    s.setPlacements([{ id: 'lion', x, z, weapon: 'none' }]);
+    s.setReady(true);
+  }
+  await sleep(100);
+  check(host.canStart(), '3인 전원 준비 → 시작 가능');
+  const okStart = host.requestStart();
+  await sleep(120);
+  check(okStart, '3인 배틀 시작');
+  for (const s of [host, g2, g3]) {
+    check(s.battle && s.battle.teams.join(',') === teamsStr, '전투도 3팀 동기화');
+    check(s.battle.units.length === 3, '3팀 × 1마리 = 3마리');
+  }
+  // 방장 시뮬 → 손님 스냅샷 동기화 중에도 3팀 유지
+  let guard = 0;
+  while (!host.battle.over && guard < 20000) {
+    simulate(host.battle, 1 / 60, 1 / 60);
+    host.tick(1 / 60); g2.tick(1 / 60); g3.tick(1 / 60);
+    g2.battle.events.length = 0; g3.battle.events.length = 0;
+    guard++;
+  }
+  await sleep(120); host.tick(1 / 60); await sleep(60);
+  check(g3.battle.over && g3.battle.winner === host.battle.winner, '3인 배틀 승자 동기화');
+  check(g3.battle.teams.join(',') === teamsStr, '전투 내내 3팀 유지');
+  host.leave(); g2.leave(); g3.leave();
+}
+
 // 유닛을 소환/삭제할 때 카메라가 자동으로 확대·축소되지 않아야 한다
 // (afterPlacementChange 안에서 camGoal을 건드리면 배치할 때마다 줌이 튄다)
 {
