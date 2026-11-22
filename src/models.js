@@ -1271,7 +1271,7 @@ function buildShark(g, m, rig) {
   jaw.position.set(0, -0.02, -0.1);
   head.add(jaw); rig.jaw = jaw;
   // 아래턱: 턱 관절에서 앞으로 뽑은 판 — 닫으면 주둥이 아래에 딱 붙는다
-  add(jaw, G.sphereLow, m.main, [0, -0.1, 0.15], [0.07, 0.026, 0.15], [-0.28, 0, 0], false);
+  add(jaw, G.sphereLow, m.main, [0, -0.1, 0.12], [0.065, 0.026, 0.12], [-0.28, 0, 0], false);
 
   // 이빨: 아가리 테두리에 짧게 붙어 있는 톱니
   for (let i = 0; i < 3; i++) {
