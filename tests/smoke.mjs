@@ -921,6 +921,12 @@ for (const n of [3, 4]) {
   const body = m ? m[1] : '';
   check(!/camGoal/.test(body), '소환·삭제 후 카메라를 리셋하지 않는다 (afterPlacementChange에 camGoal 없음)');
   check(/fitPreviewCamera\(\)/.test(mainSrc), '프리셋·챌린지·모드 전환용 fitPreviewCamera()는 남아 있다');
+  // 마릿수에 따른 자동 화질 강등(블록 모델·픽셀비·그림자)은 없어야 한다
+  check(!/simple\s*[,:]\s*units\.length/.test(mainSrc), '마릿수로 단순 모델을 고르지 않는다');
+  check(/simple:\s*false/.test(mainSrc) && /lowDetail:\s*false/.test(mainSrc),
+    '모든 유닛을 정식 모델로 그린다 (simple/lowDetail 항상 false)');
+  check(!/downgraded/.test(mainSrc), 'FPS 기반 자동 화질 저하 코드가 없다');
+  check(!/setPixelRatio/.test(mainSrc), '유닛 수로 렌더 해상도를 낮추지 않는다');
 }
 
 const avgTime = totalTime / pairCount;

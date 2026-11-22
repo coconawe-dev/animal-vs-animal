@@ -115,7 +115,6 @@ let views = [];
 const viewByUid = new Map();
 let phase = 'preview';     // preview | battle | ended
 let logSeen = 0;
-let fpsAccum = 0, fpsFrames = 0, downgraded = false;
 let userZoomed = false;
 const history = [];
 const sandboxBackup = { teams: null, arena: null, mode: 'sandbox' };
@@ -302,17 +301,12 @@ function createNameplate(u) {
 function buildViews(units) {
   clearViews();
   const many = units.length > 18;
-  const simple = units.length > 44;
   nameplateRoot.classList.toggle('many', many);
-  if (many && stage.sun) stage.sun.shadow.mapSize.set(1024, 1024);
-  if (units.length > 60) {
-    stage.renderer.setPixelRatio(Math.min(1.4, window.devicePixelRatio || 1));
-    if (stage.sun) stage.sun.castShadow = false;
-  } else if (stage.sun) {
-    stage.sun.castShadow = true;
-  }
+  // 마릿수와 상관없이 항상 고퀄리티 정식 모델 + 장착 무기로 그린다.
+  // (예전에는 19마리부터 작은 디테일을 숨기고, 45마리부터 블록 모델, 61마리부터
+  //  픽셀비·그림자를 낮췄는데, 배치만 해도 동물이 갑자기 저질로 바뀌어 보였다)
   for (const u of units) {
-    const rig = buildAnimalModel(u.def, u.team, { weapon: u.weaponId, lowDetail: many, simple });
+    const rig = buildAnimalModel(u.def, u.team, { weapon: u.weaponId, lowDetail: false, simple: false });
     rig.group.position.set(u.x, 0, u.z);
     rig.group.rotation.y = u.facing;
     stage.scene.add(rig.group);
@@ -1200,19 +1194,6 @@ function frame(now) {
     stage.camGoal.dist += (want - stage.camGoal.dist) * Math.min(1, dt * 0.9);
   }
   stage.update(dt, { follow, autoRotate: false });
-
-  if (!downgraded) {
-    fpsAccum += dt; fpsFrames++;
-    if (fpsAccum > 3) {
-      const fps = fpsFrames / fpsAccum;
-      if (fps < 34) {
-        downgraded = true;
-        stage.renderer.setPixelRatio(Math.min(1.35, window.devicePixelRatio || 1));
-        if (stage.sun) stage.sun.shadow.mapSize.set(1024, 1024);
-      }
-      fpsAccum = 0; fpsFrames = 0;
-    }
-  }
 }
 const tmpFocus2 = new THREE.Vector3();
 
