@@ -219,36 +219,50 @@ export class Effects {
     for (let i = 0; i < 4; i++) {
       const grp = new THREE.Group();
       const bone = new THREE.MeshStandardMaterial({
-        color: 0xf8fbff, roughness: 0.4, metalness: 0.04, flatShading: true,
-        emissive: 0x2f7f96, emissiveIntensity: 0.25, transparent: true, opacity: 1,
+        color: 0xdfe9f2, roughness: 0.45, metalness: 0.04, flatShading: true,
+        emissive: 0x2f6f86, emissiveIntensity: 0.1, transparent: true, opacity: 1,
       });
-      const palm = new THREE.Mesh(new THREE.BoxGeometry(1.6, 0.55, 1.5), bone);
+      const knuckleMat = new THREE.MeshStandardMaterial({
+        color: 0xb9c9d6, roughness: 0.5, flatShading: true, transparent: true, opacity: 1,
+      });
+      const palm = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.5, 1.45), bone);
       grp.add(palm);
       const hole = new THREE.Mesh(
-        new THREE.CircleGeometry(0.36, 18),
-        new THREE.MeshBasicMaterial({ color: 0x061018, side: THREE.DoubleSide, transparent: true }),
+        new THREE.CircleGeometry(0.42, 18),
+        new THREE.MeshBasicMaterial({ color: 0x04090d, side: THREE.DoubleSide, transparent: true }),
       );
-      hole.position.set(0, 0.29, 0);
+      hole.position.set(0, 0.27, 0);
       hole.rotation.x = -Math.PI / 2;
       grp.add(hole);
       const rim = new THREE.Mesh(
-        new THREE.RingGeometry(0.36, 0.5, 18),
+        new THREE.RingGeometry(0.42, 0.54, 18),
         new THREE.MeshBasicMaterial({ color: 0x9ff4ff, side: THREE.DoubleSide, transparent: true }),
       );
-      rim.position.set(0, 0.3, 0);
+      rim.position.set(0, 0.28, 0);
       rim.rotation.x = -Math.PI / 2;
       grp.add(rim);
+      // 손가락 — 손등 쪽으로 구부러져 내려찍는 모양
       for (let f = 0; f < 4; f++) {
-        const tip = f === 3 ? 0.9 : 1.05;
-        const finger = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.11, tip, 6), bone);
-        finger.position.set(-0.54 + f * 0.36, -0.06, 0.95 + (f === 1 || f === 2 ? 0.12 : 0));
-        finger.rotation.x = Math.PI / 2;
+        const len = f === 3 ? 0.8 : 0.98;
+        const knuckle = new THREE.Mesh(new THREE.SphereGeometry(0.19, 8, 6), knuckleMat);
+        knuckle.position.set(-0.57 + f * 0.38, -0.02, 0.82);
+        grp.add(knuckle);
+        const finger = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.1, len, 6), bone);
+        finger.position.set(-0.57 + f * 0.38, -0.24, 0.98 + len * 0.18);
+        finger.rotation.x = 1.32;
         grp.add(finger);
+        const tip = new THREE.Mesh(new THREE.SphereGeometry(0.1, 7, 5), bone);
+        tip.position.set(-0.57 + f * 0.38, -0.42, 0.98 + len * 0.4);
+        grp.add(tip);
       }
-      const thumb = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.12, 0.85, 6), bone);
-      thumb.position.set(0.9, -0.05, 0.1);
-      thumb.rotation.set(0.3, 0, -1.1);
+      const thumb = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.11, 0.85, 6), bone);
+      thumb.position.set(0.95, -0.2, 0.28);
+      thumb.rotation.set(1.1, 0, -0.55);
       grp.add(thumb);
+      // 손목 뼈
+      const wrist = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.42, 0.7), knuckleMat);
+      wrist.position.set(0, 0, -1.0);
+      grp.add(wrist);
       grp.visible = false;
       this.group.add(grp);
       this.gasterHands.push({ grp, life: 0, max: 0.72 });
@@ -399,11 +413,11 @@ export class Effects {
     h.grp.traverse((o) => { if (o.material) o.material.opacity = 1; });
     h.life = 0.72; h.max = 0.72;
     h.x = x; h.z = z; h.side = side;
-    this.flash(x, 5.6, z, 2.4, 0x9ff4ff, 0.3);
-    this.flash(x, 1.1, z, 2.0, 0xdff6ff, 0.34);
+    this.flash(x, 6.4, z, 1.5, 0x9ff4ff, 0.26);
+    this.flash(x, 1.0, z, 1.3, 0x9ff4ff, 0.3);
     this.ring(x, z, 0.8, r * 1.05, 0x9ff4ff, 0.5);
     this.ring(x, z, 0.4, r * 0.7, 0xffffff, 0.42);
-    this.burst(x, 0.8, z, 0xdff6ff, 24, 7.5);
+    this.burst(x, 0.8, z, 0xdff6ff, 20, 7.5);
     this.dust(x, z, 16, 0xbfe6f2);
   }
 
@@ -413,16 +427,16 @@ export class Effects {
     this.rudeHandIdx = (this.rudeHandIdx + 1) % this.rudeHands.length;
     const a = Math.random() * Math.PI * 2;
     const rr = 0.6 + Math.random() * 1.5;
-    h.baseY = 2.1 + Math.random() * 0.9;
+    h.baseY = 2.3 + Math.random() * 0.9;
     h.grp.position.set(x + Math.cos(a) * rr, h.baseY, z + Math.sin(a) * rr);
     h.grp.rotation.set(0.1, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.35);
-    h.grp.scale.setScalar(1.15 + (i % 3) * 0.12);
+    h.grp.scale.setScalar(1.9 + (i % 3) * 0.25);
     h.grp.visible = true;
     h.matA.opacity = 1; h.matB.opacity = 1;
     h.life = 1.0; h.max = 1.0;
     h.spin = (Math.random() - 0.5) * 2.4;
     h.x = x; h.z = z;
-    this.flash(x, h.baseY, z, 1.1, 0xffe066, 0.24);
+    this.flash(x, h.baseY, z, 1.4, 0xffe066, 0.24);
     this.burst(x, h.baseY, z, 0xffe066, 10, 4.4);
   }
 
