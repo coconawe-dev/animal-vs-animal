@@ -1,5 +1,6 @@
 // 오프라인 스모크 테스트 — DOM/WebGL 없이 ARBS 배틀 로직·배치·무기·3D 리그를 검증한다.
 // 실행: node tests/smoke.mjs
+import fs from 'node:fs';
 import * as THREE from '../vendor/three.module.js';
 import {
   ANIMALS, DINOS, MONSTERS, CREATURES, CREATURE_IDS, CREATURE_BY_ID, ANIMAL_BY_ID,
@@ -909,6 +910,17 @@ for (const n of [3, 4]) {
   check(host.teams.length === 2 && g2.teams.length === 2, '2인 파티 = 2팀');
   check(host.players.get(g2.myPid).team === 'red', '2인 파티 손님 = 레드');
   host.leave();
+}
+
+// 유닛을 소환/삭제할 때 카메라가 자동으로 확대·축소되지 않아야 한다
+// (afterPlacementChange 안에서 camGoal을 건드리면 배치할 때마다 줌이 튄다)
+{
+  const mainSrc = fs.readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  const m = mainSrc.match(/function afterPlacementChange\([^)]*\)\s*\{([\s\S]*?)\n\}/);
+  check(!!m, 'afterPlacementChange()를 main.js에서 찾을 수 있다');
+  const body = m ? m[1] : '';
+  check(!/camGoal/.test(body), '소환·삭제 후 카메라를 리셋하지 않는다 (afterPlacementChange에 camGoal 없음)');
+  check(/fitPreviewCamera\(\)/.test(mainSrc), '프리셋·챌린지·모드 전환용 fitPreviewCamera()는 남아 있다');
 }
 
 const avgTime = totalTime / pairCount;

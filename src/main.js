@@ -360,10 +360,9 @@ function refreshPreview() {
 function afterPlacementChange(refresh = true) {
   saveState();
   refreshPreview();
-  if (phase === 'preview') {
-    stage.camGoal.dist = previewFit();
-    stage.camGoal.target.set(0, 1.0, 0);
-  }
+  // 카메라는 건드리지 않는다 — 소환/삭제할 때마다 확대·축소되면 조작감이 망가진다.
+  // 확대/축소·시점 초기화는 applyPreset·applyChallengeStage·backToBuilder처럼
+  // 화면을 통째로 바꾸는 곳에서만 fitPreviewCamera()로 한다.
   ui.render();
 }
 
