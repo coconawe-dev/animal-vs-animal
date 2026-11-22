@@ -1206,6 +1206,28 @@ function buildDRex(g, m, rig) {
   rig.height = 3.2;
 }
 
+/* ── 상어류 꼬리지느러미: 위-뒤로 긴 윗날개, 아래-뒤로 짧은 아랫날개로 된 세로 초승달 판 ── */
+function caudalFin(parent, material, s = 1) {
+  const sh = new THREE.Shape();
+  sh.moveTo(0.09 * s, 0);                                          // 꼬리뿌리(뾰족한 앞) — 꼬리자루에 박힌다
+  sh.quadraticCurveTo(0.0 * s, 0.24 * s, -0.40 * s, 0.52 * s);     // 윗날개 앞날 → 위-뒤 끝
+  sh.quadraticCurveTo(-0.21 * s, 0.22 * s, -0.24 * s, 0.02 * s);   // 윗날개 뒷날 (오목한 안쪽)
+  sh.quadraticCurveTo(-0.21 * s, -0.14 * s, -0.36 * s, -0.30 * s); // 아랫날개 뒷날 → 아래-뒤 끝
+  sh.quadraticCurveTo(-0.10 * s, -0.15 * s, 0.09 * s, 0);          // 아랫날개 앞날
+  sh.closePath();
+  const geo = new THREE.ExtrudeGeometry(sh, {
+    depth: 0.03 * s, bevelEnabled: true, bevelThickness: 0.01 * s, bevelSize: 0.02 * s,
+    bevelSegments: 2, curveSegments: 10,
+  });
+  geo.translate(0, 0, -0.015 * s);  // 두께 중심 맞춤
+  geo.rotateY(-Math.PI / 2);        // 옆면(Y-Z)에 세워진 납작한 판으로
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = false;
+  parent.add(mesh);
+  return mesh;
+}
+
 /* ───────────────────────────── 상어 ───────────────────────────── */
 function buildShark(g, m, rig) {
   const body = new THREE.Group();
@@ -1220,20 +1242,23 @@ function buildShark(g, m, rig) {
   // 등지느러미 · 작은 등지느러미 두 개
   add(body, G.coneLow, m.dark, [0, 0.36, -0.08], [0.1, 0.52, 0.3], [-0.55, 0, 0]);
   add(body, G.coneLow, m.dark, [0, 0.28, -0.62], [0.06, 0.2, 0.16], [-0.7, 0, 0], false);
-  add(body, G.coneLow, m.dark, [0.28, 0.16, -0.28], [0.05, 0.18, 0.16], [-0.8, 0, -0.45], false);
-  add(body, G.coneLow, m.dark, [-0.28, 0.16, -0.28], [0.05, 0.18, 0.16], [-0.8, 0, 0.45], false);
+  // 배지느러미 (옆구리가 아니라 배 아래에서 뒤-아래로)
+  add(body, G.coneLow, m.dark, [0.14, -0.22, -0.44], [0.05, 0.13, 0.11], [-2.25, 0, -0.42], false);
+  add(body, G.coneLow, m.dark, [-0.14, -0.22, -0.44], [0.05, 0.13, 0.11], [-2.25, 0, 0.42], false);
 
   // 가슴지느러미 (지면 가까이)
   add(body, G.sphereLow, m.dark, [0.44, -0.14, 0.26], [0.36, 0.05, 0.19], [0, 0.34, -0.22]);
   add(body, G.sphereLow, m.dark, [-0.44, -0.14, 0.26], [0.36, 0.05, 0.19], [0, -0.34, 0.22]);
 
-  // 세로 꼬리지느러미
+  // 꼬리: 몸통 뒤에서 가늘어지는 꼬리자루 + 세로 초승달 꼬리지느러미
   const tail = new THREE.Group();
-  tail.position.set(0, 0.06, -1.0);
+  tail.position.set(0, 0.05, -0.8);
   body.add(tail); rig.tail = tail;
-  add(tail, G.coneLow, m.main, [0, 0.26, -0.2], [0.08, 0.46, 0.14], [0.5, 0, 0]);
-  add(tail, G.coneLow, m.main, [0, -0.18, -0.16], [0.07, 0.3, 0.12], [-0.4, 0, 0]);
-  const tip = new THREE.Group(); tip.position.set(0, 0, -0.24); tail.add(tip); rig.tailTip = tip;
+  add(tail, G.coneLow, m.main, [0, 0, -0.14], [0.19, 0.48, 0.22], [-Math.PI / 2, 0, 0], false);
+  const tip = new THREE.Group();
+  tip.position.set(0, 0, -0.35);
+  tail.add(tip); rig.tailTip = tip;
+  caudalFin(tip, m.dark, 1);
 
   // 주둥이 · 아가리 · 이빨
   const head = new THREE.Group();
@@ -1272,20 +1297,23 @@ function buildMegalodon(g, m, rig) {
   // 거대 등지느러미
   add(body, G.coneLow, m.dark, [0, 0.5, -0.05], [0.14, 0.72, 0.42], [-0.5, 0, 0]);
   add(body, G.coneLow, m.dark, [0, 0.42, -0.72], [0.08, 0.3, 0.2], [-0.7, 0, 0], false);
-  add(body, G.coneLow, m.dark, [0.4, 0.24, -0.2], [0.06, 0.24, 0.2], [-0.85, 0, -0.5], false);
-  add(body, G.coneLow, m.dark, [-0.4, 0.24, -0.2], [0.06, 0.24, 0.2], [-0.85, 0, 0.5], false);
+  // 배지느러미 (옆구리가 아니라 배 아래에서 뒤-아래로)
+  add(body, G.coneLow, m.dark, [0.24, -0.42, -0.62], [0.07, 0.18, 0.14], [-2.2, 0, -0.4], false);
+  add(body, G.coneLow, m.dark, [-0.24, -0.42, -0.62], [0.07, 0.18, 0.14], [-2.2, 0, 0.4], false);
 
   // 커다란 가슴지느러미
   add(body, G.sphereLow, m.dark, [0.72, -0.28, 0.3], [0.58, 0.07, 0.28], [0, 0.36, -0.2]);
   add(body, G.sphereLow, m.dark, [-0.72, -0.28, 0.3], [0.58, 0.07, 0.28], [0, -0.36, 0.2]);
 
-  // 강력한 꼬리
+  // 강력한 꼬리: 두꺼운 꼬리자루 + 거대한 초승달 꼬리지느러미
   const tail = new THREE.Group();
-  tail.position.set(0, 0.1, -1.24);
+  tail.position.set(0, 0.1, -0.9);
   body.add(tail); rig.tail = tail;
-  add(tail, G.coneLow, m.main, [0, 0.44, -0.26], [0.12, 0.78, 0.2], [0.45, 0, 0]);
-  add(tail, G.coneLow, m.main, [0, -0.3, -0.2], [0.1, 0.5, 0.16], [-0.35, 0, 0]);
-  const tip = new THREE.Group(); tip.position.set(0, 0, -0.3); tail.add(tip); rig.tailTip = tip;
+  add(tail, G.coneLow, m.main, [0, 0, -0.29], [0.32, 0.66, 0.38], [-Math.PI / 2, 0, 0], false);
+  const tip = new THREE.Group();
+  tip.position.set(0, 0, -0.57);
+  tail.add(tip); rig.tailTip = tip;
+  caudalFin(tip, m.dark, 1.55);
 
   // 거대한 턱
   const head = new THREE.Group();
