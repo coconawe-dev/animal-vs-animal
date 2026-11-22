@@ -248,6 +248,7 @@ tests/smoke.mjs       오프라인 검증
 tests/fuzz.mjs        무작위 퍼즈
 tests/ui.mjs          jsdom UI 배선 검사
 tests/anim.html       공격 모션 확인용 정지 프레임 뷰어
+tests/fx.html         스킬 연출(가스터손·불미스러운 공격·펀치 3종·맹독 등) 정지 프레임 뷰어
 ```
 
 ### 로컬 실행
