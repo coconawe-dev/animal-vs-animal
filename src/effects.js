@@ -273,29 +273,34 @@ export class Effects {
     this.rudeHands = [];
     for (let i = 0; i < 12; i++) {
       const grp = new THREE.Group();
-      const a = new THREE.MeshBasicMaterial({ color: 0xffe066, transparent: true, opacity: 1 });
-      const b = new THREE.MeshBasicMaterial({ color: 0xff8a3a, transparent: true, opacity: 1 });
-      const palm = new THREE.Mesh(new THREE.BoxGeometry(0.46, 0.44, 0.18), a);
+      const a = new THREE.MeshBasicMaterial({ color: 0xffd23a, transparent: true, opacity: 1 });
+      const b = new THREE.MeshBasicMaterial({ color: 0xff8a2a, transparent: true, opacity: 1 });
+      const palm = new THREE.Mesh(new THREE.BoxGeometry(0.62, 0.5, 0.18), a);
       grp.add(palm);
+      // 손목(소매)
+      const wrist = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.24, 0.18), b);
+      wrist.position.set(0, -0.36, 0);
+      grp.add(wrist);
+      // 접힌 손가락 (검지 · 약지 · 새끼)
       for (const k of [-1, 1]) {
-        const bent = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.18, 0.18), b);
-        bent.position.set(k * 0.16, 0.28, 0);
+        const bent = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.24, 0.18), b);
+        bent.position.set(k * 0.21, 0.36, 0);
         grp.add(bent);
-        for (let t = 0; t < 2; t++) {
-          const knuckle = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.11, 0.18), a);
-          knuckle.position.set(k * 0.16, 0.37 + t * 0.1, 0.03);
-          grp.add(knuckle);
-        }
       }
-      const mid = new THREE.Mesh(new THREE.BoxGeometry(0.15, 0.82, 0.18), a);
-      mid.position.set(0, 0.6, 0);
+      const pinky = new THREE.Mesh(new THREE.BoxGeometry(0.13, 0.18, 0.18), b);
+      pinky.position.set(0.42, 0.33, 0);
+      grp.add(pinky);
+      // 치켜든 가운뎃손가락
+      const mid = new THREE.Mesh(new THREE.BoxGeometry(0.14, 0.62, 0.18), a);
+      mid.position.set(0, 0.56, 0);
       grp.add(mid);
-      const nail = new THREE.Mesh(new THREE.BoxGeometry(0.18, 0.12, 0.2), b);
-      nail.position.set(0, 1.02, 0);
+      const nail = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.1, 0.2), b);
+      nail.position.set(0, 0.9, 0);
       grp.add(nail);
+      // 엄지
       const thumb = new THREE.Mesh(new THREE.BoxGeometry(0.16, 0.34, 0.18), b);
-      thumb.position.set(-0.33, 0.1, 0);
-      thumb.rotation.z = 0.55;
+      thumb.position.set(-0.4, 0.04, 0);
+      thumb.rotation.z = 0.6;
       grp.add(thumb);
       grp.visible = false;
       this.group.add(grp);
@@ -429,8 +434,9 @@ export class Effects {
     const rr = 0.6 + Math.random() * 1.5;
     h.baseY = 2.3 + Math.random() * 0.9;
     h.grp.position.set(x + Math.cos(a) * rr, h.baseY, z + Math.sin(a) * rr);
-    h.grp.rotation.set(0.1, Math.random() * Math.PI * 2, (Math.random() - 0.5) * 0.35);
-    h.grp.scale.setScalar(1.9 + (i % 3) * 0.25);
+    // 전장 중앙을 바둪보게 세워 손모양 실루엣이 읽히게 한다
+    h.grp.rotation.set(0.08, Math.atan2(-(x + Math.cos(a) * rr), -(z + Math.sin(a) * rr)), (Math.random() - 0.5) * 0.22);
+    h.grp.scale.setScalar(1.7 + (i % 3) * 0.2);
     h.grp.visible = true;
     h.matA.opacity = 1; h.matB.opacity = 1;
     h.life = 1.0; h.max = 1.0;
