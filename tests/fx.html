@@ -1,0 +1,132 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>스킬 연출 확인 — 동물 vs 동물</title>
+<style>
+  html, body { margin: 0; height: 100%; background: #10141c; overflow: hidden; }
+  canvas { display: block; width: 100%; height: 100%; }
+  #hud { position: fixed; left: 12px; top: 10px; color: #cfd7e6; font: 12px system-ui, sans-serif; }
+  #hud b { color: #ffc247; }
+</style>
+</head>
+<body>
+<canvas id="c"></canvas>
+<div id="hud">스킬 연출 — <b id="label"></b> · t=<span id="tm"></span></div>
+<script type="module">
+// 스킬 연출만 따로 떼어 정지 프레임으로 확인하는 뷰어.
+// 예) /tests/fx.html?fx=gasterHand&t=0.34     /tests/fx.html?fx=hero&t=0.3
+import * as THREE from '../vendor/three.module.js';
+import { Effects } from '../src/effects.js';
+
+const params = new URLSearchParams(location.search);
+const kind = params.get('fx') || 'gasterHand';
+const at = Math.max(0, Number(params.get('t') || 0.32));
+
+const canvas = document.getElementById('c');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
+renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+renderer.setSize(window.innerWidth, window.innerHeight, false);
+renderer.shadowMap.enabled = true;
+renderer.toneMapping = THREE.ACESFilmicToneMapping;
+renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x1b2230);
+scene.fog = new THREE.Fog(0x1b2230, 34, 78);
+
+const camera = new THREE.PerspectiveCamera(40, window.innerWidth / window.innerHeight, 0.1, 200);
+camera.position.set(7.5, 7.2, 13.5);
+camera.lookAt(0, 2.2, 0);
+
+scene.add(new THREE.HemisphereLight(0xbfd4ff, 0x2a2f38, 1.15));
+const sun = new THREE.DirectionalLight(0xfff2dd, 2.1);
+sun.position.set(8, 18, 12);
+sun.castShadow = true;
+sun.shadow.mapSize.set(2048, 2048);
+sun.shadow.camera.left = -22; sun.shadow.camera.right = 22;
+sun.shadow.camera.top = 18; sun.shadow.camera.bottom = -18;
+scene.add(sun);
+
+const ground = new THREE.Mesh(
+  new THREE.CircleGeometry(26, 48),
+  new THREE.MeshStandardMaterial({ color: 0xb3a15c, roughness: 0.95 }),
+);
+ground.rotation.x = -Math.PI / 2;
+ground.receiveShadow = true;
+scene.add(ground);
+
+const fx = new Effects(scene);
+const label = document.getElementById('label');
+document.getElementById('tm').textContent = at.toFixed(2);
+
+const RUN = {
+  gasterHand: () => { fx.gasterHand(0, 0, 1, 4.4); fx.gasterHand(2.6, -1.4, -1, 4.4); label.textContent = '가스터손 펀치'; },
+  rude: () => {
+    for (let i = 0; i < 5; i++) fx.rudeHand((i - 2) * 1.5, (i % 2 ? 1.2 : -1.4), i);
+    fx.rudeText(0, 0);
+    label.textContent = '불미스러운 공격';
+  },
+  heroPower: () => {
+    fx.flash(0, 1.4, 0, 2.2, 0xffe9a8, 0.3);
+    fx.ring(0, 0, 0.6, 4.6, 0xffd166, 0.45);
+    fx.slash(0, 1.3, 0, 1.1, 2.4, 0xfff0c0);
+    fx.burst(0, 1.3, 0, 0xffd166, 22, 7);
+    fx.text(0, 3.2, 0, '강력펀치!', { color: '#ffe066', size: 0.9, crit: true, life: 1.0 });
+    label.textContent = '영웅 강력펀치';
+  },
+  heroRapid: () => {
+    for (let i = 0; i < 7; i++) {
+      fx.burst(0, 1.3 + (i % 3) * 0.28, 0, 0xffe066, 6, 3.6);
+      fx.slash(0, 1.2 + (i % 3) * 0.3, 0, i * 0.9, 1.2, 0xfff0c0);
+    }
+    fx.text(0, 4.0, 0, '연속펀치! ×7', { color: '#ffe066', size: 0.95, life: 1.2 });
+    fx.ring(0, 0, 0.6, 3.4, 0xffd166, 0.42);
+    label.textContent = '영웅 연속펀치';
+  },
+  heroUpper: () => {
+    fx.ring(0, 0, 0.5, 4.2, 0xffd166, 0.5);
+    fx.flash(0, 1.4, 0, 1.8, 0xffe9a8, 0.28);
+    fx.burst(0, 1.2, 0, 0xfff2b0, 20, 6.5, { grav: -2 });
+    fx.text(0, 3.2, 0, '어퍼컷!', { color: '#ffe066', size: 0.9, crit: true, life: 1.0 });
+    label.textContent = '영웅 어퍼컷';
+  },
+  mammoth: () => {
+    fx.tuskQuakeGround(0, 0, 4.8);
+    fx.text(0, 3.0, 0, '엄니 대지진!', { color: '#ffd9a0', size: 0.9, life: 1.2 });
+    label.textContent = '매머드 엄니 대지진';
+  },
+  hydra: () => {
+    fx.venomBreath(0, 0, 0.5, 12);
+    fx.venomBreath(0, 0, -0.5, 12);
+    fx.venomBreath(0, 0, 0, 12);
+    fx.text(0, 3.4, 0, '삼두 맹독 브레스!', { color: '#9bf06a', size: 0.9, life: 1.2 });
+    label.textContent = '히드라 삼두 맹독 브레스';
+  },
+  kong: () => {
+    fx.chestBeat(0, 2.2, 0);
+    fx.ring(0, 0, 0.9, 9.0, 0xffb066, 0.6);
+    fx.ring(0, 0, 0.6, 6.0, 0xffd9a0, 0.5);
+    fx.burst(0, 0.9, 0, 0xd9c08a, 30, 8);
+    fx.dust(0, 0, 26, 0xe8d9b0);
+    fx.text(0, 4.6, 0, '대지 강타!', { color: '#ffc98a', size: 0.95, life: 1.3 });
+    label.textContent = '킹콩 가슴 두드리기 대지 강타';
+  },
+};
+(RUN[kind] || RUN.gasterHand)();
+
+// 정해진 시간만큼만 진행한 뒤 한 프레임을 그린다 (결정론적 정지 화면)
+const steps = Math.round(at / (1 / 60));
+for (let i = 0; i < steps; i++) fx.update(1 / 60);
+renderer.render(scene, camera);
+
+window.addEventListener('resize', () => {
+  renderer.setSize(window.innerWidth, window.innerHeight, false);
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.render(scene, camera);
+});
+</script>
+</body>
+</html>
