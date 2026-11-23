@@ -1895,22 +1895,107 @@ function buildSans(g, m, rig) {
     if (rig.eyeGlow) { rig.eyeGlow.visible = false; rig.eyeGlow = null; }
     add(head, G.sphereLow, chipMat, [0.13, 0.06, 0.3], [0.11, 0.14, 0.06], null, false);
     add(head, G.sphereLow, chipMat, [-0.13, 0.06, 0.3], [0.11, 0.14, 0.06], null, false);
-    // 등 뒤로 드리우는 반투명 가스터 그림자
-    const ghostMat = new THREE.MeshStandardMaterial({
-      color: 0x16222e, flatShading: true, roughness: 0.85, metalness: 0.05,
-      transparent: true, opacity: 0.44, emissive: 0x2a7f96, emissiveIntensity: 0.35,
+    /* ── 등 뒤에 우뚝 선 가스터 (W.D. Gaster / 미스터리 맨) ── */
+    // 검은 망토 · 가슴의 회색 갈비뼈 줄무늬 · 창백하게 녹아내린 얼굴 · 손바닥에 구멍 뚫린 손
+    const robeMat = new THREE.MeshStandardMaterial({
+      color: 0x101116, flatShading: true, roughness: 0.92, metalness: 0.02,
+      transparent: true, opacity: 0.86, emissive: 0x050608, emissiveIntensity: 1,
     });
-    rig.matList.push(ghostMat);
+    const ribMat = new THREE.MeshStandardMaterial({
+      color: 0x444854, flatShading: true, roughness: 0.82,
+      transparent: true, opacity: 0.82, emissive: 0x14171c, emissiveIntensity: 0.55,
+    });
+    const faceMat = new THREE.MeshStandardMaterial({
+      color: 0xc4c9d4, flatShading: true, roughness: 0.6, metalness: 0.02,
+      transparent: true, opacity: 0.92, emissive: 0x20242c, emissiveIntensity: 0.25,
+    });
+    const inkMat = new THREE.MeshBasicMaterial({ color: 0x09090c, transparent: true, opacity: 0.96 });
+    const socketMat = new THREE.MeshBasicMaterial({ color: 0x050507 });
+    const pupilMat = new THREE.MeshBasicMaterial({ color: 0xf2f4c8, transparent: true, opacity: 0.92 });
+    const toothMat = new THREE.MeshBasicMaterial({ color: 0xd9dde8, transparent: true, opacity: 0.9 });
+    const handMat = new THREE.MeshStandardMaterial({
+      color: 0xe6eaf2, flatShading: true, roughness: 0.7, metalness: 0.02,
+      transparent: true, opacity: 0.8, emissive: 0x1a1f28, emissiveIntensity: 0.5,
+    });
+    rig.matList.push(robeMat, ribMat, faceMat, inkMat, socketMat, pupilMat, toothMat, handMat);
+
     const ghost = new THREE.Group();
-    ghost.position.set(0, 0.46, -0.5);
+    ghost.position.set(0, 0, -0.58);
     body.add(ghost); rig.ghost = ghost;
-    add(ghost, G.sphereLow, ghostMat, [0, 0.14, 0], [0.56, 0.7, 0.3], null, false);
-    add(ghost, G.sphere, ghostMat, [0, 0.56, 0.06], [0.3, 0.34, 0.3], null, false);
-    add(ghost, G.coneLow, ghostMat, [0.24, 0.72, 0.06], [0.07, 0.3, 0.07], [0, 0, -0.5], false);
-    add(ghost, G.coneLow, ghostMat, [-0.24, 0.72, 0.06], [0.07, 0.3, 0.07], [0, 0, 0.5], false);
-    const ghostEye = new THREE.MeshBasicMaterial({ color: 0x9ff4ff, transparent: true, opacity: 0.75 });
-    add(ghost, G.sphereLow, ghostEye, [0.11, 0.6, 0.3], [0.05, 0.06, 0.03], null, false);
-    add(ghost, G.sphereLow, ghostEye, [-0.11, 0.6, 0.3], [0.05, 0.06, 0.03], null, false);
+    rig.ghostBaseY = ghost.position.y;
+
+    // 1) 검은 망토 — 어깨에서 둥글게 부풀어 아래로 흘러내리며 바닥에서 퍼지는 실루엣
+    const robeProfile = [
+      [0.0, -0.85], [0.78, -0.85], [0.94, -0.79], [0.9, -0.66],
+      [0.76, -0.4], [0.61, -0.08], [0.53, 0.38], [0.5, 0.8],
+      [0.54, 1.1], [0.62, 1.36], [0.64, 1.5], [0.55, 1.65],
+      [0.33, 1.8], [0.19, 1.87], [0.0, 1.9],
+    ];
+    const robe = add(ghost, new THREE.LatheGeometry(robeProfile.map(([r, y]) => new THREE.Vector2(r, y)), 14),
+      robeMat, [0, 0, 0], null, null, false);
+    robe.scale.set(1, 1, 0.56);
+    // 목덜미를 감싸는 짙은 칼라
+    add(ghost, G.cyl, robeMat, [0, 1.85, 0], [0.21, 0.14, 0.18], null, false);
+
+    // 2) 가슴 상단의 회색 가로 줄무늬(갈비뼈/칼라) 4줄
+    const ribGeo = new THREE.TorusGeometry(1, 0.055, 4, 16);
+    [[0.95, 0.52], [1.12, 0.55], [1.3, 0.59], [1.46, 0.62]].forEach(([ry, rr]) => {
+      const r = add(ghost, ribGeo, ribMat, [0, ry, 0], null, [Math.PI / 2, 0, 0], false);
+      r.scale.set(rr, rr * 0.58, 1);
+    });
+
+    // 3) 창백하게 녹아내린 가스터 얼굴
+    const ghHead = new THREE.Group();
+    ghHead.position.set(0, 2.02, 0.02);
+    ghost.add(ghHead); rig.ghostHead = ghHead;
+    add(ghHead, G.sphere, faceMat, [0, 0, 0], [0.28, 0.4, 0.26], null, false);
+    add(ghHead, G.sphereLow, faceMat, [0, -0.21, 0.02], [0.25, 0.2, 0.23], null, false);
+    // 아래로 축 처진 살점 (녹아내림)
+    add(ghHead, G.sphereLow, faceMat, [-0.1, -0.34, 0.04], [0.055, 0.1, 0.055], null, false);
+    add(ghHead, G.sphereLow, faceMat, [0.09, -0.37, 0.03], [0.045, 0.085, 0.045], null, false);
+    add(ghHead, G.sphereLow, faceMat, [0.0, -0.4, 0.02], [0.07, 0.07, 0.06], null, false);
+    // 얼굴 균열 두 갈래 (왼 눈 위로 비스듬히 · 오른 눈 아래에서 입가로)
+    add(ghHead, G.box, inkMat, [-0.12, 0.2, 0.205], [0.026, 0.26, 0.02], [0, 0, 0.5], false);
+    add(ghHead, G.box, inkMat, [-0.2, 0.32, 0.14], [0.018, 0.11, 0.02], [0, 0, 0.9], false);
+    add(ghHead, G.box, inkMat, [0.13, -0.08, 0.205], [0.024, 0.22, 0.02], [0, 0, 0.52], false);
+    add(ghHead, G.box, inkMat, [0.19, -0.2, 0.15], [0.018, 0.1, 0.02], [0, 0, 0.3], false);
+    // 깊고 까만 눈구멍 + 작고 기묘한 연노란 점 눈동자
+    [-1, 1].forEach((side) => {
+      add(ghHead, G.sphereLow, socketMat, [side * 0.115, 0.05, 0.2], [0.085, 0.115, 0.055], null, false);
+      add(ghHead, G.sphereLow, pupilMat, [side * 0.108, 0.045, 0.238], [0.026, 0.034, 0.02], null, false);
+      add(ghHead, G.box, pupilMat, [side * 0.108 - side * 0.006, 0.012, 0.236], [0.014, 0.03, 0.016], [0, 0, side * 0.3], false);
+    });
+    // 넓고 기묘하게 휘어진 검은 웃음 — 작은 세그먼트로 호를 그린다
+    const MOUTH_N = 9;
+    for (let i = 0; i < MOUTH_N; i++) {
+      const a = -0.78 + (i / (MOUTH_N - 1)) * 1.56;
+      const mx = Math.sin(a) * 0.165;
+      const my = -0.15 + (1 - Math.cos(a)) * 0.13;
+      const mz = 0.2 - Math.pow(mx / 0.28, 2) * 0.05;
+      const tilt = Math.atan2(0.13 * Math.sin(a), 0.165 * Math.cos(a));
+      add(ghHead, G.box, inkMat, [mx, my, mz], [0.062, 0.045, 0.03], [0, 0, tilt], false);
+      if (i % 2 === 0) {
+        add(ghHead, G.box, toothMat, [mx, my + 0.012, mz + 0.017], [0.016, 0.026, 0.012], [0, 0, tilt], false);
+      }
+    }
+
+    // 4) 망토 좌우로 살짝 떠 있는 가스터 손 (손바닥 가운데 검은 구멍)
+    rig.ghostHands = [];
+    [-1, 1].forEach((side, i) => {
+      const hand = new THREE.Group();
+      hand.position.set(side * 0.86, 0.86, 0.34);
+      hand.rotation.set(0.06, side * -0.38, side * 0.12);
+      ghost.add(hand);
+      add(hand, G.sphereLow, handMat, [0, 0, 0], [0.14, 0.16, 0.058], null, false);
+      add(hand, G.sphereLow, socketMat, [0, 0, 0.05], [0.052, 0.058, 0.026], null, false);
+      for (let f = 0; f < 4; f++) {
+        const fx = -0.09 + f * 0.06;
+        add(hand, G.box, handMat, [fx, 0.19, 0], [0.04, 0.15, 0.042], [0, 0, fx * 1.4], false);
+        add(hand, G.sphereLow, handMat, [fx - fx * 1.4 * 0.08, 0.27, 0], [0.022, 0.028, 0.024], null, false);
+      }
+      add(hand, G.box, handMat, [side * 0.135, 0.03, 0.005], [0.045, 0.12, 0.042], [0, 0, side * 0.85], false);
+      rig.ghostHands.push({ node: hand, baseY: hand.position.y, baseRotZ: hand.rotation.z, phase: i * Math.PI });
+    });
     // 발밑 푸른/붉은 오라
     const aura = new THREE.Mesh(
       new THREE.RingGeometry(0.66, 0.92, 30),
@@ -2481,6 +2566,17 @@ export function animateRig(rig, s) {
     w.pivot.rotation.z = w.side * (0.12 + Math.sin(rig.t * 2.3) * 0.07 + sk * 0.7);
     w.pivot.rotation.y = w.side * (0.1 + Math.sin(rig.t * 1.7) * 0.05);
   }
+  // 등 뒤의 가스터 — 천천히 떠오르며 손이 흔들린다
+  if (rig.ghost) {
+    const gb = rig.ghostBaseY ?? rig.ghost.position.y;
+    rig.ghost.position.y = gb + Math.sin(rig.t * 1.05) * 0.05;
+    rig.ghost.rotation.z = Math.sin(rig.t * 0.72) * 0.012;
+    if (rig.ghostHead) rig.ghostHead.rotation.z = Math.sin(rig.t * 0.88 + 1.2) * 0.035;
+    for (const h of rig.ghostHands || []) {
+      h.node.position.y = h.baseY + Math.sin(rig.t * 1.6 + h.phase) * 0.06;
+      h.node.rotation.z = h.baseRotZ + Math.sin(rig.t * 1.25 + h.phase) * 0.07;
+    }
+  }
   // 발밑 황금 오라 (강하닭)
   if (rig.auraRing) {
     rig.auraRing.rotation.z += dt * 0.7;
@@ -2577,7 +2673,7 @@ export function animateRig(rig, s) {
   // 피격/스킬 발광 (큰 유닛은 발광을 줄여 본래 색이 살아 있게)
   const glow = (rig.hurt * 0.9 + sk * 0.35) * (rig.glowScale == null ? 1 : rig.glowScale);
   for (const m of rig.matList) {
-    if (m === rig.mats.eye) continue;
+    if (m === rig.mats.eye || !m.emissive) continue;
     if (glow > 0.02) {
       m.emissive.setHex(rig.hurt > sk ? 0xff4020 : 0xffd27a);
       m.emissiveIntensity = glow;
