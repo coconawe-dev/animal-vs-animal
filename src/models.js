@@ -1941,9 +1941,9 @@ function buildSans(g, m, rig) {
 
     // 2) 가슴 상단의 회색 가로 줄무늬(갈비뼈/칼라) 4줄 — 망토 표면을 띠처럼 감싼다
     const ribGeo = new THREE.CylinderGeometry(1, 1, 1, 18, 1, true);
-    [[0.92, 0.515], [1.08, 0.541], [1.24, 0.594], [1.4, 0.677]].forEach(([ry, rr]) => {
+    [[0.92, 0.535], [1.08, 0.569], [1.24, 0.641], [1.4, 0.702]].forEach(([ry, rr]) => {
       const r = add(ghost, ribGeo, ribMat, [0, ry, 0], null, null, false);
-      r.scale.set(rr, 0.05, rr * 0.62);
+      r.scale.set(rr, 0.055, rr * 0.62);
     });
 
     // 3) 창백하게 녹아내린 가스터 얼굴
