@@ -16,8 +16,10 @@
 <div id="hud">공격 모션 — <b id="phase-label"></b></div>
 <script type="module">
 import * as THREE from '../vendor/three.module.js';
-import { CREATURE_BY_ID } from '../src/config.js';
-import { buildAnimalModel, animateRig, triggerAttack, ATTACK_STYLE } from '../src/models.js';
+// 배포 캐시(10분)에 묶이지 않게 항상 새 모델 코드를 불러온다
+const dev = Date.now();
+const { CREATURE_BY_ID } = await import(`../src/config.js?dev=${dev}`);
+const { buildAnimalModel, animateRig, triggerAttack, ATTACK_STYLE } = await import(`../src/models.js?dev=${dev}`);
 
 const params = new URLSearchParams(location.search);
 const ids = (params.get('ids') || 'trex,rhino,titan,eagle,crocodile,gorilla').split(',');
