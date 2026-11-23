@@ -1928,16 +1928,16 @@ function buildSans(g, m, rig) {
     const robeProfile = [
       [0.0, -0.85], [0.78, -0.85], [0.94, -0.79], [0.9, -0.66],
       [0.78, -0.42], [0.62, -0.1], [0.52, 0.35], [0.5, 0.72],
-      [0.52, 1.02], [0.6, 1.2], [0.67, 1.35], [0.69, 1.45],
-      [0.62, 1.56], [0.4, 1.65], [0.22, 1.7], [0.0, 1.71],
+      [0.52, 1.02], [0.6, 1.2], [0.67, 1.34], [0.69, 1.44],
+      [0.62, 1.52], [0.4, 1.59], [0.22, 1.63], [0.0, 1.64],
     ];
     const robe = add(ghost, new THREE.LatheGeometry(robeProfile.map(([r, y]) => new THREE.Vector2(r, y)), 18),
       robeMat, [0, 0, 0], null, null, false);
     robe.scale.set(1, 1, 0.62);
     // 목덜미를 감싸는 짙은 칼라
-    add(ghost, G.cyl, robeMat, [0, 1.6, 0], [0.2, 0.18, 0.17], null, false);
+    add(ghost, G.cyl, robeMat, [0, 1.52, 0], [0.2, 0.18, 0.17], null, false);
     // 칼라 위로 드러나는 창백한 목
-    add(ghost, G.cyl, faceMat, [0, 1.66, 0], [0.11, 0.22, 0.1], null, false);
+    add(ghost, G.cyl, faceMat, [0, 1.6, 0], [0.11, 0.22, 0.1], null, false);
 
     // 2) 가슴 상단의 회색 가로 줄무늬(갈비뼈/칼라) 4줄 — 망토 표면을 띠처럼 감싼다
     const ribGeo = new THREE.CylinderGeometry(1, 1, 1, 18, 1, true);
