@@ -1927,9 +1927,9 @@ function buildSans(g, m, rig) {
     // 1) 검은 망토 — 어깨에서 둥글게 부풀어 아래로 흘러내리며 바닥에서 퍼지는 실루엣
     const robeProfile = [
       [0.0, -0.85], [0.78, -0.85], [0.94, -0.79], [0.9, -0.66],
-      [0.78, -0.42], [0.62, -0.1], [0.52, 0.35], [0.46, 0.72],
-      [0.5, 1.02], [0.62, 1.22], [0.72, 1.4], [0.66, 1.5],
-      [0.44, 1.6], [0.24, 1.66], [0.0, 1.68],
+      [0.78, -0.42], [0.62, -0.1], [0.52, 0.35], [0.5, 0.72],
+      [0.52, 1.02], [0.58, 1.22], [0.67, 1.38], [0.69, 1.48],
+      [0.5, 1.58], [0.28, 1.66], [0.0, 1.68],
     ];
     const robe = add(ghost, new THREE.LatheGeometry(robeProfile.map(([r, y]) => new THREE.Vector2(r, y)), 14),
       robeMat, [0, 0, 0], null, null, false);
@@ -1941,7 +1941,7 @@ function buildSans(g, m, rig) {
 
     // 2) 가슴 상단의 회색 가로 줄무늬(갈비뼈/칼라) 4줄
     const ribGeo = new THREE.TorusGeometry(1, 0.055, 4, 16);
-    [[0.95, 0.5], [1.1, 0.55], [1.25, 0.62], [1.4, 0.7]].forEach(([ry, rr]) => {
+    [[0.92, 0.52], [1.08, 0.56], [1.24, 0.62], [1.4, 0.71]].forEach(([ry, rr]) => {
       const r = add(ghost, ribGeo, ribMat, [0, ry, 0], null, [Math.PI / 2, 0, 0], false);
       r.scale.set(rr, rr * 0.58, 1);
     });
@@ -1979,7 +1979,7 @@ function buildSans(g, m, rig) {
       const tilt = Math.atan2(0.17 * Math.sin(a), 0.215 * Math.cos(a));
       add(ghHead, G.box, inkMat, [mx, my, mz], [0.078, 0.058, 0.035], [0, 0, tilt], false);
       if (i % 2 === 0) {
-        add(ghHead, G.box, toothMat, [mx, my + 0.016, mz + 0.022], [0.022, 0.032, 0.016], [0, 0, tilt], false);
+        add(ghHead, G.box, toothMat, [mx, my + 0.004, mz + 0.02], [0.024, 0.034, 0.016], [0, 0, tilt], false);
       }
     }
 
