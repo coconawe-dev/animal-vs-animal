@@ -1,7 +1,7 @@
 // 무작위 편성 퍼즈 테스트 — 드문 크래시/NaN/정지 상태를 찾는다.
 // 유닛 수·무기·배치 좌표를 무작위로 섞어 ARBS 샌드박스 조건을 흉내 낸다.
-import { createBattle, simulate } from '../src/sim.js';
-import { CREATURE_IDS, WEAPONS, ARENAS, TUNING } from '../src/config.js';
+import { createBattle, simulate, step, possessUnit, releasePossession, setUnitInput } from '../src/sim.js';
+import { CREATURE_IDS, WEAPONS, ARENAS, TUNING, ITEM_IDS } from '../src/config.js';
 
 const wids = WEAPONS.map((w) => w.id);
 let seed = 7;
@@ -73,5 +73,40 @@ for (let k = 0; k < 3; k++) {
   if (!s.units.every((u) => [u.x, u.z, u.hp].every(Number.isFinite))) { fails++; console.log('80 vs 10 NaN'); }
 }
 
-console.log(`\n${N}판 + 100마리/비대칭 난전 — 실패 ${fails} · 최장 ${maxT.toFixed(1)}초 · 무승부 ${draws} · 시간초과 ${timeouts} · 최대 ${maxUnits}마리`);
+// 전장 아이템 + 직접 조종 퍼즈 — 구조물이 섞여도 NaN/정지/이탈이 없어야 한다
+let itemFails = 0;
+for (let k = 0; k < 40; k++) {
+  const blue = side('blue', 2 + Math.floor(rnd() * 4));
+  const red = side('red', 2 + Math.floor(rnd() * 4));
+  for (let i = 0; i < 1 + Math.floor(rnd() * 3); i++) {
+    blue.push({ id: pick(ITEM_IDS), x: -(3 + rnd() * 30), z: (rnd() * 2 - 1) * 30, weapon: 'none' });
+    red.push({ id: pick(ITEM_IDS), x: (3 + rnd() * 30), z: (rnd() * 2 - 1) * 30, weapon: 'none' });
+  }
+  const s = createBattle({ blue, red, arenaId: pick(ARENAS).id, seed: 5000 + k });
+  maxUnits = Math.max(maxUnits, s.units.length);
+  const mob = s.units.find((u) => !u.isStructure);
+  if (mob) {
+    possessUnit(s, mob.uid);
+    for (let i = 0; i < 300 && !s.over; i++) {
+      if (i % 24 === 0) {
+        setUnitInput(mob, {
+          mx: rnd() * 2 - 1, mz: rnd() * 2 - 1, yaw: rnd() * Math.PI * 2,
+          atk: rnd() < 0.6, sk: rnd() < 0.3,
+        });
+      }
+      step(s, 1 / 60);
+    }
+    releasePossession(s);
+  }
+  simulate(s, 1 / 60, 300);
+  if (!s.over) { itemFails++; console.log('아이템 배틀 종료 안 됨', k); }
+  for (const u of s.units) {
+    if (![u.x, u.z, u.y, u.hp, u.facing, u.aimYaw].every(Number.isFinite)) { itemFails++; console.log('아이템 NaN', u.id); }
+    if (Math.hypot(u.x, u.z) > TUNING.ARENA_RADIUS + 0.6) { itemFails++; console.log('아이템 이탈', u.id); }
+    if (u.isStructure && (u.spd !== 0 || u.kbResist !== 1)) { itemFails++; console.log('구조물 이동', u.id); }
+  }
+}
+fails += itemFails;
+
+console.log(`\n${N}판 + 100마리/비대칭 난전 + 아이템/조종 40판 — 실패 ${fails} · 최장 ${maxT.toFixed(1)}초 · 무승부 ${draws} · 시간초과 ${timeouts} · 최대 ${maxUnits}마리`);
 if (fails) process.exit(1);

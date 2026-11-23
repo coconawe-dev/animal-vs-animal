@@ -8,6 +8,7 @@ import {
 } from './config.js';
 import {
   createBattle, step, drainEvents, battleSummary, mvpOf,
+  possessUnit, releasePossession, setUnitInput, unitByUid,
 } from './sim.js';
 import { placeUnits, removeNearest, mirrorTeam, nearestIndex, sanitizeList, clampSide } from './placement.js';
 import { PartySession, PHASE } from './party.js';
@@ -52,6 +53,7 @@ const app = {
   maxCleared: 0,
   showChallenges: false,
   showPresets: false,
+  possessing: false,
 };
 
 function fatal(message) {
@@ -156,8 +158,16 @@ const ui = new UI(app, {
     if (!app.follow) app.focusUid = null;
     ui.setFollow(app.follow);
     ui.setFocusTag(null);
+    ui.hideUnitAction();
     ui.toast(app.follow ? '🎥 자동 추적 켜짐' : '🎥 자동 추적 꺼짐');
   },
+  // ── 유닛 직접 조종 ──
+  onPossess: () => {
+    if (app.focusUid != null) enterPossession(app.focusUid);
+  },
+  onReleasePossess: () => exitPossession(),
+  onAttackHold: (on) => { fireHeld = !!on; if (on) sfx.init(); },
+  onSkillHold: (on) => { skillHeld = !!on; if (on) sfx.init(); },
   onToggleSound: () => {
     app.sound = !app.sound;
     sfx.init();
@@ -543,6 +553,8 @@ function onPartyClosed(reason) {
 
 // 방장이 배틀을 시작했거나(start 메시지) 손님이 시작 신호를 받았을 때
 function enterPartyBattle(b) {
+  if (possessUid != null) exitPossession(true);
+  ui.hideUnitAction();
   sfx.init();
   battle = b;
   stage.setTeams(battle.teams);
@@ -661,7 +673,7 @@ function placeAt(x, z) {
   const room = Math.max(0, TUNING.MAX_UNITS - total);
   const limit = Math.min(TUNING.MAX_UNITS_PER_TEAM, list.length + room);
   const res = placeUnits(list, {
-    id: app.selected, team, x, z, weapon: app.weapon,
+    id: app.selected, team, x, z, weapon: def.isStructure ? 'none' : app.weapon,
     count, free: party ? false : app.free, limit, teams,
     budget: party ? PARTY.BUDGET : null,
   });
@@ -822,6 +834,8 @@ function startBattle() {
     return;
   }
   if (!app.teams.blue.length || !app.teams.red.length) return;
+  if (possessUid != null) exitPossession(true);
+  ui.hideUnitAction();
   if (app.mode === 'challenge' && app.challenge) {
     const left = challengeLeft();
     if (left < 0) { ui.toast('예산을 초과했습니다'); return; }
@@ -858,6 +872,8 @@ function startBattle() {
 }
 
 function backToBuilder() {
+  if (possessUid != null) exitPossession(true);
+  ui.hideUnitAction();
   phase = 'preview';
   ui.hideBanner();
   ui.hideBattleUI();
@@ -875,6 +891,7 @@ function togglePause() {
 }
 
 function endBattle() {
+  if (possessUid != null) exitPossession(true);
   phase = 'ended';
   const summary = battleSummary(battle);
   const mvp = mvpOf(battle);
@@ -1127,6 +1144,26 @@ function handleEvent(ev) {
       effects.ring(ev.x, ev.z, 0.6, 3.4, 0xffd166, 0.42);
       break;
     }
+    case 'chainLightning': {
+      effects.chainLightning(
+        ev.x, ev.z,
+        ev.x2 == null ? ev.x : ev.x2, ev.z2 == null ? ev.z : ev.z2,
+        ev.y == null ? 1.5 : ev.y, ev.y2 == null ? 1.0 : ev.y2,
+      );
+      sfx.tesla();
+      if (target) triggerSkill(target.rig);
+      break;
+    }
+    case 'healPulse': {
+      effects.healPulse(ev.x, ev.z, ev.r || 9);
+      sfx.heal();
+      if (target) triggerSkill(target.rig);
+      break;
+    }
+    case 'spikeHit': {
+      effects.spikeHit(ev.x, ev.z);
+      break;
+    }
     case 'dashStart': sfx.whoosh(); break;
     case 'dashHit': effects.burst(ev.x, 1.0, ev.z, 0xffe0a0, 10, 4); break;
     case 'takeoff': effects.ring(ev.x, ev.z, 0.6, 3, 0xcfeaff, 0.4); break;
@@ -1211,6 +1248,14 @@ function updateViews(dt, adt) {
     rig.group.position.set(v.x, u.y + hover, v.z);
     rig.group.rotation.y += shortestAngle(u.facing - rig.group.rotation.y) * Math.min(1, dt * 14);
     rig.group.rotation.x = u.dead ? 0 : (u.spin || 0);
+    // 자동 포탑 — 포신만 목표를 향해 돌아간다
+    if (rig.barrel) {
+      const aim = u.aimYaw == null ? u.facing : u.aimYaw;
+      const want = shortestAngle(aim - rig.group.rotation.y);
+      rig.barrel.rotation.y += shortestAngle(want - rig.barrel.rotation.y) * Math.min(1, dt * 9);
+    }
+    // 터진 지뢰는 화면에서 사라진다
+    if (u.dead && u.def.id === 'landmine' && rig.group.visible) rig.group.visible = false;
 
     const moved = Math.hypot(u.x - v.lastX, u.z - v.lastZ) / Math.max(dt, 0.0001);
     v.lastX = u.x; v.lastZ = u.z;
@@ -1265,6 +1310,111 @@ function focusPoint() {
 let last = performance.now();
 let acc = 0;
 
+/* ───────────────────────── 유닛 직접 조종 상태 ───────────────────────── */
+let possessUid = null;
+// 카메라가 보는 방향(라디안). 조종 중 이동·공격 기준이 된다.
+let aimYaw = 0;
+let fireHeld = false;
+let skillHeld = false;
+const keys = new Set();
+const joy = { x: 0, y: 0 };
+let joyPid = null;
+let lastCtlAt = 0;
+const POSSESS_KEYS = new Set([
+  'KeyW', 'KeyA', 'KeyS', 'KeyD', 'ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight',
+  'Space', 'KeyE', 'ShiftLeft', 'ShiftRight',
+]);
+
+function partyGuest() {
+  return !!(app.mode === 'party' && app.party && app.party.active && !app.party.isHost);
+}
+
+function canPossess(u) {
+  if (!u || u.dead || u.isStructure) return false;
+  // 파티에서는 각자 자기 진영 유닛만 조종한다 (방장·손님 동일 규칙)
+  if (app.mode === 'party' && app.party && app.party.active && u.team !== app.party.myTeam) return false;
+  return true;
+}
+
+// 조종 입력 (키보드 + 조이스틱) → 시뮬레이션 입력
+function possessionInput() {
+  let mx = 0, mz = 0;
+  if (keys.has('KeyW') || keys.has('ArrowUp')) mz += 1;
+  if (keys.has('KeyS') || keys.has('ArrowDown')) mz -= 1;
+  if (keys.has('KeyA') || keys.has('ArrowLeft')) mx -= 1;
+  if (keys.has('KeyD') || keys.has('ArrowRight')) mx += 1;
+  mx += joy.x;
+  mz -= joy.y;
+  const l = Math.hypot(mx, mz);
+  if (l > 1) { mx /= l; mz /= l; }
+  return {
+    mx, mz,
+    atk: fireHeld || keys.has('Space'),
+    sk: skillHeld || keys.has('KeyE') || keys.has('ShiftLeft') || keys.has('ShiftRight'),
+    yaw: stage.cam.theta + Math.PI,
+  };
+}
+
+function resetJoyKnob() {
+  joy.x = 0; joy.y = 0;
+  const zone = document.getElementById('joy-zone');
+  const knob = document.getElementById('joy-knob');
+  zone?.classList.remove('active');
+  if (knob) knob.style.transform = 'translate(0px, 0px)';
+}
+
+function enterPossession(uid) {
+  if (phase !== 'battle' || !battle) return;
+  const u = unitByUid(battle, uid);
+  if (!u) { ui.toast('조종할 유닛을 찾을 수 없습니다'); return; }
+  if (!canPossess(u)) {
+    ui.toast(u.isStructure ? '💣 아이템은 조종할 수 없습니다' : '내 진영 유닛만 조종할 수 있습니다');
+    return;
+  }
+  sfx.init();
+  possessUid = uid;
+  app.focusUid = uid;
+  app.follow = true;
+  app.possessing = true;
+  aimYaw = u.facing + Math.PI;
+  stage.camGoal.theta = aimYaw;
+  stage.camGoal.phi = 0.3;
+  stage.camGoal.dist = 4.2 + (u.def.size || 1) * 2.6;
+  stage.camGoal.target.set(u.x, u.y + 1.1, u.z);
+  userZoomed = true;
+  if (!partyGuest()) possessUnit(battle, uid, app.party && app.party.active ? app.party.myPid : null);
+  else app.party?.control(uid, { mx: 0, mz: 0, atk: false, sk: false, yaw: aimYaw });
+  ui.setFollow(true);
+  ui.setFocusTag(null);
+  ui.setPossess(true, u);
+  ui.toast(`🎮 ${u.emoji} ${u.def.short || u.name} 직접 조종 — Esc 로 해제`);
+}
+
+function exitPossession(quiet = false) {
+  if (possessUid == null) return;
+  const uid = possessUid;
+  possessUid = null;
+  app.possessing = false;
+  fireHeld = false;
+  skillHeld = false;
+  keys.clear();
+  resetJoyKnob();
+  if (battle) {
+    if (partyGuest()) app.party?.control(uid, { release: true });
+    else releasePossession(battle, uid);
+  }
+  ui.setPossess(false);
+  ui.hideUnitAction();
+  ui.setFocusTag(null);
+  app.focusUid = null;
+  userZoomed = false;
+  if (phase === 'battle') {
+    stage.camGoal.dist = fitDistance();
+    stage.camGoal.phi = 0.7;
+  }
+  if (!quiet) ui.toast('❌ 조종 해제 — AI 자동 전투로 복귀');
+}
+
 function frame(now) {
   requestAnimationFrame(frame);
   const rawDt = (now - last) / 1000;
@@ -1307,19 +1457,50 @@ function frame(now) {
     }
   }
 
+  // ── 직접 조종: 입력 전달 · 3인칭 카메라 ──
+  let possessFocus = null;
+  if (possessUid != null) {
+    const pv = viewByUid.get(possessUid);
+    const pu = pv ? pv.u : null;
+    if (!pu || pu.dead) {
+      const wasName = pu ? `${pu.emoji} ${pu.def.short || pu.name}` : '유닛';
+      exitPossession(true);
+      ui.toast(`💀 ${wasName}이(가) 쓰러져 조종이 해제됐습니다`);
+    } else {
+      const input = possessionInput();
+      aimYaw = input.yaw;
+      if (!partyGuest()) setUnitInput(pu, input);
+      else if (app.party && performance.now() - lastCtlAt > 55) {
+        lastCtlAt = performance.now();
+        app.party.control(possessUid, input);
+      }
+      possessFocus = tmpFocus2.set(pu.x, pu.y + 1.05, pu.z);
+      stage.camGoal.dist = 4.2 + (pu.def.size || 1) * 2.6;
+      stage.camGoal.phi = Math.max(0.1, Math.min(0.95, stage.camGoal.phi));
+      ui.updatePossess({
+        skillCd: pu.skillTimer || 0,
+        attackCd: pu.attackTimer || 0,
+      });
+    }
+  }
+
   let follow = null;
   if (app.focusUid) {
     const fv = viewByUid.get(app.focusUid);
     if (!fv || fv.u.dead) {
       app.focusUid = null;
       ui.setFocusTag(null);
+      ui.hideUnitAction();
     }
   }
-  if (phase === 'battle' && app.follow) {
+  if (possessFocus) {
+    // 3인칭: 유닛 등 뒤·약간 위에서 부드럽게 따라간다
+    stage.camGoal.target.copy(possessFocus);
+  } else if (phase === 'battle' && app.follow) {
     const fv = app.focusUid ? viewByUid.get(app.focusUid) : null;
     follow = fv && !fv.u.dead ? tmpFocus2.set(fv.x, 1.4, fv.z) : focusPoint();
   }
-  if (phase === 'battle' && !userZoomed && battle) {
+  if (phase === 'battle' && !userZoomed && !possessFocus && battle) {
     const want = app.focusUid ? 14 : fitDistance();
     stage.camGoal.dist += (want - stage.camGoal.dist) * Math.min(1, dt * 0.9);
   }
@@ -1397,6 +1578,8 @@ function endPointer(e) {
 }
 
 function handleTap(e) {
+  // 조종 중에는 탭으로 추적 대상이 바뀌지 않는다
+  if (possessUid != null) return;
   if (phase === 'battle' || phase === 'ended') {
     // 유닛 탭 → 그 유닛 따라가기
     const rect = canvas.getBoundingClientRect();
@@ -1417,11 +1600,13 @@ function handleTap(e) {
       app.follow = true;
       ui.setFollow(true);
       ui.setFocusTag(`${best.u.emoji} ${best.u.def.short || best.u.name} 추적 중 · 빈 곳을 탭하면 해제`);
+      ui.showUnitAction(best.u);
       ui.toast(`🎯 ${best.u.name} 시점`);
       userZoomed = false;
     } else {
       app.focusUid = null;
       ui.setFocusTag(null);
+      ui.hideUnitAction();
     }
     return;
   }
@@ -1451,6 +1636,72 @@ canvas.addEventListener('wheel', (e) => {
   document.addEventListener(t, (e) => e.preventDefault(), { passive: false });
 });
 document.addEventListener('contextmenu', (e) => e.preventDefault());
+
+/* ───────────────────────── 유닛 직접 조종 입력 ───────────────────────── */
+
+window.addEventListener('keydown', (e) => {
+  if (e.code === 'Escape' || e.key === 'Escape') {
+    if (possessUid != null) { e.preventDefault(); exitPossession(); }
+    return;
+  }
+  if (possessUid == null || !POSSESS_KEYS.has(e.code)) return;
+  e.preventDefault();
+  keys.add(e.code);
+  sfx.init();
+});
+window.addEventListener('keyup', (e) => { keys.delete(e.code); });
+window.addEventListener('blur', () => { keys.clear(); fireHeld = false; skillHeld = false; });
+
+// PC: 왼쪽 클릭 = 공격 (조종 중)
+canvas.addEventListener('pointerdown', (e) => {
+  if (possessUid != null && e.pointerType === 'mouse' && e.button === 0) {
+    fireHeld = true;
+    sfx.init();
+  }
+}, { passive: true });
+window.addEventListener('pointerup', () => { fireHeld = false; });
+
+// 터치: 왼쪽 아래 가상 조이스틱
+{
+  const zone = document.getElementById('joy-zone');
+  const knob = document.getElementById('joy-knob');
+  const apply = (e) => {
+    const r = zone.getBoundingClientRect();
+    const cx = r.left + r.width / 2;
+    const cy = r.top + r.height / 2;
+    const max = r.width * 0.36;
+    let dx = e.clientX - cx, dy = e.clientY - cy;
+    const l = Math.hypot(dx, dy);
+    if (l > max) { dx = (dx / l) * max; dy = (dy / l) * max; }
+    joy.x = dx / max;
+    joy.y = dy / max;
+    zone.classList.toggle('active', Math.hypot(joy.x, joy.y) > 0.08);
+    if (knob) knob.style.transform = `translate(${dx}px, ${dy}px)`;
+  };
+  if (zone) {
+    zone.addEventListener('pointerdown', (e) => {
+      if (possessUid == null) return;
+      e.preventDefault();
+      e.stopPropagation();
+      joyPid = e.pointerId;
+      zone.setPointerCapture?.(e.pointerId);
+      apply(e);
+    }, { passive: false });
+    zone.addEventListener('pointermove', (e) => {
+      if (joyPid !== e.pointerId) return;
+      e.preventDefault();
+      e.stopPropagation();
+      apply(e);
+    }, { passive: false });
+    const end = (e) => {
+      if (joyPid !== e.pointerId) return;
+      joyPid = null;
+      resetJoyKnob();
+    };
+    zone.addEventListener('pointerup', end);
+    zone.addEventListener('pointercancel', end);
+  }
+}
 
 function updateFraming() {
   const w = canvas.clientWidth || 1;
@@ -1522,4 +1773,6 @@ window.__game = {
   get phase() { return phase; },
   placeAt, eraseAt,
   hostParty, joinParty, leaveParty, copyInviteLink,
+  enterPossession, exitPossession,
+  get possessedUid() { return possessUid; },
 };

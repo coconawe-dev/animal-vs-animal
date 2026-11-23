@@ -489,6 +489,39 @@ export class Effects {
     this.text(x, y + 1.6, z, '🦍 두근! 두근!', { color: '#ffc98a', size: 0.62, life: 0.8 });
   }
 
+  /* ───────── 전장 아이템 연출 ───────── */
+
+  // 테슬라 코일 — 지그재그 연쇄 번개
+  chainLightning(x, z, x2, z2, y = 1.5, y2 = 1.0) {
+    const seg = 3;
+    let px = x, py = y, pz = z;
+    for (let i = 1; i <= seg; i++) {
+      const t = i / seg;
+      const last = i === seg;
+      const jx = last ? x2 : x + (x2 - x) * t + (Math.random() - 0.5) * 1.2;
+      const jz = last ? z2 : z + (z2 - z) * t + (Math.random() - 0.5) * 1.2;
+      const jy = last ? y2 : y + (y2 - y) * t + (Math.random() - 0.5) * 0.5;
+      this.beam(px, py, pz, jx, jy, jz, 0x9fe8ff, 0.16);
+      px = jx; py = jy; pz = jz;
+    }
+    this.flash(x2, y2, z2, 1.0, 0x9fe8ff, 0.22);
+    this.burst(x2, y2, z2, 0xd6f6ff, 9, 4.4);
+  }
+
+  // 치유 토템 — 초록 치유 파동
+  healPulse(x, z, r = 9) {
+    this.ring(x, z, 0.6, r, 0x8dff9a, 0.7);
+    this.ring(x, z, 0.3, r * 0.62, 0xd6ffd0, 0.55);
+    this.flash(x, 1.5, z, 1.6, 0x8dff9a, 0.28);
+    this.burst(x, 1.2, z, 0x9dffb0, 18, 3.4, { grav: -3.2 });
+  }
+
+  // 가시 바리케이드 · 지뢰 — 짧은 가시 충격
+  spikeHit(x, z) {
+    this.ring(x, z, 0.35, 1.5, 0xffb09a, 0.3);
+    this.burst(x, 0.85, z, 0xffc8a8, 8, 3.4);
+  }
+
   /* ───────── 피해 숫자 ───────── */
   text(x, y, z, text, { color = '#ffffff', size = 1.0, crit = false, life = 0.95 } = {}) {
     const slot = this.numbers[this.numberIdx];

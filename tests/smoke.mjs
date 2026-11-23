@@ -7,10 +7,12 @@ import {
   ARENAS, ARENA_BY_ID, PRESETS, CHALLENGES, WEAPONS, WEAPON_BY_ID, TUNING,
   DEFAULT_PLACEMENTS, CATEGORIES, powerOf, placementCost, creaturesOf, SANS_PHASES,
   PARTY, TEAM_ORDER, TEAM_DEFS, teamDef, partyTeams, sectorBounds, clampToSector,
+  ITEMS, ITEM_IDS, ITEM_BY_ID, PLACEABLES,
 } from '../src/config.js';
 import {
   createBattle, step, simulate, battleSummary, mvpOf, applyDamage, aliveCount,
   teamHpRatio, mulberry32, drainEvents,
+  possessUnit, releasePossession, possessedUnit, setUnitInput,
 } from '../src/sim.js';
 import {
   placeUnits, removeNearest, nearestIndex, mirrorTeam, clampArena, clampSide,
@@ -36,9 +38,11 @@ check(DINOS.length === 9, `공룡·거대종 9종 (현재 ${DINOS.length})`);
 check(MONSTERS.length === 12, `괴수·언데드 12종 (현재 ${MONSTERS.length})`);
 check(CREATURES.length === 38, `전체 38종 (현재 ${CREATURES.length})`);
 check(new Set(CREATURE_IDS).size === CREATURES.length, '유닛 id 중복 없음');
-check(CATEGORIES.length === 4, '카테고리 4개');
+check(CATEGORIES.length === 5, '카테고리 5개 (아이템 탭 추가)');
+check(CATEGORIES.some((c) => c.id === 'item' && c.emoji === '💣' && c.name === '아이템'), '💣 아이템 카테고리 탭');
 check(creaturesOf('animal').length === 17 && creaturesOf('dino').length === 8 && creaturesOf('monster').length === 13, '카테고리별 분류 (17/8/13)');
-check(creaturesOf('all').length === 38, '전체 카테고리');
+check(creaturesOf('item').length === 5 && creaturesOf('item').every((i) => i.isStructure), '아이템 카테고리 5종');
+check(creaturesOf('all').length === PLACEABLES.length && PLACEABLES.length === 43, '전체 카테고리 43종 (38 + 아이템 5)');
 for (const id of ['zombie', 'skeleton', 'snake', 'hyena', 'drex']) {
   check(!!CREATURE_BY_ID[id], `기존 유닛 ${id} 등록`);
 }
@@ -642,6 +646,227 @@ for (const ch of CHALLENGES) {
   check(s.mode === 'challenge' && s.challengeId === ch.id, `${ch.id}단계 모드 기록`);
 }
 
+/* ─────────────── 3.5 전장 아이템 (구조물) ─────────────── */
+check(ITEMS.length === 5 && ITEM_IDS.join(',') === 'landmine,turret,tesla_coil,healing_totem,spike_barricade', '아이템 5종 등록');
+const ITEM_COST = { landmine: 3, turret: 6, tesla_coil: 7, healing_totem: 5, spike_barricade: 4 };
+for (const it of ITEMS) {
+  const tag = `[${it.id}]`;
+  check(it.cat === 'item' && !!ITEM_BY_ID[it.id], `${tag} 아이템 카테고리/등록`);
+  check(it.isStructure === true && it.spd === 0 && it.knockResist === 1.0, `${tag} isStructure · spd 0 · knockResist 1.0`);
+  check(it.cost === ITEM_COST[it.id], `${tag} 코스트 ${ITEM_COST[it.id]}`);
+  check(it.hp > 50 && it.range > 0 && !!it.skill && !!it.skill.name && !!it.skill.desc, `${tag} 능력치/스킬 설명`);
+  check(!!it.name && !!it.emoji && !!it.role && !!it.desc, `${tag} 이름/역할/설명`);
+  check(it.cost >= 1 && it.cost <= PARTY.BUDGET, `${tag} 파티 예산 안`);
+  for (const k of ['main', 'dark', 'accent', 'belly']) check(typeof it.colors[k] === 'number', `${tag} 색상 ${k}`);
+}
+check(CREATURE_BY_ID.turret === ITEM_BY_ID.turret && CREATURE_BY_ID.landmine === ITEM_BY_ID.landmine, '배치 조회에 아이템 포함');
+check(placementCost([{ id: 'turret' }, { id: 'landmine' }, { id: 'healing_totem' }]) === 14, '아이템 예산 합산');
+
+{
+  // 예산 60 안에서 아이템만으로 편성
+  const list = [];
+  const r = placeUnits(list, { id: 'turret', team: 'blue', x: -6, z: 0, count: 12, budget: PARTY.BUDGET, limit: 99 });
+  check(r.added.length === 10 && costOf(list) === 60, `예산 60 → 포탑 10기 (${r.added.length})`);
+  check(r.skipped === 'budget', '예산 초과분은 놓지 않는다');
+
+  // 기존 유닛과 같은 경로로 배치·제거
+  const mixed = [];
+  placeUnits(mixed, { id: 'tesla_coil', team: 'blue', x: -8, z: 0, count: 2, limit: 99 });
+  placeUnits(mixed, { id: 'lion', team: 'blue', x: -4, z: 0, count: 1, limit: 99 });
+  check(mixed.length === 3 && mixed.filter((p) => p.id === 'tesla_coil').length === 2, '아이템 + 유닛 혼합 배치');
+  check(nearestIndex(mixed, mixed[0].x, mixed[0].z) === 0 && removeNearest(mixed, mixed[0].x, mixed[0].z)?.id === 'tesla_coil', '아이템도 지우개로 제거');
+}
+
+{
+  // 소환: 무기는 달리지 않고, 제자리 고정 · 넉백 면역
+  const s = createBattle({
+    blue: [{ id: 'turret', x: -5, z: 0, weapon: 'rocket' }, { id: 'landmine', x: -2, z: 0 }],
+    red: [P('elephant', 6, 0)],
+    seed: 3,
+  });
+  const structures = s.units.filter((u) => u.isStructure);
+  check(structures.length === 2 && structures.every((u) => u.spd === 0 && u.kbResist === 1), '구조물 — spd 0 · 넉백 저항 1.0');
+  check(structures.every((u) => u.weaponId === 'none' && !u.ranged), '구조물 — 무기 없음');
+  const turret = s.units.find((u) => u.id === 'turret');
+  const x0 = turret.x, z0 = turret.z;
+  for (let i = 0; i < 60 * 20 && !s.over; i++) step(s, TUNING.SIM_DT);
+  check(turret.x === x0 && turret.z === z0, '구조물은 넉백·밀치기에도 움직이지 않는다');
+}
+
+// 💣 지뢰 — 적이 밟으면 광역 폭발 + 강넉백 + 기절, 1회용
+{
+  const s = createBattle({ blue: [P('landmine', -2, 0)], red: [P('wolf', 3, 0)], seed: 11 });
+  const mine = s.units.find((u) => u.id === 'landmine');
+  const wolf = s.units.find((u) => u.id === 'wolf');
+  const hp0 = wolf.hp;
+  let boom = null;
+  for (let i = 0; i < 60 * 30 && !boom; i++) {
+    step(s, TUNING.SIM_DT);
+    boom = drainEvents(s).find((e) => e.type === 'explosion') || null;
+  }
+  check(!!boom, '지뢰 — 적이 밟으면 폭발');
+  if (boom) check(boom.r >= 4 && boom.r <= 6, `지뢰 — 광역 반경 (${boom.r})`);
+  check(mine.dead && mine.hp === 0, '지뢰 — 1회용 (폭발 후 소멸)');
+  check(wolf.hp < hp0 - 20, `지뢰 — 광역 피해 (${(hp0 - wolf.hp).toFixed(0)})`);
+  check(wolf.stun > 0 || wolf.y > 0 || wolf.vx !== 0 || wolf.vz !== 0, '지뢰 — 기절/넉백');
+  check(s.units.filter((u) => u.team === 'blue' && !u.dead).length === 0, '지뢰는 아군을 해치지 않고 스스로만 사라진다');
+}
+
+// 🗼 자동 포탑 — 기관총 연사 + 주기적 폭발 포격, 포신 조준
+{
+  const s = createBattle({ blue: [P('turret', -6, 0)], red: [P('bear', 4, 8)], seed: 21 });
+  const turret = s.units.find((u) => u.id === 'turret');
+  const face0 = turret.facing;
+  let aimDev = 0;
+  let bullets = 0, shells = 0, boom = false;
+  for (let i = 0; i < 60 * 12 && !s.over; i++) {
+    step(s, TUNING.SIM_DT);
+    aimDev = Math.max(aimDev, Math.abs(turret.aimYaw - face0));
+    for (const ev of drainEvents(s)) {
+      if (ev.type === 'shot' && ev.kind === 'bullet') bullets++;
+      if (ev.type === 'shot' && ev.kind === 'rocket') shells++;
+      if (ev.type === 'explosion') boom = true;
+    }
+  }
+  check(bullets > 10, `포탑 — 기관총 연사 (${bullets}발)`);
+  check(shells >= 1 && boom, '포탑 — 폭발 포격');
+  check(Number.isFinite(turret.aimYaw), '포탑 — 포신 조준각 기록');
+  check(aimDev > 0.15, `포탑 — 포신이 적을 향해 회전 (${aimDev.toFixed(2)}rad)`);
+  check(Math.abs(turret.facing - face0) < 1e-6, '포탑 — 받침은 고정, 포신만 회전');
+  check(s.units.find((u) => u.id === 'bear').dmgTaken > 0, '포탑 — 적에게 피해');
+}
+
+// ⚡ 테슬라 코일 — 여러 적 연쇄 번개 + 둔화
+{
+  const s = createBattle({ blue: [P('tesla_coil', -4, 0)], red: [P('lion', 1, 0), P('lion', 1, 2.4), P('lion', 0, -2.4)], seed: 31 });
+  s.units.forEach((u) => { u.hp = u.maxHp = 6000; });
+  const arcs = new Set();
+  let slowSeen = false;
+  for (let i = 0; i < 60 * 8; i++) {
+    step(s, TUNING.SIM_DT);
+    for (const ev of drainEvents(s)) if (ev.type === 'chainLightning') arcs.add(`${ev.x2.toFixed(1)},${ev.z2.toFixed(1)}`);
+    if (s.units.some((u) => u.team === 'red' && u.slow > 0)) slowSeen = true;
+  }
+  check(arcs.size >= 2, `테슬라 — 여러 적에게 연쇄 (${arcs.size}명)`);
+  check(s.units.filter((u) => u.team === 'red' && u.dmgTaken > 0).length >= 2, '테슬라 — 연쇄 피해');
+  check(slowSeen, '테슬라 — 둔화');
+}
+
+// 💚 치유 토템 — 주변 아군 회복
+{
+  const s = createBattle({ blue: [P('healing_totem', -20, 0), P('trex', -17, 0)], red: [P('spike_barricade', 34, 0)], seed: 41 });
+  const trex = s.units.find((u) => u.id === 'trex');
+  const bar = s.units.find((u) => u.id === 'spike_barricade');
+  bar.atk = 0;
+  trex.hp = Math.round(trex.maxHp * 0.5);
+  const hp0 = trex.hp;
+  const barHp = bar.hp;
+  let pulse = false;
+  for (let i = 0; i < 60 * 6 && !s.over; i++) {
+    step(s, TUNING.SIM_DT);
+    if (drainEvents(s).some((e) => e.type === 'healPulse')) pulse = true;
+  }
+  check(pulse, '치유 토템 — 치유 파동');
+  check(trex.hp > hp0, `치유 토템 — 아군 회복 (${hp0} → ${Math.round(trex.hp)})`);
+  check(bar.hp === barHp, '치유 토템 — 적은 회복하지 않는다');
+}
+
+// 🧱 가시 바리케이드 — 높은 체력 + 붙은 근접 적에게 가시 피해
+{
+  const s = createBattle({ blue: [P('spike_barricade', -2, 0)], red: [P('wolf', 2, 0), P('wolf', 1.6, 2)], seed: 51 });
+  const bar = s.units.find((u) => u.id === 'spike_barricade');
+  const wolves = s.units.filter((u) => u.team === 'red');
+  const hp0 = wolves.map((u) => u.hp);
+  let spiked = false;
+  for (let i = 0; i < 60 * 6 && !s.over; i++) {
+    step(s, TUNING.SIM_DT);
+    if (drainEvents(s).some((e) => e.type === 'spikeHit')) spiked = true;
+  }
+  check(bar.maxHp >= 600, '바리케이드 — 높은 체력');
+  check(spiked, '바리케이드 — 가시 반격');
+  check(wolves.some((u, i) => u.hp < hp0[i]), '바리케이드 — 붙은 적이 피해');
+  check(bar.x === -2 && bar.z === 0, '바리케이드 — 제자리 고정');
+}
+
+/* ─────────────── 3.6 유닛 직접 조종 (Possession) ─────────────── */
+{
+  const s = createBattle({ blue: [P('lion', -10, 0)], red: [P('bear', 10, 0)], seed: 71 });
+  const lion = s.units.find((u) => u.team === 'blue');
+  const bear = s.units.find((u) => u.team === 'red');
+  s.units.forEach((u) => { u.hp = u.maxHp = 6000; });
+
+  const p = possessUnit(s, lion.uid);
+  check(!!p && lion.possessed && s.possessedUid === lion.uid, '조종 시작');
+  check(possessedUnit(s) === lion, '조종 중인 유닛 조회');
+  check(possessUnit(s, bear.uid)?.uid === bear.uid && !lion.possessed, '조종 대상 교체 시 이전 유닛 해제');
+  possessUnit(s, lion.uid);
+
+  // 입력 방향(yaw 0 = +z)으로 이동
+  const x0 = lion.x, z0 = lion.z;
+  setUnitInput(lion, { mx: 0, mz: 1, yaw: 0, atk: false, sk: false });
+  for (let i = 0; i < 60; i++) step(s, TUNING.SIM_DT);
+  check(lion.z > z0 + 1.5, `조종 — 앞으로 이동 (${(lion.z - z0).toFixed(1)})`);
+  check(Math.abs(lion.x - x0) < 1.2, '조종 — 옆으로 새지 않는다');
+
+  // 입력이 없으면 AI 처럼 쫓아가지 않는다
+  setUnitInput(lion, { mx: 0, mz: 0, yaw: 0, atk: false, sk: false });
+  const z1 = lion.z;
+  for (let i = 0; i < 120; i++) step(s, TUNING.SIM_DT);
+  check(Math.abs(lion.z - z1) < 0.8, '조종 — 입력이 없으면 AI 자동 이동을 하지 않는다');
+
+  // 공격 버튼 → 기본 공격
+  lion.x = bear.x - 2; lion.z = bear.z;
+  const bhp = bear.hp;
+  setUnitInput(lion, { mx: 0, mz: 0, yaw: Math.PI / 2, atk: true, sk: false });
+  let atkSeen = false;
+  for (let i = 0; i < 90; i++) {
+    step(s, TUNING.SIM_DT);
+    if (drainEvents(s).some((e) => e.type === 'attack')) atkSeen = true;
+  }
+  check(bear.hp < bhp, `조종 — 공격 버튼으로 기본 공격 (${Math.round(bhp - bear.hp)})`);
+  check(atkSeen, '조종 — 공격 모션/이벤트');
+
+  // 스킬 즉시 발동 + 쿨타임 체크
+  lion.skillTimer = 0;
+  setUnitInput(lion, { mx: 0, mz: 0, yaw: Math.PI / 2, atk: false, sk: true });
+  step(s, TUNING.SIM_DT);
+  const casts = lion.skillCasts;
+  check(casts >= 1 && lion.lastSkill === 'roar', '조종 — 스킬 즉시 발동');
+  check(lion.skillTimer > 1, '조종 — 스킬 쿨타임 시작');
+  step(s, TUNING.SIM_DT);
+  step(s, TUNING.SIM_DT);
+  check(lion.skillCasts === casts, '조종 — 쿨타임 동안 중복 발동 없음');
+
+  releasePossession(s, lion.uid);
+  check(!lion.possessed && s.possessedUid === null, '조종 해제');
+  // 해제 후에는 다시 AI 가 움직인다
+  const z2 = lion.z;
+  for (let i = 0; i < 60; i++) step(s, TUNING.SIM_DT);
+  check(Math.abs(lion.z - z2) > 0.4 || Math.abs(lion.x - (bear.x - 2)) > 0.4, '조종 해제 후 AI 자동 전투로 복귀');
+}
+{
+  // 표적이 없어도 바라보는 방향으로 스킬이 나가고 NaN 이 없다 (돌진형)
+  const s = createBattle({ blue: [P('tiger', -8, 0)], red: [P('bear', 30, 0)], seed: 73 });
+  const tiger = s.units.find((u) => u.team === 'blue');
+  possessUnit(s, tiger.uid);
+  tiger.skillTimer = 0;
+  setUnitInput(tiger, { mx: 0, mz: 0, yaw: Math.PI / 2, atk: false, sk: true });
+  const x0 = tiger.x;
+  for (let i = 0; i < 30; i++) step(s, TUNING.SIM_DT);
+  check(tiger.skillCasts >= 1, '조종 — 표적 없이도 스킬 발동');
+  check(tiger.x > x0 + 0.8, '조종 — 돌진 스킬이 바라보는 방향으로 나간다');
+  check([tiger.x, tiger.z, tiger.y, tiger.hp].every(Number.isFinite), '조종 — 스킬 후 NaN 없음');
+  releasePossession(s);
+}
+{
+  // 구조물·죽은 유닛은 조종할 수 없다
+  const s = createBattle({ blue: [P('turret', -6, 0), P('fox', -8, 0)], red: [P('trex', 6, 0)], seed: 75 });
+  check(possessUnit(s, s.units.find((u) => u.id === 'turret').uid) === null, '아이템(구조물)은 조종할 수 없다');
+  const fox = s.units.find((u) => u.id === 'fox');
+  applyDamage(s, s.units.find((u) => u.id === 'trex'), fox, 9999, { unavoidable: true });
+  check(possessUnit(s, fox.uid) === null, '죽은 유닛은 조종할 수 없다');
+}
+
 /* ─────────────── 4. 3D 리그 ─────────────── */
 for (const def of CREATURES) {
   const rig = buildAnimalModel(def, 'blue');
@@ -724,6 +949,43 @@ check(ATTACK_STYLE.strong_chicken === 'bite' && ATTACK_STYLE.sans === 'claw', '�
 // 무기 발사는 근접 공격 모션을 쓰지 않는다
 triggerShoot(buildAnimalModel(CREATURE_BY_ID.lion, 'blue', { weapon: 'gatling' }));
 check(true, '발사 모션 호출');
+
+// 전장 아이템 3D 모델
+for (const it of ITEMS) {
+  const rig = buildAnimalModel(it, 'blue');
+  rig.group.updateMatrixWorld(true);
+  let meshes = 0;
+  rig.group.traverse((o) => { if (o.isMesh) meshes++; });
+  check(meshes >= 8, `[${it.id}] 아이템 메시 8개 이상 (${meshes})`);
+  const box = new THREE.Box3().setFromObject(rig.group);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  check([box.min, box.max].every((v) => [v.x, v.y, v.z].every(Number.isFinite)), `[${it.id}] 바운딩 박스 유효`);
+  check(box.min.y > -0.3 && box.min.y < 0.3, `[${it.id}] 지면에 놓임 (min.y=${box.min.y.toFixed(2)})`);
+  check(size.y > 0.4 && size.y < 3.8, `[${it.id}] 높이 적정 (${size.y.toFixed(2)})`);
+  check(size.x > 0.5 && size.x < 5.0, `[${it.id}] 폭 적정 (${size.x.toFixed(2)})`);
+  for (let i = 0; i < 120; i++) {
+    animateRig(rig, { dt: 1 / 60, moving: false, speed: 0, attack: 0, skill: i === 60 ? 1 : 0, hurt: 0, dead: false });
+  }
+  check(Number.isFinite(rig.group.rotation.y) && Number.isFinite(rig.group.position.y), `[${it.id}] 애니메이션 NaN 없음`);
+  for (let i = 0; i < 120; i++) animateRig(rig, { dt: 1 / 60, dead: true });
+  check(Number.isFinite(rig.group.rotation.z), `[${it.id}] 사망 연출 NaN 없음`);
+}
+{
+  const turretRig = buildAnimalModel(ITEM_BY_ID.turret, 'blue');
+  const mineRig = buildAnimalModel(ITEM_BY_ID.landmine, 'blue');
+  check(!!turretRig.barrel, '포탑 — 회전 포신 리그');
+  check(!!mineRig.lamp, '지뢰 — 점멸등 리그');
+  check(!!buildAnimalModel(ITEM_BY_ID.tesla_coil, 'blue').coilGlow, '테슬라 — 발광 리그');
+  check(!!buildAnimalModel(ITEM_BY_ID.healing_totem, 'blue').coilGlow, '치유 토템 — 발광 리그');
+  // 메갈로돈도 상어처럼 유선형 주둥이 (길이 대비 낮은 실루엣)
+  const mega = buildAnimalModel(CREATURE_BY_ID.megalodon, 'blue');
+  mega.group.updateMatrixWorld(true);
+  const mb = new THREE.Box3().setFromObject(mega.group);
+  const ms = new THREE.Vector3();
+  mb.getSize(ms);
+  check(ms.z / ms.y > 2.0, `메갈로돈 — 유선형 실루엣 (${ms.z.toFixed(2)} / ${ms.y.toFixed(2)})`);
+}
 
 // 무기 3D 장착
 for (const w of WEAPONS) {
@@ -981,6 +1243,13 @@ for (const n of [3, 4]) {
   for (const t of ['rudeText', 'gasterHand', 'tripleVenom', 'heroStrike', 'heroCombo', 'chestBeat', 'tuskQuakeLand']) {
     check(!!unpackEvent(packEvent({ type: t, uid: 1, x: 1, z: 1, text: '🖕', style: 'power', lane: 0, r: 3, i: 0, count: 2, side: 1 })), `[${t}] 파티 이벤트 등록`);
   }
+  // 전장 아이템 연출 이벤트도 파티에서 동기화된다
+  const arc = unpackEvent(packEvent({ type: 'chainLightning', uid: 5, x: 1, y: 2.4, z: 2, x2: 6, y2: 1, z2: -3 }));
+  check(arc && arc.type === 'chainLightning' && Math.abs(arc.x2 - 6) < 0.02 && Math.abs(arc.z2 + 3) < 0.02, '연쇄 번개 이벤트 압축');
+  const healPulse = unpackEvent(packEvent({ type: 'healPulse', uid: 5, x: 1, z: 2, r: 9 }));
+  check(healPulse && healPulse.r === 9, '치유 파동 이벤트 압축');
+  const spike = unpackEvent(packEvent({ type: 'spikeHit', uid: 5, x: 1, z: 2 }));
+  check(spike && spike.uid === 5, '가시 피해 이벤트 압축');
 }
 
 /* ── 4인 파티 루프백 ── */
@@ -1202,6 +1471,73 @@ for (const n of [3, 4]) {
   check(g3.battle.over && g3.battle.winner === host.battle.winner, '3인 배틀 승자 동기화');
   check(g3.battle.teams.join(',') === teamsStr, '전투 내내 3팀 유지');
   host.leave(); g2.leave(); g3.leave();
+}
+
+// 파티: 아이템 동기화 + 손님의 직접 조종 입력이 방장 시뮬레이션에 적용된다
+{
+  const hub = new MemoryHub();
+  const [host, guest] = makeLoopback(2, { hub });
+  const code = await host.host('지우');
+  await guest.join(code, '친구');
+  await sleep(60);
+  host.setPlacements([
+    { id: 'turret', x: -6, z: 0, weapon: 'none' },
+    { id: 'lion', x: -9, z: 0, weapon: 'none' },
+  ]);
+  guest.setPlacements([
+    { id: 'spike_barricade', x: 6, z: 0, weapon: 'none' },
+    { id: 'wolf', x: 9, z: 0, weapon: 'none' },
+  ]);
+  await sleep(80);
+  host.setReady(true);
+  guest.setReady(true);
+  await sleep(80);
+  check(host.canStart(), '아이템 배치로도 파티 시작 가능');
+  check(host.requestStart(), '아이템 포함 파티 배틀 시작');
+  await sleep(120);
+  const gUnits = guest.battle.units;
+  check(gUnits.length === 4 && gUnits.some((u) => u.id === 'turret') && gUnits.some((u) => u.id === 'spike_barricade'),
+    '손님도 아이템 유닛을 받는다');
+  check(gUnits.filter((u) => u.isStructure).every((u) => u.spd === 0 && u.kbResist === 1), '손님 화면 구조물 고정');
+  check(gUnits.filter((u) => u.isStructure).every((u) => u.weaponId === 'none'), '아이템은 무기를 달지 않는다');
+
+  // 손님이 자기 늑대를 조종 → 방장 시뮬레이션에 입력이 적용된다
+  const wolf = host.battle.units.find((u) => u.id === 'wolf');
+  guest.control(wolf.uid, { mx: 0, mz: 1, yaw: 0, atk: false, sk: false });
+  await sleep(60);
+  host.tick(1 / 60);
+  const hw = host.battle.units.find((u) => u.uid === wolf.uid);
+  check(hw.possessed, '손님 입력 → 방장이 조종 적용');
+  // 남의 진영 유닛은 조종할 수 없다
+  const lion = host.battle.units.find((u) => u.id === 'lion');
+  guest.control(lion.uid, { mz: 1 });
+  await sleep(60);
+  host.tick(1 / 60);
+  check(!host.battle.units.find((u) => u.uid === lion.uid).possessed, '남의 진영 유닛은 조종할 수 없다');
+  guest.control(wolf.uid, { release: true });
+  await sleep(60);
+  host.tick(1 / 60);
+  check(!host.battle.units.find((u) => u.uid === wolf.uid).possessed, '손님 조종 해제');
+
+  // 전투 끝까지 오류 없이 돌고 승자가 동기화된다
+  let guard = 0;
+  let partyErr = null;
+  while (!host.battle.over && guard < 20000) {
+    try {
+      simulate(host.battle, 1 / 60, 1 / 60);
+      host.tick(1 / 60);
+      guest.tick(1 / 60);
+      guest.battle.events.length = 0;
+    } catch (err) { partyErr = String((err && err.message) || err); }
+    guard++;
+  }
+  check(partyErr === null, `아이템 파티 배틀이 오류 없이 끝난다 (${partyErr || 'ok'})`);
+  await sleep(150);
+  host.tick(1 / 60);
+  await sleep(90);
+  check(guest.battle.over && guest.battle.winner === host.battle.winner, '아이템 파티 승자 동기화');
+  host.leave();
+  guest.leave();
 }
 
 // 유닛을 소환/삭제할 때 카메라가 자동으로 확대·축소되지 않아야 한다

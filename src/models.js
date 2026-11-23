@@ -1314,7 +1314,6 @@ function buildMegalodon(g, m, rig) {
   // 육중한 몸통
   add(body, G.sphere, m.main, [0, 0, 0], [0.58, 0.56, 1.35]);
   add(body, G.sphereLow, m.belly, [0, -0.24, 0.05], [0.46, 0.3, 1.1], null, false);
-  add(body, G.sphere, m.main, [0, 0.06, 1.02], [0.4, 0.36, 0.55]);
 
   // 거대 등지느러미
   add(body, G.coneLow, m.dark, [0, 0.5, -0.05], [0.14, 0.72, 0.42], [-0.5, 0, 0]);
@@ -1337,22 +1336,32 @@ function buildMegalodon(g, m, rig) {
   tail.add(tip); rig.tailTip = tip;
   caudalFin(tip, m.dark, 1.55);
 
-  // 거대한 턱
+  // 머리 — 상어와 똑같은 둥근 라테(SNOUT_GEO) 유선형 주둥이를 메갈로돈 크기(K배)로
+  const K = 1.7;
   const head = new THREE.Group();
-  head.position.set(0, -0.04, 1.28);
+  head.position.set(0, 0.02, 1.02);
   body.add(head); rig.head = head;
-  add(head, G.box, m.main, [0, 0.02, 0.16], [0.5, 0.32, 0.5]);
-  add(head, G.sphereLow, m.accent, [0, 0.14, 0.1], [0.26, 0.12, 0.32], null, false);
+  add(head, SNOUT_GEO, m.main, [0, 0, -0.465 * K], [0.27 * K, 0.885 * K, 0.3 * K], [Math.PI / 2, 0, 0]);
+
+  // 아가리: 주둥이 아래 검은 입 테두리 + 안쪽으로 다듬은 아래턱
+  add(head, G.sphereLow, m.dark, [0, -0.09 * K, 0.15 * K], [0.055 * K, 0.022 * K, 0.11 * K], [-0.3, 0, 0], false);
   const jaw = new THREE.Group();
-  jaw.position.set(0, -0.16, 0.06);
+  jaw.position.set(0, -0.02 * K, -0.1 * K);
   head.add(jaw); rig.jaw = jaw;
-  add(jaw, G.box, m.belly, [0, 0.01, 0.28], [0.44, 0.13, 0.62]);
-  for (let i = 0; i < 5; i++) {
-    add(head, G.coneLow, m.accent, [0.2, -0.12, 0.12 + i * 0.1], [0.045, 0.16, 0.045], [Math.PI, 0, 0], false);
-    add(head, G.coneLow, m.accent, [-0.2, -0.12, 0.12 + i * 0.1], [0.045, 0.16, 0.045], [Math.PI, 0, 0], false);
+  add(jaw, G.sphereLow, m.main, [0, -0.1 * K, 0.12 * K], [0.065 * K, 0.026 * K, 0.12 * K], [-0.28, 0, 0], false);
+
+  // 이빨: 아가리 테두리에 짧게 붙은 톱니 (위·아래 한 쌍씩)
+  for (let i = 0; i < 4; i++) {
+    const zz = (0.235 - i * 0.045) * K;
+    const xx = (0.034 - i * 0.002) * K;
+    add(head, G.coneLow, m.accent, [xx, -0.104 * K, zz], [0.01 * K, 0.026 * K, 0.01 * K], [Math.PI - 0.05, 0, -0.03], false);
+    add(head, G.coneLow, m.accent, [-xx, -0.104 * K, zz], [0.01 * K, 0.026 * K, 0.01 * K], [Math.PI - 0.05, 0, 0.03], false);
+    add(jaw, G.coneLow, m.accent, [xx * 0.8, -0.075 * K, zz - 0.06 * K], [0.009 * K, 0.022 * K, 0.009 * K], [0.08, 0, -0.03], false);
+    add(jaw, G.coneLow, m.accent, [-xx * 0.8, -0.075 * K, zz - 0.06 * K], [0.009 * K, 0.022 * K, 0.009 * K], [0.08, 0, 0.03], false);
   }
-  add(head, G.sphereLow, m.eye, [0.22, 0.12, 0.02], [0.05, 0.055, 0.04], null, false);
-  add(head, G.sphereLow, m.eye, [-0.22, 0.12, 0.02], [0.05, 0.055, 0.04], null, false);
+  // 눈 — 주둥이 옆면에 또렷하게
+  add(head, G.sphereLow, m.eye, [0.2, 0.07, 0.42], [0.03, 0.036, 0.03], null, false);
+  add(head, G.sphereLow, m.eye, [-0.2, 0.07, 0.42], [0.03, 0.036, 0.03], null, false);
   for (let i = 0; i < 4; i++) {
     add(body, G.box, m.dark, [0.52, 0.02, 0.6 - i * 0.1], [0.025, 0.26, 0.03], [0, 0, 0.1], false);
     add(body, G.box, m.dark, [-0.52, 0.02, 0.6 - i * 0.1], [0.025, 0.26, 0.03], [0, 0, -0.1], false);
@@ -2296,6 +2305,156 @@ function buildHero(g, m, rig) {
   rig.upright = true;
 }
 
+/* ─────────────────── 전장 아이템 (지뢰 · 포탑 · 테슬라 · 토템 · 바리케이드) ─────────────────── */
+
+// 💣 지뢰 — 바닥에 매설된 원반형 압력 지뢰 (빨간 점멸등)
+function buildLandmine(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 0.17;
+  g.add(body); rig.body = body; rig.bodyY = 0.17;
+
+  add(body, G.cylLow, m.main, [0, 0, 0], [0.6, 0.24, 0.6]);
+  add(body, G.cylLow, m.dark, [0, 0.14, 0], [0.5, 0.1, 0.5], null, false);
+  // 상판 삼각 경고 표식
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    add(body, G.box, m.belly, [Math.cos(a) * 0.17, 0.2, Math.sin(a) * 0.17], [0.12, 0.02, 0.05], [0, -a, 0], false);
+  }
+  // 빨간 점멸등
+  const lamp = add(body, G.sphereLow, m.accent, [0, 0.24, 0], [0.1, 0.09, 0.1], null, false);
+  lamp.material = lamp.material.clone();
+  lamp.material.emissive.setHex(0xff2a1a);
+  lamp.material.emissiveIntensity = 1.2;
+  rig.lamp = lamp;
+  // 접이식 받침다리
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + Math.PI / 4;
+    add(body, G.coneLow, m.dark,
+      [Math.cos(a) * 0.54, -0.12, Math.sin(a) * 0.54], [0.07, 0.18, 0.07],
+      [Math.sin(a) * 0.55, 0, -Math.cos(a) * 0.55], false);
+  }
+  rig.height = 0.55;
+}
+
+// 🗼 자동 포탑 — 3각 받침 + 360° 회전 포신
+function buildTurret(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 0.7;
+  g.add(body); rig.body = body; rig.bodyY = 0.7;
+
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    add(body, G.box, m.dark,
+      [Math.cos(a) * 0.32, -0.36, Math.sin(a) * 0.32], [0.15, 0.66, 0.15], [0, -a, 0]);
+  }
+  add(body, G.cylLow, m.dark, [0, -0.04, 0], [0.44, 0.14, 0.44]);
+  add(body, G.cyl, m.main, [0, 0.16, 0], [0.34, 0.32, 0.34]);
+  add(body, G.sphereLow, m.main, [0, 0.34, 0], [0.28, 0.18, 0.28], null, false);
+
+  // 회전 포신 조립체
+  const barrel = new THREE.Group();
+  barrel.position.set(0, 0.32, 0);
+  body.add(barrel); rig.barrel = barrel;
+  add(barrel, G.cyl, m.accent, [0, 0, 0.44], [0.085, 0.92, 0.085], [Math.PI / 2, 0, 0]);
+  add(barrel, G.box, m.dark, [0, 0.02, 0.9], [0.2, 0.14, 0.16], null, false);
+  add(barrel, G.cylLow, m.dark, [0, -0.02, 0.17], [0.14, 0.34, 0.14], [Math.PI / 2, 0, 0], false);
+  for (const s of [-1, 1]) {
+    add(barrel, G.cyl, m.dark, [s * 0.19, -0.02, 0.32], [0.05, 0.44, 0.05], [Math.PI / 2, 0, 0], false);
+  }
+  rig.weaponNode = barrel;
+  barrel.userData.baseZ = 0;
+
+  const lamp = add(body, G.sphereLow, m.accent, [0.25, 0.42, -0.12], [0.06, 0.06, 0.06], null, false);
+  lamp.material = lamp.material.clone();
+  lamp.material.emissive.setHex(0xffc247);
+  lamp.material.emissiveIntensity = 1.1;
+  rig.lamp = lamp;
+  rig.height = 1.5;
+}
+
+// ⚡ 테슬라 코일 — 전기를 띠는 코일 타워
+function buildTeslaCoil(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 2.1;
+  g.add(body); rig.body = body; rig.bodyY = 2.1;
+
+  add(body, G.cylLow, m.dark, [0, -1.9, 0], [0.52, 0.2, 0.52]);
+  add(body, G.cyl, m.main, [0, -1.1, 0], [0.3, 1.6, 0.3]);
+  add(body, G.cylLow, m.dark, [0, -0.22, 0], [0.34, 0.14, 0.34], null, false);
+  // 구리 코일 링
+  for (let i = 0; i < 4; i++) {
+    const rr = 0.31 - i * 0.015;
+    add(body, G.torus, m.accent, [0, 0.06 + i * 0.17, 0], [rr, rr, rr], [Math.PI / 2, 0, 0], false);
+  }
+  // 방전구
+  const orb = add(body, G.sphereLow, m.accent, [0, 0.86, 0], [0.21, 0.21, 0.21], null, false);
+  orb.material = orb.material.clone();
+  orb.material.emissive.setHex(0x6fe8ff);
+  orb.material.emissiveIntensity = 1.0;
+  rig.coilGlow = orb;
+  // 전극
+  for (let i = 0; i < 3; i++) {
+    const a = (i / 3) * Math.PI * 2;
+    add(body, G.coneLow, m.dark, [Math.cos(a) * 0.36, 0.5, Math.sin(a) * 0.36], [0.06, 0.34, 0.06], [0, 0, 0], false);
+  }
+  rig.height = 2.2;
+}
+
+// 💚 치유 토템 — 빛나는 녹색 크리스탈 토템
+function buildHealingTotem(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 1.02;
+  g.add(body); rig.body = body; rig.bodyY = 1.02;
+
+  add(body, G.cylLow, m.dark, [0, -0.94, 0], [0.44, 0.16, 0.44]);
+  add(body, G.cyl, m.main, [0, -0.44, 0], [0.17, 1.0, 0.17]);
+  add(body, G.torus, m.belly, [0, -0.1, 0], [0.32, 0.32, 0.32], [Math.PI / 2, 0, 0], false);
+  // 가운데 큰 크리스탈
+  add(body, G.cone, m.accent, [0, 0.52, 0], [0.24, 0.78, 0.24]);
+  add(body, G.cone, m.belly, [0, 0.06, 0], [0.24, 0.42, 0.24], [Math.PI, 0, 0], false);
+  // 곁 크리스탈
+  for (const s of [-1, 1]) {
+    add(body, G.cone, m.belly, [s * 0.26, 0.2, 0.02], [0.1, 0.4, 0.1], [0, 0, s * 0.22], false);
+  }
+  // 잎 장식
+  for (let i = 0; i < 4; i++) {
+    const a = (i / 4) * Math.PI * 2 + 0.4;
+    add(body, G.coneLow, m.main, [Math.cos(a) * 0.2, -0.78, Math.sin(a) * 0.2], [0.08, 0.26, 0.06], [0.5 * Math.sin(a), -a, 0.5 * Math.cos(a)], false);
+  }
+  const crystal = body.children.find((o) => o.geometry === G.cone);
+  if (crystal) {
+    crystal.material = crystal.material.clone();
+    crystal.material.emissive.setHex(0x8dff9a);
+    crystal.material.emissiveIntensity = 0.9;
+    rig.coilGlow = crystal;
+  }
+  rig.height = 1.9;
+}
+
+// 🧱 가시 바리케이드 — 전선을 막는 가시 방벽
+function buildSpikeBarricade(g, m, rig) {
+  const body = new THREE.Group();
+  body.position.y = 0.97;
+  g.add(body); rig.body = body; rig.bodyY = 0.97;
+
+  // 세로 기둥 3개 + 가로 목책 2단
+  for (let i = 0; i < 3; i++) {
+    add(body, G.box, m.main, [-0.62 + i * 0.62, 0, 0], [0.17, 1.36, 0.17]);
+  }
+  add(body, G.box, m.dark, [0, 0.4, 0], [1.7, 0.16, 0.15]);
+  add(body, G.box, m.dark, [0, -0.24, 0], [1.7, 0.16, 0.15]);
+  // 앞쪽으로 뻗은 가시
+  for (let i = 0; i < 6; i++) {
+    const x = -0.72 + i * 0.29;
+    add(body, G.coneLow, m.accent, [x, 0.08 + (i % 2) * 0.26, 0.24], [0.07, 0.44, 0.07], [Math.PI * 0.5, 0, 0], false);
+  }
+  // 뒤쪽 버팀대
+  for (const s of [-1, 1]) {
+    add(body, G.box, m.dark, [s * 0.58, -0.62, -0.36], [0.14, 0.72, 0.14], [0.5, 0, 0]);
+  }
+  rig.height = 1.66;
+}
+
 const BUILDERS = {
   lion: buildLion, tiger: buildTiger, elephant: buildElephant, bear: buildBear,
   wolf: buildWolf, eagle: buildEagle, crocodile: buildCrocodile, rhino: buildRhino,
@@ -2310,6 +2469,8 @@ const BUILDERS = {
   strong_chicken: buildStrongChicken, sans: buildSans,
   sans_p2: buildSans, sans_p3: buildSans,
   mammoth: buildMammoth, hydra: buildHydra, king_kong: buildKingKong, hero: buildHero,
+  landmine: buildLandmine, turret: buildTurret, tesla_coil: buildTeslaCoil,
+  healing_totem: buildHealingTotem, spike_barricade: buildSpikeBarricade,
 };
 
 export const TEAM_TINTS = { blue: 0x3b7bff, red: 0xff4b3b, green: 0x35d47c, gold: 0xffbe3f };
@@ -2590,6 +2751,13 @@ export function animateRig(rig, s) {
   if (rig.eyeGlow) {
     const g2 = 0.9 + Math.sin(rig.t * 5.2) * 0.16 + sk * 0.7 + hurt * 0.2;
     rig.eyeGlow.scale.set(0.055 * g2, 0.07 * g2, 0.03 * g2);
+  }
+  // 전장 아이템 — 지뢰 점멸등 · 코일/크리스탈 발광
+  if (rig.lamp) {
+    rig.lamp.material.emissiveIntensity = 0.35 + Math.abs(Math.sin(rig.t * 4.2)) * 1.5;
+  }
+  if (rig.coilGlow) {
+    rig.coilGlow.material.emissiveIntensity = Math.max(0.15, 0.45 + Math.sin(rig.t * 3.4) * 0.22 + sk * 0.9);
   }
 
   // 코 (코끼리)

@@ -203,6 +203,27 @@ export class Sfx {
     this.tone({ freq: 120, freq2: 48, dur: 0.3, gain: 0.4, type: 'sine' });
   }
 
+  // 전장 아이템 — 테슬라 연쇄 번개
+  tesla() {
+    if (!this.ok) return;
+    const now = performance.now();
+    if (now - (this.lastTesla || 0) < 80) return;
+    this.lastTesla = now;
+    this.noiseBurst({ dur: 0.16, freq: 3600, q: 1.6, gain: 0.2, type: 'highpass', sweep: 1200 });
+    this.tone({ freq: 1600, freq2: 420, dur: 0.18, gain: 0.16, type: 'square' });
+    this.tone({ freq: 240, freq2: 90, dur: 0.24, gain: 0.14, type: 'sawtooth' });
+  }
+
+  // 전장 아이템 — 치유 파동
+  heal() {
+    if (!this.ok) return;
+    const now = performance.now();
+    if (now - (this.lastHeal || 0) < 140) return;
+    this.lastHeal = now;
+    this.tone({ freq: 660, freq2: 990, dur: 0.3, gain: 0.13, type: 'sine' });
+    this.tone({ freq: 990, freq2: 1320, dur: 0.26, gain: 0.09, type: 'sine', delay: 0.07 });
+  }
+
   laser() {
     if (!this.ok) return;    if (performance.now() - (this.lastLaser || 0) < 90) return;
     this.lastLaser = performance.now();

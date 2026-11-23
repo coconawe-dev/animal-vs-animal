@@ -609,3 +609,89 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
 @media (prefers-reduced-motion: reduce) {
   .dock, .banner-card, .loader-inner span, .challenge-panel { transition: none; animation: none; }
 }
+
+/* ───────────────────── 전장 아이템 카드 ───────────────────── */
+.ucard.item { border-color: rgba(120,200,255,.28); }
+.ucard.item .u-emoji { filter: drop-shadow(0 0 6px rgba(120,200,255,.45)); }
+.u-item {
+  position: absolute; top: 3px; right: 3px; padding: 0 3px; height: 12px;
+  border-radius: 4px; background: rgba(20,44,64,.8); color: #9fe8ff;
+  border: 1px solid rgba(120,200,255,.35);
+  font-size: 7px; font-weight: 800; display: grid; place-items: center; line-height: 1;
+}
+
+/* ───────────────────── 유닛 직접 조종 ───────────────────── */
+.unit-action {
+  pointer-events: auto; display: flex; align-items: center; gap: 8px;
+  background: rgba(10,13,19,.86); border: 1px solid rgba(255,194,71,.45);
+  border-radius: 999px; padding: 4px 5px 4px 12px;
+  -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px);
+  box-shadow: 0 8px 22px rgba(0,0,0,.45);
+  animation: fadeIn .18s ease-out;
+}
+.unit-action span { font-size: 11px; font-weight: 800; color: #ffe6ad; white-space: nowrap; }
+.chip-btn.gold {
+  color: #241703; background: linear-gradient(180deg, #ffd469, #ffb020);
+  border-color: rgba(255,255,255,.35); font-weight: 900;
+}
+
+.possess-hud { position: absolute; inset: 0; z-index: 22; pointer-events: none; }
+
+.joy-zone {
+  position: absolute; left: calc(var(--safe-l) + 22px); bottom: calc(var(--safe-b) + 26px);
+  width: 132px; height: 132px; border-radius: 50%;
+  pointer-events: auto; touch-action: none;
+}
+.joy-base {
+  position: absolute; inset: 0; border-radius: 50%;
+  background: radial-gradient(circle at 50% 45%, rgba(255,255,255,.10), rgba(8,11,17,.55) 72%);
+  border: 1.5px solid rgba(160,210,255,.28);
+  box-shadow: inset 0 0 22px rgba(120,200,255,.14), 0 8px 22px rgba(0,0,0,.4);
+}
+.joy-knob {
+  position: absolute; left: 50%; top: 50%; width: 56px; height: 56px; margin: -28px 0 0 -28px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, rgba(200,236,255,.98), rgba(64,132,214,.82));
+  border: 1px solid rgba(255,255,255,.45);
+  box-shadow: 0 6px 16px rgba(0,0,0,.5);
+  will-change: transform;
+}
+.joy-zone.active .joy-base { border-color: rgba(255,194,71,.6); }
+
+.possess-actions {
+  position: absolute; right: calc(var(--safe-r) + 18px); bottom: calc(var(--safe-b) + 24px);
+  display: flex; align-items: flex-end; gap: 10px; pointer-events: auto;
+}
+.pbtn {
+  width: 86px; height: 86px; border-radius: 50%;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px;
+  font-size: 13px; font-weight: 900; color: #fff; text-align: center;
+  background: radial-gradient(circle at 38% 30%, rgba(255,168,124,.96), rgba(168,46,28,.94));
+  border: 2px solid rgba(255,255,255,.28);
+  box-shadow: 0 10px 26px rgba(0,0,0,.5);
+  touch-action: none; transition: transform .1s, filter .2s;
+}
+.pbtn small { font-size: 8px; font-weight: 700; opacity: .82; letter-spacing: -0.02em; }
+.pbtn.skill { background: radial-gradient(circle at 38% 30%, rgba(158,206,255,.96), rgba(46,82,192,.94)); }
+.pbtn.cooling { filter: grayscale(.6) brightness(.7); }
+.pbtn.held { transform: scale(.93); }
+
+.chip-btn.release {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: calc(var(--safe-b) + 22px); pointer-events: auto;
+  border-color: rgba(255,80,64,.5); color: #ffc0b8; height: 38px;
+}
+.chip-btn.release small { font-size: 8px; opacity: .7; margin-left: 3px; }
+
+@media (max-width: 460px) {
+  .joy-zone { width: 112px; height: 112px; left: calc(var(--safe-l) + 14px); bottom: calc(var(--safe-b) + 18px); }
+  .joy-knob { width: 48px; height: 48px; margin: -24px 0 0 -24px; }
+  .pbtn { width: 72px; height: 72px; font-size: 11.5px; }
+  .possess-actions { right: calc(var(--safe-r) + 12px); gap: 7px; bottom: calc(var(--safe-b) + 16px); }
+  .chip-btn.release { bottom: calc(var(--safe-b) + 100px); height: 32px; font-size: 10.5px; }
+}
+@media (orientation: landscape) and (max-height: 560px) {
+  .joy-zone { width: 104px; height: 104px; }
+  .pbtn { width: 68px; height: 68px; }
+  .chip-btn.release { bottom: calc(var(--safe-b) + 14px); left: auto; right: 50%; transform: translateX(50%); }
+}

@@ -2,7 +2,7 @@
 //  · 방장(Host)이 유일한 권한자: 진영 배정, 예산 검증, 전투 시뮬레이션, 스냅샷 전송
 //  · 손님(Guest)은 자기 진영 배치를 보내고, 방장의 스냅샷/이벤트를 받아 그대로 그린다.
 //  · Net(중계)과 Sim(전투)만 쓰고 THREE/DOM 에 의존하지 않는다 → 노드 테스트 가능.
-import { createBattle, step } from './sim.js';
+import { createBattle, step, possessUnit, releasePossession, setUnitInput } from './sim.js';
 import { PARTY, partyTeams, teamDef, sectorBounds, TUNING } from './config.js';
 import { reclampList, costOf, clampSide } from './placement.js';
 import { Net, normalizeRoomCode } from './net.js';
@@ -59,6 +59,10 @@ const EV_FIELDS = {
   heroCombo: ['uid', 'x', 'z', 'count'],
   chestBeat: ['uid', 'x', 'z'],
   tuskQuakeLand: ['uid', 'x', 'z', 'r'],
+  // 전장 아이템 연출
+  chainLightning: ['uid', 'x', 'z', 'y', 'x2', 'y2', 'z2'],
+  healPulse: ['uid', 'x', 'z', 'r'],
+  spikeHit: ['uid', 'x', 'z'],
 };
 const EV_CODES = Object.keys(EV_FIELDS);
 const EV_INDEX = Object.fromEntries(EV_CODES.map((k, i) => [k, i]));
@@ -335,6 +339,32 @@ export class PartySession {
     this.changed();
   }
 
+  /* ── 유닛 직접 조종 ── */
+
+  // 방장은 자기 시뮬레이션에 바로 적용하고, 손님은 방장에게 입력을 보낸다.
+  control(uid, input) {
+    if (!this.active) return false;
+    if (this.isHost) return this.applyControl(uid, input, this.myPid);
+    this.send('ctl', { uid, c: input || {} });
+    return true;
+  }
+
+  // 방장: 조종 입력을 시뮬레이션에 적용한다 (자기 진영 유닛만 허용)
+  applyControl(uid, input, pid) {
+    const b = this.battle;
+    if (!b || this.phase !== PHASE.BATTLE || !uid) return false;
+    const u = b.units.find((x) => x.uid === uid && !x.dead && !x.isStructure);
+    if (!u) { releasePossession(b, uid); return false; }
+    if (pid && pid !== this.myPid) {
+      const pl = this.players.get(pid);
+      if (!pl || pl.team !== u.team) return false;
+    }
+    if (input && input.release) { releasePossession(b, uid); return true; }
+    if (!u.possessed && !possessUnit(b, uid, pid || this.myPid)) return false;
+    setUnitInput(u, input);
+    return true;
+  }
+
   setReady(on) {
     const me = this.me;
     if (!me) return;
@@ -400,6 +430,7 @@ export class PartySession {
 
   rematch() {
     if (!this.isHost) return false;
+    if (this.battle) releasePossession(this.battle);
     this.phase = PHASE.PLACE;
     this.battle = null;
     for (const p of this.players.values()) p.ready = false;
@@ -486,6 +517,10 @@ export class PartySession {
         this.status(`${player.nick} 님이 나갔습니다`);
         this.changed();
       }
+    } else if (type === 'ctl') {
+      const player = this.players.get(p.pid);
+      if (!player) return;
+      this.applyControl(p.uid, p.c || {}, p.pid);
     } else if (type === 'ping') {
       const player = this.players.get(p.pid);
       if (player) {
@@ -636,6 +671,8 @@ export class PartySession {
         u.uid, num(u.x, 1), num(u.z, 1), num(u.facing, 2),
         Math.round(u.hp), u.dead ? 1 : 0, num(u.y, 1),
         stateCode(u.state), u.moving ? 1 : 0,
+        num(u.skillTimer, 1),
+        num(u.aimYaw == null ? u.facing : u.aimYaw, 2),
       ]);
     }
     // 이벤트는 중요한 것(스킬·사망·폭발)을 먼저, 피해 숫자는 남는 자리에만
@@ -695,6 +732,8 @@ export class PartySession {
       u.moving = !!a[8];
       const st = STATE_LIST[a[7]] || 'idle';
       if (!u.dead) u.state = st;
+      if (a[9] != null && !u.dead) u.skillTimer = Number(a[9]) || 0;
+      if (a[10] != null) u.aimYaw = Number(a[10]) || 0;
       if (a[5] && !u.dead) {
         u.dead = true;
         u.hp = 0;

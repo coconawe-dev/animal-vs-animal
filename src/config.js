@@ -128,6 +128,7 @@ export const CATEGORIES = [
   { id: 'animal', name: '동물', emoji: '🐾' },
   { id: 'dino', name: '공룡', emoji: '🦕' },
   { id: 'monster', name: '괴수', emoji: '👹' },
+  { id: 'item', name: '아이템', emoji: '💣' },
 ];
 
 /* ──────────────────────────── 동물 로스터 (15종) ────────────────────────────
@@ -628,17 +629,106 @@ export function phaseIdsOf(def) {
   return SANS_PHASE_IDS;
 }
 
+/* ──────────────────────── 전장 아이템 · 장치 (5종) ────────────────────────
+   걸어 다니지 않고 제자리에 고정된 구조물(isStructure). spd 0 · knockResist 1.0.
+   sim.js 가 아이템별로 지뢰 기폭 · 포탑 연사/포격 · 연쇄 번개 · 치유 파동 · 가시 반격을 처리한다.
+   배치·예산·파티 동기화는 기존 유닛과 똑같은 경로를 쓴다.            */
+
+const ITEM_LIST = [
+  {
+    id: 'landmine', name: '지뢰', emoji: '💣', cat: 'item', tier: 1, cost: 3, role: '매설 폭탄',
+    hp: 80, atk: 34, spd: 0, range: 4.8, atkInterval: 1.0,
+    isStructure: true, knockResist: 1.0, armor: 0.05,
+    colors: { main: 0x4a5636, dark: 0x242b1a, accent: 0xff4a3a, belly: 0x6b7a4c },
+    scale: 1.0, size: 0.85,
+    desc: '바닥에 매설된 압력 지뢰. 빨간 점멸등이 깜박이고, 적이 반경 안을 밟으면 크게 폭발한다.',
+    skill: {
+      kind: 'mine', name: '압력 기폭', icon: '💥', cd: 1, range: 4.8, radius: 5.2,
+      power: 2.0, stun: 1.25, knock: 20,
+      desc: '적이 밟는 순간 광역 폭발 + 강한 넉백 + 기절 (1회용)',
+    },
+    passive: '1회용 · 적이 밟아야 터진다',
+  },
+  {
+    id: 'turret', name: '자동 포탑', emoji: '🗼', cat: 'item', tier: 3, cost: 6, role: '고정 화력',
+    hp: 270, atk: 10, spd: 0, range: 15, atkInterval: 0.22,
+    isStructure: true, knockResist: 1.0,
+    colors: { main: 0x6b7280, dark: 0x363c46, accent: 0xffc247, belly: 0x9aa2ad },
+    scale: 1.0, size: 1.05,
+    desc: '360도 회전하는 포신이 사거리 안의 적을 자동으로 조준해 기관총을 연사하고, 주기적으로 폭발 포격을 퍼붓는다.',
+    skill: {
+      kind: 'turret', name: '폭발 포격', icon: '💣', cd: 4.2, range: 17, radius: 3.0,
+      power: 1.9, stun: 0.35, knock: 11,
+      desc: '기관총 연사 + 4초마다 폭발 포탄을 발사',
+    },
+    passive: '고정 · 포신 360° 회전',
+  },
+  {
+    id: 'tesla_coil', name: '테슬라 코일', emoji: '⚡', cat: 'item', tier: 3, cost: 7, role: '광역 마법',
+    hp: 240, atk: 24, spd: 0, range: 9.5, atkInterval: 2.6,
+    isStructure: true, knockResist: 1.0,
+    colors: { main: 0x4a5f8a, dark: 0x1e2a44, accent: 0x6fe8ff, belly: 0x8fb0d8 },
+    scale: 0.82, size: 1.0,
+    desc: '전기를 띠고 지글거리는 코일 타워. 주변의 여러 적에게 연쇄 번개를 뿌려 둔화시킨다.',
+    skill: {
+      kind: 'tesla', name: '연쇄 번개', icon: '⚡', cd: 2.6, range: 9.5, radius: 9.5,
+      power: 1.0, chain: 4, slow: 0.45, slowTime: 2.2,
+      desc: '최대 4명의 적에게 연쇄 번개 피해 + 둔화',
+    },
+    passive: '고정 · 연쇄 번개',
+  },
+  {
+    id: 'healing_totem', name: '치유 토템', emoji: '💚', cat: 'item', tier: 2, cost: 5, role: '아군 지원',
+    hp: 210, atk: 0, spd: 0, range: 9, atkInterval: 3.0,
+    isStructure: true, knockResist: 1.0,
+    colors: { main: 0x3f7a4a, dark: 0x1a3a22, accent: 0x8dff9a, belly: 0x6fbf7a },
+    scale: 1.0, size: 0.95,
+    desc: '빛나는 녹색 크리스탈 토템. 주기적으로 치유 파동을 내보내 주변 아군 전체의 체력을 회복시킨다.',
+    skill: {
+      kind: 'totem', name: '치유 파동', icon: '💚', cd: 3.0, range: 9, radius: 9,
+      power: 0, heal: 26,
+      desc: '3초마다 반경 9 안의 아군 전체 HP 회복',
+    },
+    passive: '고정 · 아군 치유',
+  },
+  {
+    id: 'spike_barricade', name: '가시 바리케이드', emoji: '🧱', cat: 'item', tier: 2, cost: 4, role: '방벽',
+    hp: 640, atk: 15, spd: 0, range: 2.3, atkInterval: 0.55,
+    isStructure: true, knockResist: 1.0, armor: 0.12,
+    colors: { main: 0x7a5a3a, dark: 0x3a2814, accent: 0xc8b090, belly: 0x9a7a52 },
+    scale: 1.0, size: 1.1,
+    desc: '높은 체력으로 전선을 막는 가시 방벽. 가까이 붙은 근접 적에게 가시 피해를 입힌다.',
+    skill: {
+      kind: 'barricade', name: '가시 반격', icon: '🧱', cd: 0.55, range: 2.3, radius: 2.3,
+      power: 1.0, knock: 3,
+      desc: '붙은 근접 적에게 0.55초마다 가시 피해',
+    },
+    passive: '고정 · 높은 체력',
+  },
+];
+
 export const ANIMALS = ANIMAL_LIST;
 export const DINOS = DINO_LIST;
 export const MONSTERS = MONSTER_LIST;
 export const CREATURES = [...ANIMAL_LIST, ...DINO_LIST, ...MONSTER_LIST];
-export const CREATURE_BY_ID = Object.fromEntries(CREATURES.map((a) => [a.id, a]));
+export const ITEMS = ITEM_LIST;
+export const ITEM_BY_ID = Object.fromEntries(ITEM_LIST.map((a) => [a.id, a]));
+export const ITEM_IDS = ITEM_LIST.map((a) => a.id);
+// 배치 가능한 전체 목록 (동물·공룡·괴수 + 전장 아이템)
+export const PLACEABLES = [...CREATURES, ...ITEM_LIST];
+export const CREATURE_BY_ID = Object.fromEntries(PLACEABLES.map((a) => [a.id, a]));
 export const CREATURE_IDS = CREATURES.map((a) => a.id);
 export const ANIMAL_BY_ID = Object.fromEntries(ANIMAL_LIST.map((a) => [a.id, a]));
 export const ANIMAL_IDS = ANIMAL_LIST.map((a) => a.id);
 
 export function creaturesOf(cat) {
-  return cat && cat !== 'all' ? CREATURES.filter((a) => a.cat === cat) : CREATURES;
+  if (!cat || cat === 'all') return PLACEABLES;
+  if (cat === 'item') return ITEM_LIST;
+  return CREATURES.filter((a) => a.cat === cat);
+}
+
+export function isStructureId(id) {
+  return !!(ITEM_BY_ID[id] && ITEM_BY_ID[id].isStructure);
 }
 
 /* ──────────────────────────────── 무기 ──────────────────────────────── */
@@ -886,6 +976,17 @@ const PRESET_DATA = [
     blue: lineup('blue', ['mammoth', 'hydra', 'king_kong', 'hero'], { x0: 5.6, dz: 3.4 }),
     red: lineup('red', ['trex', 'triceratops', 'lion', 'bear'], { x0: 5.6, dz: 3.4 }),
     arena: 'savanna',
+  },
+  {
+    id: 'battle-items', name: '전장 아이템 쇼케이스', emoji: '💣🗼⚡',
+    desc: '포탑·테슬라·치유 토템·바리케이드·지뢰 vs 사자·늑대·곰 무리',
+    blue: [
+      P('turret', -5.0, -3.2), P('tesla_coil', -6.4, 0), P('healing_totem', -7.6, 3.0),
+      P('spike_barricade', -3.4, 0), P('landmine', -1.8, -2.4), P('landmine', -1.8, 2.4),
+      P('lion', -8.2, -1.6),
+    ],
+    red: [...cluster('lion', 3, 'red', 'none', { x0: 5.0, dz: 2.6 }), ...cluster('wolf', 4, 'red', 'none', { x0: 7.6, dz: 2.3 }), P('bear', 8.8, 0)],
+    arena: 'canyon',
   },
   {
     id: 'seven-new', name: '신규 7종 쇼케이스', emoji: '🦈🐉🗿',

@@ -108,7 +108,8 @@ function spawnTeam(state, list, team, teams = null) {
 
 function makeUnit(state, def, team, x, z, weaponId, teams = null) {
   const uid = state.nextUid++;
-  const w = WEAPON_BY_ID[weaponId] || WEAPON_BY_ID.none;
+  // 아이템(구조물)은 무기를 달지 않는다
+  const w = def.isStructure ? WEAPON_BY_ID.none : (WEAPON_BY_ID[weaponId] || WEAPON_BY_ID.none);
   const maxHp = Math.round(def.hp * (w.hpMul || 1));
   // 시작 방향: 전장 중앙을 바라본다 (2팀이면 기존처럼 블루→동쪽, 레드→서쪽)
   let facing = Math.atan2(-x, -z);
@@ -121,14 +122,21 @@ function makeUnit(state, def, team, x, z, weaponId, teams = null) {
   return {
     uid, team, battle: state, id: def.id, def, emoji: def.emoji, name: def.name,
     x, z, y: 0, vx: 0, vz: 0, vy: 0, spin: 0, spinVel: 0,
-    facing,
+    facing, aimYaw: facing,
     hp: maxHp, maxHp,
     atk: def.atk, spd: def.spd,
     range: Math.max(def.range, w.range || 0),
     weapon: w, weaponId: w.id,
     ranged: !!(def.ranged || w.proj),
     baseInterval: def.atkInterval,
-    armor: def.armor || 0, kbResist: def.kbResist || 0,
+    // 구조물(아이템): 제자리 고정 · 밀려나지 않음
+    isStructure: !!def.isStructure,
+    actTimer: 0.6 + state.rng() * 0.8,
+    shellTimer: 2.2 + state.rng() * 1.4,
+    // 직접 조종(점유) 상태
+    possessed: false, ownerPid: null, input: null,
+    armor: def.armor || 0,
+    kbResist: def.knockResist != null ? def.knockResist : (def.kbResist || 0),
     evasion: def.evasion || 0, crit: def.crit || 0.07,
     attackTimer: 0.35 + state.rng() * 0.35,
     skillTimer: 2.4 + state.rng() * 3.2,
@@ -248,7 +256,7 @@ export function applyDamage(state, src, tgt, raw, opts = {}) {
   return dmg;
 }
 
-function killUnit(state, u, src, heavy = 0) {
+function killUnit(state, u, src, heavy = 0, opts = {}) {
   if (u.dead) return;
   u.dead = true;
   u.hp = 0;
@@ -266,15 +274,19 @@ function killUnit(state, u, src, heavy = 0) {
   }
   state.stats.kills++;
   if (src) src.kills++;
-  emit(state, { type: 'death', uid: u.uid, x: u.x, z: u.z, by: src ? src.uid : null, heavy });
+  emit(state, { type: 'death', uid: u.uid, x: u.x, z: u.z, by: src ? src.uid : null, heavy, selfDestruct: !!opts.selfDestruct });
   pushLog(state, {
-    text: `${u.emoji} ${u.name} 쓰러짐${src ? ` (${src.emoji} ${src.name})` : ''}`,
+    text: opts.selfDestruct
+      ? `${u.emoji} ${u.name} 기폭`
+      : `${u.emoji} ${u.name} 쓰러짐${src ? ` (${src.emoji} ${src.name})` : ''}`,
     team: u.team, kind: 'death',
   });
 }
 
 function knock(state, u, dirX, dirZ, force, opts = {}) {
   if (u.dead || force <= 0) return;
+  // 제자리에 박힌 구조물은 밀리지 않는다
+  if (u.isStructure) return;
   const resist = clamp(u.kbResist, 0, 0.9);
   const f = force * (1 - resist);
   const l = Math.hypot(dirX, dirZ) || 1;
@@ -832,7 +844,23 @@ function skillReady(state, u) {
   return u.skillTimer <= 0 && !u.dash;
 }
 
-function tryCastSkill(state, u, target, d) {
+// 직접 조종에서 표적이 없을 때 쓰는 가상 표적 — 피해는 받지 않는다(invuln)
+function dummyTarget(u) {
+  return {
+    uid: -1, team: null, dead: false,
+    x: u.x + Math.sin(u.facing) * 5, z: u.z + Math.cos(u.facing) * 5, y: 0,
+    vx: 0, vz: 0, vy: 0, spin: 0, spinVel: 0, facing: 0, aimYaw: 0, moving: false,
+    hp: 1, maxHp: 1, atk: 0, spd: 0, range: 0, weapon: null, weaponId: 'none',
+    ranged: false, armor: 0, armorBuff: 0, armorT: 0, kbResist: 0, evasion: 0,
+    dodgeBonus: 0, dodgeT: 0, stun: 0, slow: 0, slowFactor: 1, ccImmune: 0,
+    invuln: 99, castLock: 0, bleeding: [], bleedAccum: 0, bleedTick: 0,
+    isStructure: false, possessed: false, deadTime: 0,
+    def: { size: 1, skill: {}, hp: 1 }, dmgDealt: 0, dmgTaken: 0, kills: 0, skillCasts: 0,
+    battle: u.battle,
+  };
+}
+
+function tryCastSkill(state, u, target, d, opts = {}) {
   if (!u.def.skill || !skillReady(state, u)) return false;
   const s = u.def.skill;
   const rng = state.rng;
@@ -841,7 +869,14 @@ function tryCastSkill(state, u, target, d) {
   const castRange = kitSkill ? (kitSkill.range || s.range) : s.range;
   const castName = kitSkill ? kitSkill.name : s.name;
 
-  switch (s.kind) {
+  if (opts.force) {
+    // 직접 조종: 위치 조건은 무시하고 쿨타임만 확인한다.
+    // 표적이 없으면 바라보는 방향의 가상 지점을 향해 기술을 쓴다.
+    if (!target) {
+      target = dummyTarget(u);
+      d = 5;
+    }
+  } else switch (s.kind) {
     case 'featherStorm':
     case 'gasterBlast': {
       if (!target) return false;
@@ -1306,6 +1341,266 @@ function tryCastSkill(state, u, target, d) {
   return true;
 }
 
+/* ──────────────────────────── 전장 아이템 (구조물) ────────────────────────────
+   지뢰 · 자동 포탑 · 테슬라 코일 · 치유 토템 · 가시 바리케이드.
+   모두 spd 0 · knockResist 1.0 으로 제자리에 고정되고, 자기 기능만 주기적으로 한다.  */
+
+function nearestEnemyTo(state, u, range, x = u.x, z = u.z) {
+  let best = null, bd = range;
+  for (const e of state.units) {
+    if (e.dead || e.team === u.team) continue;
+    const d = dist2(x, z, e.x, e.z);
+    if (d <= bd) { bd = d; best = e; }
+  }
+  return best;
+}
+
+// 포탑 기관총 — 표적을 향해 탄환을 발사한다 (기존 투사체 경로를 그대로 쓴다)
+function fireTurretShot(state, u, t) {
+  const rng = state.rng;
+  u.attackTimer = intervalFor(u);
+  u.castLock = Math.max(u.castLock, 0.06);
+  u.hitsLanded++;
+  u.aimYaw = Math.atan2(t.x - u.x, t.z - u.z);
+  u.targetId = t.uid;
+  const speed = 38;
+  const dx = t.x - u.x, dz = t.z - u.z;
+  const dd = Math.hypot(dx, dz) || 1;
+  const sx = u.x + Math.sin(u.aimYaw) * 0.55;
+  const sz = u.z + Math.cos(u.aimYaw) * 0.55;
+  state.projectiles.push({
+    pid: state.nextPid++, kind: 'bullet', fromUid: u.uid, targetUid: t.uid, team: u.team,
+    x: sx, y: u.y + 1.85, z: sz,
+    vx: (dx / dd) * speed, vz: (dz / dd) * speed, speed,
+    dmg: u.atk * (0.9 + rng() * 0.2), ttl: Math.min(2.0, dd / speed + 0.3),
+    aoe: 0, knock: 0.5, color: 0xffe08a, x0: u.x, z0: u.z,
+  });
+  state.stats.shots++;
+  emit(state, {
+    type: 'shot', uid: u.uid, kind: 'bullet', x: sx, y: u.y + 1.85, z: sz,
+    tx: t.x, tz: t.z, color: 0xffe08a,
+  });
+}
+
+// 포탑 폭발 포격 — 유도 포탄이 착탄 지점에서 광역 폭발
+function fireTurretShell(state, u, t) {
+  const s = u.def.skill;
+  const speed = 17;
+  const dx = t.x - u.x, dz = t.z - u.z;
+  const dd = Math.hypot(dx, dz) || 1;
+  state.projectiles.push({
+    pid: state.nextPid++, kind: 'rocket', fromUid: u.uid, targetUid: t.uid, team: u.team,
+    x: u.x, y: u.y + 1.9, z: u.z,
+    vx: (dx / dd) * speed, vz: (dz / dd) * speed, speed,
+    dmg: u.atk * s.power, ttl: Math.min(2.2, dd / speed + 0.4),
+    aoe: s.radius, knock: s.knock, color: 0xffa040, x0: u.x, z0: u.z,
+  });
+  state.stats.shots++;
+  emit(state, {
+    type: 'shot', uid: u.uid, kind: 'rocket', x: u.x, y: u.y + 1.9, z: u.z,
+    tx: t.x, tz: t.z, color: 0xffa040,
+  });
+}
+
+// 지뢰 기폭 — 광역 피해 + 강넉백 + 기절, 그리고 스스로 사라진다(1회용)
+function detonateMine(state, u) {
+  const s = u.def.skill;
+  state.stats.explosions++;
+  emit(state, {
+    type: 'explosion', x: u.x, y: 0.6, z: u.z, r: s.radius, color: 0xff8a4a, uid: u.uid,
+  });
+  emit(state, { type: 'quake', x: u.x, z: u.z, r: s.radius, big: true });
+  areaBurst(state, u, u.x, u.z, s.radius, u.atk * s.power, s.stun, s.knock, null, { launch: true });
+  killUnit(state, u, null, 0, { selfDestruct: true });
+}
+
+function actStructure(state, u, dt) {
+  u.moving = false;
+  u.state = u.castLock > 0 ? 'attack' : 'ready';
+  const def = u.def;
+  const s = def.skill;
+
+  if (def.id === 'landmine') {
+    if (state.time - (u.spawnTime || 0) < 0.6) return;   // 매설(무장) 시간
+    const trigger = nearestEnemyTo(state, u, s.range);
+    if (!trigger) return;
+    u.facing = Math.atan2(trigger.x - u.x, trigger.z - u.z);
+    u.aimYaw = u.facing;
+    u.targetId = trigger.uid;
+    detonateMine(state, u);
+    return;
+  }
+
+  if (def.id === 'turret') {
+    const t = nearestEnemyTo(state, u, def.range);
+    if (!t) { u.targetId = null; return; }
+    u.targetId = t.uid;
+    // 받침은 고정, 포신(aimYaw)만 목표를 향해 돈다
+    const aim = Math.atan2(t.x - u.x, t.z - u.z);
+    u.aimYaw = shortenAngle(u.aimYaw + shortenAngle(aim - u.aimYaw) * Math.min(1, dt * 7));
+    if (u.attackTimer <= 0) fireTurretShot(state, u, t);
+    if (u.shellTimer <= 0) {
+      u.shellTimer = s.cd * (0.9 + state.rng() * 0.2);
+      fireTurretShell(state, u, t);
+    }
+    return;
+  }
+
+  if (def.id === 'tesla_coil') {
+    if (u.actTimer > 0) return;
+    u.actTimer = s.cd;
+    const pool = [];
+    for (const e of state.units) {
+      if (e.dead || e.team === u.team) continue;
+      const d = dist2(u.x, u.z, e.x, e.z);
+      if (d <= s.range) pool.push({ e, d });
+    }
+    if (!pool.length) return;
+    pool.sort((a, b) => a.d - b.d);
+    const hit = pool.slice(0, s.chain || 4);
+    u.state = 'attack';
+    u.castLock = Math.max(u.castLock, 0.3);
+    state.stats.skills++;
+    for (const { e } of hit) {
+      u.targetId = e.uid;
+      u.facing = Math.atan2(e.x - u.x, e.z - u.z);
+      applyDamage(state, u, e, u.atk * s.power, { element: 'electric' });
+      slowUnit(state, e, s.slow, s.slowTime);
+      emit(state, {
+        type: 'chainLightning', uid: u.uid, x: u.x, y: u.y + 2.4, z: u.z,
+        x2: e.x, y2: e.y + 1.0, z2: e.z,
+      });
+    }
+    return;
+  }
+
+  if (def.id === 'healing_totem') {
+    if (u.actTimer > 0) return;
+    u.actTimer = s.cd;
+    u.state = 'skill';
+    u.castLock = Math.max(u.castLock, 0.25);
+    emit(state, { type: 'healPulse', uid: u.uid, x: u.x, z: u.z, r: s.radius });
+    for (const a of state.units) {
+      if (a.dead || a.team !== u.team || a === u) continue;
+      if (dist2(u.x, u.z, a.x, a.z) > s.radius) continue;
+      const before = a.hp;
+      a.hp = Math.min(a.maxHp, a.hp + s.heal);
+      const amount = Math.round(a.hp - before);
+      if (amount > 0) emit(state, { type: 'heal', uid: a.uid, x: a.x, z: a.z, amount });
+    }
+    return;
+  }
+
+  if (def.id === 'spike_barricade') {
+    if (u.actTimer > 0) return;
+    u.actTimer = s.cd;
+    let any = false;
+    for (const e of state.units) {
+      if (e.dead || e.team === u.team) continue;
+      if (dist2(u.x, u.z, e.x, e.z) > s.range + 0.6) continue;
+      any = true;
+      u.targetId = e.uid;
+      u.facing = Math.atan2(e.x - u.x, e.z - u.z);
+      applyDamage(state, u, e, u.atk * (0.9 + state.rng() * 0.2), {});
+      knock(state, e, e.x - u.x, e.z - u.z, s.knock || 3);
+      emit(state, { type: 'spikeHit', uid: u.uid, x: e.x, z: e.z });
+    }
+    if (any) { u.state = 'attack'; u.castLock = Math.max(u.castLock, 0.2); }
+  }
+}
+
+/* ─────────────────────────── 유닛 직접 조종 (Possession) ─────────────────────────── */
+
+export function possessUnit(state, uid, ownerPid = null) {
+  if (!state) return null;
+  const u = unitByUid(state, uid);
+  if (!u || u.dead || u.isStructure) return null;
+  for (const o of state.units) {
+    if (o !== u && o.possessed) { o.possessed = false; o.input = null; o.ownerPid = null; }
+  }
+  u.possessed = true;
+  u.ownerPid = ownerPid;
+  u.input = { mx: 0, mz: 0, atk: false, sk: false, yaw: u.facing };
+  u.targetId = null;
+  state.possessedUid = u.uid;
+  return u;
+}
+
+export function releasePossession(state, uid = null) {
+  if (!state) return;
+  for (const o of state.units) {
+    if (!o.possessed) continue;
+    if (uid != null && o.uid !== uid) continue;
+    o.possessed = false;
+    o.input = null;
+    o.ownerPid = null;
+  }
+  if (uid == null || state.possessedUid === uid) state.possessedUid = null;
+}
+
+export function possessedUnit(state) {
+  if (!state) return null;
+  return state.units.find((u) => u.possessed && !u.dead) || null;
+}
+
+export function setUnitInput(u, input) {
+  if (!u) return;
+  u.input = { ...(u.input || {}), ...(input || {}) };
+}
+
+function actPossessed(state, u, dt) {
+  const inp = u.input || {};
+  let mx = clamp(Number(inp.mx) || 0, -1, 1);
+  let mz = clamp(Number(inp.mz) || 0, -1, 1);
+  const inLen = Math.hypot(mx, mz);
+  if (inLen > 1) { mx /= inLen; mz /= inLen; }
+  const yaw = Number.isFinite(inp.yaw) ? inp.yaw : u.facing;
+  const fx = Math.sin(yaw), fz = Math.cos(yaw);
+  // yaw 는 카메라가 보는 방향 — 앞으로(mz) · 옆으로(mx)
+  const wx = fx * mz - fz * mx;
+  const wz = fz * mz + fx * mx;
+  const wlen = Math.hypot(wx, wz);
+
+  if (wlen > 0.06) {
+    const speed = unitSpeed(u, state) * (u.castLock > 0 ? 0.55 : 1);
+    u.x += (wx / wlen) * speed * dt;
+    u.z += (wz / wlen) * speed * dt;
+    u.moving = true;
+    u.state = 'chase';
+    const want = Math.atan2(wx, wz);
+    u.facing = shortenAngle(u.facing + shortenAngle(want - u.facing) * Math.min(1, dt * 14));
+    u.aimYaw = u.facing;
+  } else if (u.castLock <= 0) {
+    u.facing = shortenAngle(u.facing + shortenAngle(yaw - u.facing) * Math.min(1, dt * 12));
+    u.aimYaw = u.facing;
+    u.state = 'ready';
+  }
+
+  // 스킬 — 쿨타임이 남아 있으면 발동하지 않는다
+  if (inp.sk) {
+    const s = u.def.skill;
+    const reach = Math.max(u.range, (s && s.range) || 0, 10);
+    const t = nearestEnemyTo(state, u, reach);
+    if (tryCastSkill(state, u, t, t ? dist2(u.x, u.z, t.x, t.z) : 999, { force: true })) {
+      u.castLock = Math.max(u.castLock, 0.2);
+    }
+  }
+
+  // 기본 공격 — 가까운 적이 없으면 바라보는 방향으로 휘두른다
+  if (inp.atk && !u.dash && u.attackTimer <= 0) {
+    const t = nearestEnemyTo(state, u, u.range + 0.6);
+    if (t) {
+      u.targetId = t.uid;
+      doAttack(state, u, t);
+    } else {
+      u.attackTimer = intervalFor(u) * 0.5;
+      u.castLock = Math.max(u.castLock, 0.14);
+      u.hitsLanded++;
+      emit(state, { type: 'attack', uid: u.uid, target: null, ranged: !!u.def.ranged, weapon: u.weaponId });
+    }
+  }
+}
+
 /* ───────────────────────────────── 틱 ───────────────────────────────── */
 
 function tickEffects(state, u, dt) {
@@ -1321,6 +1616,8 @@ function tickEffects(state, u, dt) {
   if (u.blinkCd > 0) u.blinkCd = Math.max(0, u.blinkCd - dt);
   if (u.attackTimer > 0) u.attackTimer = Math.max(0, u.attackTimer - dt);
   if (u.skillTimer > 0) u.skillTimer = Math.max(0, u.skillTimer - dt);
+  if (u.actTimer > 0) u.actTimer = Math.max(0, u.actTimer - dt);
+  if (u.shellTimer > 0) u.shellTimer = Math.max(0, u.shellTimer - dt);
 
   // 출혈
   if (u.bleeding.length) {
@@ -1372,6 +1669,10 @@ function tickEffects(state, u, dt) {
 function actUnit(state, u, dt) {
   if (u.dash) { updateDash(state, u, dt); return; }
   if (u.stun > 0) { u.state = 'stun'; return; }
+  // 플레이어가 직접 조종하는 유닛은 AI 이동·자동 공격을 멈춘다
+  if (u.possessed) { actPossessed(state, u, dt); return; }
+  // 전장 아이템(구조물)은 제자리에서 자기 기능만 한다
+  if (u.isStructure) { actStructure(state, u, dt); return; }
 
   const target = ensureTarget(state, u);
   // 샌즈: 근접 위협을 받으면 잔상을 남기며 뒤로 순간이동

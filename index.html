@@ -152,6 +152,23 @@
       <button id="btn-rebuild" class="chip-btn" title="배치로 돌아가기">⚙️</button>
     </div>
     <div id="focus-tag" class="focus-tag hidden"></div>
+    <div id="unit-action" class="unit-action hidden">
+      <span id="unit-action-name">🦁 사자</span>
+      <button id="btn-possess" class="chip-btn gold" title="이 유닛을 직접 조종합니다">🎮 직접 조종</button>
+    </div>
+  </div>
+
+  <!-- ── 유닛 직접 조종 HUD (조이스틱 · 공격 · 스킬) ── -->
+  <div id="possess-hud" class="possess-hud hidden">
+    <div id="joy-zone" class="joy-zone" aria-label="이동 조이스틱">
+      <div class="joy-base"></div>
+      <div id="joy-knob" class="joy-knob"></div>
+    </div>
+    <div class="possess-actions">
+      <button id="btn-possess-attack" class="pbtn attack" aria-label="공격">⚔️ 공격<small>Space · 좌클릭</small></button>
+      <button id="btn-possess-skill" class="pbtn skill" aria-label="스킬">✨ 스킬<small id="possess-skill-cd">E · Shift</small></button>
+    </div>
+    <button id="btn-release-possess" class="chip-btn release" aria-label="조종 해제">❌ 조종 해제<small>Esc</small></button>
   </div>
 
   <aside id="battle-log" class="battle-log hidden">
@@ -187,6 +204,8 @@
         <li><b>파티 멀티</b> — 🌐 탭에서 <b>파티 열기</b>로 방을 만들고 초대 링크를 보내세요. 최대 4명이 함께하며, 인원수만큼 진영이 나뉩니다 (2명=2팀 · 3명=3팀 · 4명=4팀). 각자 <b>예산 60</b> 안에서 자기 진영에만 유닛을 놓고, 모두 <b>준비 완료</b>를 누르면 방장이 배틀을 시작합니다.</li>
         <li><b>샌즈 페이즈</b> — 💀 샌즈 카드를 탭하면 <b>1페이즈(15) · 2페이즈(25) · 3페이즈(50)</b> 버튼이 열립니다. 2페이즈는 1페이즈와 같은 기술에 공격력이 훨씬 강하고, 3페이즈는 체력 2100에 <b>가스터손 펀치</b>·<b>불미스러운 공격</b>까지 쓰는 최종 보스입니다.</li>
         <li><b>신규 4종</b> — 🦣 매머드(엄니 대지진) · 🐍 히드라(삼두 맹독 브레스) · 🦍 킹콩(가슴 두드리기 대지 강타) · 🦸 영웅(강력펀치·연속펀치·어퍼컷).</li>
+        <li><b>전장 아이템</b> — 💣 탭에서 <b>지뢰(3) · 자동 포탑(6) · 테슬라 코일(7) · 치유 토템(5) · 가시 바리케이드(4)</b>를 배치합니다. 모두 제자리에 고정되어 스스로 싸우며, 기존 유닛과 똑같이 예산·파티 동기화가 됩니다.</li>
+        <li><b>직접 조종</b> — 배틀 중 유닛을 탭하고 <b>🎮 직접 조종</b>을 누르면 3인칭 시점으로 그 유닛을 몰 수 있습니다. <b>WASD/방향키</b>·왼쪽 아래 <b>조이스틱</b>으로 이동, <b>Space/좌클릭</b> 공격, <b>E/Shift</b> 스킬, 화면 드래그로 시야 회전, <b>Esc/❌</b>로 해제합니다.</li>
         <li><b>관전</b> — 🐢 0.5× 슬로우 · 2× 배속 · 🎥 추적 · 전투 중 유닛을 탭하면 그 유닛을 따라갑니다.</li>
         <li><b>화면</b> — 드래그로 회전, 두 손가락(휠)로 확대·축소.</li>
       </ul>
@@ -206,6 +225,6 @@
   });
 </script>
 <!-- ?v= 는 배포 후 브라우저 캐시(10분)에 옛 코드가 남지 않게 한다 -->
-<script type="module" src="./src/main.js?v=21"></script>
+<script type="module" src="./src/main.js?v=22"></script>
 </body>
 </html>

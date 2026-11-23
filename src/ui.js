@@ -1,6 +1,6 @@
 // 동물 vs 동물 — ARBS 스타일 DOM UI (배치 도구 · 유닛 바 · 챌린지 · 전투 HUD)
 import {
-  CREATURES, CREATURE_BY_ID, CATEGORIES, WEAPONS, WEAPON_BY_ID,
+  CREATURE_BY_ID, CATEGORIES, WEAPONS, WEAPON_BY_ID, PLACEABLES,
   ARENAS, PRESETS, CHALLENGES, TUNING, animalTierStars, placementCost,
   PARTY, TEAM_ORDER, teamDef, partyTeams, SANS_PHASES, isVariant, phaseIdsOf,
 } from './config.js';
@@ -57,6 +57,11 @@ export class UI {
       partyRoomStatus: $('#party-room-status'),
       scoreBar: $('#score-bar'), hpRow: $('#team-hp-row'),
       partyFab: $('#party-fab'),
+      unitAction: $('#unit-action'), unitActionName: $('#unit-action-name'),
+      possessBtn: $('#btn-possess'),
+      possessHud: $('#possess-hud'), releasePossess: $('#btn-release-possess'),
+      possessAttack: $('#btn-possess-attack'), possessSkill: $('#btn-possess-skill'),
+      possessSkillCd: $('#possess-skill-cd'), joyZone: $('#joy-zone'), joyKnob: $('#joy-knob'),
     };
     this._hud = { score: {}, hp: {} };
     this._switchSig = '';
@@ -83,12 +88,13 @@ export class UI {
 
   buildUnitBar() {
     // 샌즈 1·2·3페이즈는 카드 하나로 묶고, 고르면 아래에 페이즈 버튼이 열린다
-    this.el.unitBar.innerHTML = CREATURES.filter((a) => !isVariant(a)).map((a) => {
+    this.el.unitBar.innerHTML = PLACEABLES.filter((a) => !isVariant(a)).map((a) => {
       const color = '#' + a.colors.main.toString(16).padStart(6, '0');
       const phases = phaseIdsOf(a);
-      return `<button class="ucard" data-id="${a.id}" data-cat="${a.cat}" style="--accent:${color}" aria-label="${a.name}">
+      return `<button class="ucard${a.isStructure ? ' item' : ''}" data-id="${a.id}" data-cat="${a.cat}" style="--accent:${color}" aria-label="${a.name}">
         <span class="u-cost">${a.cost}</span>
         ${phases ? '<span class="u-phases">1·2·3</span>' : ''}
+        ${a.isStructure ? '<span class="u-item">고정</span>' : ''}
         <span class="u-emoji">${a.emoji}</span>
         <span class="u-name">${shortName(a)}</span>
         <span class="u-stars">${animalTierStars(a.tier)}</span>
@@ -327,6 +333,22 @@ export class UI {
     $('#btn-help').addEventListener('click', () => this.el.help.classList.remove('hidden'));
     $('#btn-help-close').addEventListener('click', () => this.el.help.classList.add('hidden'));
     this.el.sound.addEventListener('click', () => this.hooks.onToggleSound?.());
+
+    // ── 유닛 직접 조종 ──
+    this.el.possessBtn?.addEventListener('click', () => this.hooks.onPossess?.());
+    this.el.releasePossess?.addEventListener('click', () => this.hooks.onReleasePossess?.());
+    const hold = (btn, fn) => {
+      if (!btn) return;
+      const on = (e) => { e.preventDefault(); btn.classList.add('held'); fn(true); };
+      const off = () => { btn.classList.remove('held'); fn(false); };
+      btn.addEventListener('pointerdown', on);
+      btn.addEventListener('pointerup', off);
+      btn.addEventListener('pointercancel', off);
+      btn.addEventListener('pointerleave', off);
+      btn.addEventListener('contextmenu', (e) => e.preventDefault());
+    };
+    hold(this.el.possessAttack, (v) => this.hooks.onAttackHold?.(v));
+    hold(this.el.possessSkill, (v) => this.hooks.onSkillHold?.(v));
   }
 
   /* ───────────── HUD 참조 캐시 ───────────── */
@@ -425,8 +447,10 @@ export class UI {
     const teamTxt = `${teamDef(a.activeTeam).emoji} ${teamDef(a.activeTeam).name}`;
     if (a.eraser) this.el.hint.textContent = `${teamTxt} 지우개 — 지울 유닛을 탭하세요`;
     else {
-      const def = CREATURE_BY_ID[a.selected];
-      this.el.hint.textContent = `${teamTxt} · ${def ? def.emoji + ' ' + shortName(def) : '유닛'} ${a.count > 1 ? `×${a.count}` : ''} — 땅을 탭해 배치`;
+      const hd = CREATURE_BY_ID[a.selected];
+      const what = hd ? hd.emoji + ' ' + shortName(hd) : '유닛';
+      const verb = hd && hd.isStructure ? '설치' : '배치';
+      this.el.hint.textContent = `${teamTxt} · ${what} ${a.count > 1 ? `×${a.count}` : ''} — 땅을 탭해 ${verb}`;
     }
 
     // 예산 (챌린지 · 파티 60)
@@ -448,13 +472,16 @@ export class UI {
 
     // 상세
     const def = CREATURE_BY_ID[a.selected];
+    // 아이템(구조물)에는 무기를 달지 않는다 — 무기 줄을 숨긴다
+    this.el.weaponRow.closest('.pb-row')?.classList.toggle('hidden', !!def?.isStructure);
     if (def) {
-      const w = WEAPON_BY_ID[a.weapon];
-      const hp = Math.round(def.hp * (w.hpMul || 1));
-      const range = Math.max(def.range, w.range || 0);
+      const w = WEAPON_BY_ID[a.weapon] || WEAPON_BY_ID.none;
+      const hp = Math.round(def.hp * (def.isStructure ? 1 : (w.hpMul || 1)));
+      const range = Math.max(def.range, def.isStructure ? 0 : (w.range || 0));
+      const atkTxt = def.isStructure && !def.atk ? '💚 아군 지원' : `⚔️ ${def.atk}`;
       this.el.detail.innerHTML = `<b>${def.emoji} ${def.name}</b> · ${def.role} · 코스트 ${def.cost}`
-        + `<span class="d-stats">❤️ ${hp} · ⚔️ ${def.atk} · 🎯 ${range} · ${def.skill.icon} ${def.skill.name}</span>`
-        + `<span class="d-skill">${def.skill.desc}${a.weapon !== 'none' ? ` · <i>${w.emoji} ${w.name}</i>` : ''}</span>`;
+        + `<span class="d-stats">❤️ ${hp} · ${atkTxt} · 🎯 ${range} · ${def.skill.icon} ${def.skill.name}</span>`
+        + `<span class="d-skill">${def.skill.desc}${a.weapon !== 'none' && !def.isStructure ? ` · <i>${w.emoji} ${w.name}</i>` : ''}</span>`;
     }
 
     // 시작 버튼 (파티에서는 패널의 준비/시작 버튼을 쓴다)
@@ -639,6 +666,8 @@ export class UI {
     this.el.hud.classList.add('hidden');
     this.el.log.classList.add('hidden');
     this.el.focusTag.classList.add('hidden');
+    this.hideUnitAction();
+    this.setPossess(false);
     this.logCount = 0;
     this.el.logList.innerHTML = '';
   }
@@ -693,6 +722,46 @@ export class UI {
     if (!text) { this.el.focusTag.classList.add('hidden'); return; }
     this.el.focusTag.textContent = text;
     this.el.focusTag.classList.remove('hidden');
+  }
+
+  /* ───────────── 유닛 직접 조종 ───────────── */
+
+  // 전투 중 유닛을 탭했을 때 뜨는 유닛 추적 바 (🎮 직접 조종 버튼)
+  showUnitAction(u) {
+    if (!this.el.unitAction || !u) return;
+    this.el.unitActionName.textContent = `${u.emoji} ${u.def.short || u.name}`;
+    this.el.unitAction.classList.remove('hidden');
+    const can = !u.isStructure;
+    this.el.possessBtn.classList.toggle('hidden', !can);
+    if (!can) this.el.unitActionName.textContent += ' · 조종 불가';
+  }
+
+  hideUnitAction() { this.el.unitAction?.classList.add('hidden'); }
+
+  setPossess(on, unit = null) {
+    const hud = this.el.possessHud;
+    if (!hud) return;
+    hud.classList.toggle('hidden', !on);
+    this.app.possessing = !!on;
+    if (on) {
+      this.hideUnitAction();
+      if (this.el.possessSkill) this.el.possessSkill.dataset.skill = unit?.def?.skill?.name || '스킬';
+    } else if (this.el.possessSkillCd) {
+      this.el.possessSkillCd.textContent = '';
+    }
+    this.updatePossess({ skillCd: 0, attackCd: 0 });
+  }
+
+  updatePossess({ skillCd = 0, attackCd = 0 } = {}) {
+    if (!this.el.possessSkill) return;
+    const cooling = skillCd > 0.05;
+    this.el.possessSkill.classList.toggle('cooling', cooling);
+    this.el.possessAttack.classList.toggle('cooling', attackCd > 0.05);
+    if (this.el.possessSkillCd) {
+      this.el.possessSkillCd.textContent = cooling
+        ? `${skillCd.toFixed(1)}s`
+        : (this.app.possessing ? (this.el.possessSkill.dataset.skill || '준비') : '');
+    }
   }
 
   setSound(on) {

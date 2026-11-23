@@ -24,7 +24,7 @@ globalThis.Node = dom.window.Node;
 
 const { UI } = await import('../src/ui.js');
 const { createBattle, simulate } = await import('../src/sim.js');
-const { CREATURES, WEAPONS, CATEGORIES, PRESETS, CHALLENGES, ARENAS, CREATURE_BY_ID } = await import('../src/config.js');
+const { CREATURES, WEAPONS, CATEGORIES, PRESETS, CHALLENGES, ARENAS, CREATURE_BY_ID, ITEMS, PLACEABLES } = await import('../src/config.js');
 
 let pass = 0;
 const fails = [];
@@ -44,6 +44,7 @@ const app = {
 const calls = {
   start: 0, rematch: 0, rebuild: 0, pause: 0, speed: 0, slow: 0, follow: 0,
   undo: 0, clear: [], mirror: [], preset: [], arena: [], mode: [], challenge: [], nextStage: [],
+  possess: 0, release: 0, attack: 0, attackOff: 0, skill: 0, skillOff: 0,
 };
 const ui = new UI(app, {
   onStart: () => calls.start++,
@@ -61,14 +62,18 @@ const ui = new UI(app, {
   onMode: (m) => calls.mode.push(m),
   onChallenge: (s) => calls.challenge.push(s.id),
   onNextStage: (id) => calls.nextStage.push(id),
+  onPossess: () => calls.possess++,
+  onReleasePossess: () => calls.release++,
+  onAttackHold: (on) => { if (on) calls.attack++; else calls.attackOff++; },
+  onSkillHold: (on) => { if (on) calls.skill++; else calls.skillOff++; },
 });
 
-const CARDS = CREATURES.filter((c) => !c.variantOf).length; // 샌즈 페이즈는 카드 하나로 묶인다
+const CARDS = PLACEABLES.filter((c) => !c.variantOf).length; // 샌즈 페이즈는 카드 하나 / 아이템 5종 포함
 
 /* ── 초기 렌더 ── */
 check($$('#unit-bar .ucard').length === CARDS, `유닛 카드 ${CARDS}장 (샌즈 페이즈 3종은 카드 1장)`);
 check($$('#weapon-row .wchip').length === WEAPONS.length, '무기 칩 5개');
-check($$('#cat-row .cat').length === CATEGORIES.length, '카테고리 탭 4개');
+check($$('#cat-row .cat').length === CATEGORIES.length, '카테고리 탭 5개 (아이템 포함)');
 check($$('#preset-list [data-preset]').length === PRESETS.length, '프리셋 목록');
 check($$('#arena-row [data-arena]').length === ARENAS.length, '전장 칩');
 check($$('#challenge-list .stage').length === CHALLENGES.length, '챌린지 6단계');
@@ -337,6 +342,96 @@ app.maxCleared = 6;
 ui.buildChallenges();
 check($$('#challenge-list .stage.locked').length === 0, '모두 클리어 시 잠금 없음');
 check($$('#challenge-list .stage.cleared').length === 6, '6단계 모두 클리어 표시');
+
+/* ── 💣 전장 아이템 탭 · 카드 ── */
+{
+  app.mode = 'sandbox';
+  app.challenge = null;
+  app.activeCat = 'all';
+  ui.render();
+  check($$(`#unit-bar .ucard[data-cat="item"]`).length === ITEMS.length, `아이템 카드 ${ITEMS.length}장`);
+  check($('#cat-row [data-cat="item"]') !== null, '아이템 카테고리 탭');
+  $('#cat-row [data-cat="item"]').click();
+  check(app.activeCat === 'item', '아이템 탭 선택');
+  check($$('#unit-bar .ucard:not(.hide)').length === ITEMS.length, '아이템 5종만 표시');
+  for (const it of ITEMS) {
+    const card = $(`.ucard[data-id="${it.id}"]`);
+    check(card !== null, `[${it.id}] 아이템 카드`);
+    check(card.classList.contains('item'), `[${it.id}] 아이템 카드 표시`);
+    check(card.querySelector('.u-item') !== null, `[${it.id}] 고정 배지`);
+    ui.setSelected(it.id);
+    check($('#detail-line').textContent.includes(it.name), `[${it.id}] 상세 표시`);
+    check($('#detail-line').textContent.includes(String(it.cost)), `[${it.id}] 코스트 표시`);
+  }
+  // 아이템은 무기를 달지 않는다 — 무기 줄 숨김
+  check($('#weapon-row').closest('.pb-row').classList.contains('hidden'), '아이템 선택 시 무기 줄 숨김');
+  check($('#place-hint').textContent.includes('설치'), `아이템 배치 힌트 (${$('#place-hint').textContent})`);
+  // 예산 계산에도 포함된다
+  app.mode = 'challenge';
+  app.challenge = { id: 1, name: '랠터의 습격', budget: 10 };
+  app.teams.blue = [{ id: 'turret', x: -5, z: 0, weapon: 'none' }, { id: 'landmine', x: -3, z: 0, weapon: 'none' }];
+  ui.render();
+  check($('#budget').textContent.includes('1'), `아이템 예산 10 - 9 = 1 (${$('#budget').textContent})`);
+  app.mode = 'sandbox';
+  app.challenge = null;
+  app.teams.blue = [{ id: 'trex', x: -6, z: 0, weapon: 'none' }, { id: 'raptor', x: -4, z: 2, weapon: 'gatling' }];
+  ui.setSelected('trex');
+  ui.render();
+  check(!$('#weapon-row').closest('.pb-row').classList.contains('hidden'), '유닛을 고르면 무기 줄 다시 표시');
+}
+
+/* ── 🎮 유닛 직접 조종 UI ── */
+{
+  ui.showBattleUI();
+  const lionLike = { emoji: '🦁', name: '사자', def: { short: '사자', skill: { name: '포효 충격파' } }, isStructure: false };
+  ui.showUnitAction(lionLike);
+  check(!$('#unit-action').classList.contains('hidden'), '유닛 탭 → 상태/추적 바 표시');
+  check($('#unit-action-name').textContent.includes('사자'), '추적 바에 유닛 이름');
+  check(!$('#btn-possess').classList.contains('hidden'), '🎮 직접 조종 버튼 표시');
+  $('#btn-possess').click();
+  check(calls.possess === 1, '직접 조종 버튼 콜백');
+
+  ui.setPossess(true, lionLike);
+  check(!$('#possess-hud').classList.contains('hidden'), '조종 HUD 표시');
+  check($('#unit-action').classList.contains('hidden'), '조종 중에는 추적 바 숨김');
+  check($('#possess-skill-cd').textContent.includes('포효'), '스킬 버튼에 스킬 이름');
+  check($('#joy-zone') !== null && $('#joy-knob') !== null, '가상 조이스틱 표시');
+
+  ui.updatePossess({ skillCd: 2.4, attackCd: 0.1 });
+  check($('#possess-skill-cd').textContent.includes('2.4'), '스킬 쿨타임 표시');
+  check($('#btn-possess-skill').classList.contains('cooling'), '쿨타임 중 스킬 버튼 비활성 표시');
+  check($('#btn-possess-attack').classList.contains('cooling'), '공격 쿨타임 표시');
+  ui.updatePossess({ skillCd: 0, attackCd: 0 });
+  check($('#possess-skill-cd').textContent.includes('포효'), '쿨타임 종료 후 스킬 이름 표시');
+  check(!$('#btn-possess-skill').classList.contains('cooling'), '쿨타임 종료 표시');
+
+  $('#btn-possess-attack').dispatchEvent(new dom.window.Event('pointerdown'));
+  check(calls.attack === 1, '공격 버튼 누름');
+  $('#btn-possess-attack').dispatchEvent(new dom.window.Event('pointerup'));
+  check(calls.attackOff === 1, '공격 버튼 뗌');
+  $('#btn-possess-skill').dispatchEvent(new dom.window.Event('pointerdown'));
+  check(calls.skill === 1, '스킬 버튼 누름');
+  $('#btn-possess-skill').dispatchEvent(new dom.window.Event('pointerup'));
+  check(calls.skillOff === 1, '스킬 버튼 뗌');
+
+  $('#btn-release-possess').click();
+  check(calls.release === 1, '❌ 조종 해제 콜백');
+
+  // 아이템은 조종할 수 없다
+  ui.setPossess(false);
+  check($('#possess-hud').classList.contains('hidden'), '조종 해제 시 HUD 숨김');
+  ui.showUnitAction({ emoji: '💣', name: '지뢰', def: { short: '지뢰' }, isStructure: true });
+  check($('#btn-possess').classList.contains('hidden'), '아이템은 조종 버튼 숨김');
+  check($('#unit-action-name').textContent.includes('조종 불가'), '아이템 추적 바에 조종 불가 표시');
+  ui.hideUnitAction();
+  check($('#unit-action').classList.contains('hidden'), '추적 바 숨김');
+
+  ui.setPossess(true, lionLike);
+  ui.hideBattleUI();
+  check($('#possess-hud').classList.contains('hidden'), '배치로 돌아가면 조종 HUD 숨김');
+  ui.showBattleUI();
+  ui.buildBattle(battle);
+}
 
 /* ── 파티 멀티 UI ── */
 const partyCalls = { host: [], join: [], leave: 0, copy: 0, ready: 0, start: 0, mode: [] };
