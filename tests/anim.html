@@ -22,6 +22,11 @@ import { buildAnimalModel, animateRig, triggerAttack, ATTACK_STYLE } from '../sr
 const params = new URLSearchParams(location.search);
 const ids = (params.get('ids') || 'trex,rhino,titan,eagle,crocodile,gorilla').split(',');
 const phase = Math.max(0, Math.min(1, Number(params.get('phase') || 0.5)));
+// 확인용 카메라/자세 파라미터 — rot(모델 회전), dist(카메라 거리), camy(카메라 높이), look(시선 높이)
+const rot = params.has('rot') ? Number(params.get('rot')) : 0.55;
+const dist = Number(params.get('dist') || 0);
+const camY = params.has('camy') ? Number(params.get('camy')) : 3.4;
+const lookY = params.has('look') ? Number(params.get('look')) : 1.5;
 document.getElementById('phase-label').textContent = `${phase} (${phase < 0.42 ? 'windup' : 'strike'})`;
 
 const canvas = document.getElementById('c');
@@ -60,7 +65,7 @@ ids.forEach((id, i) => {
   const rig = buildAnimalModel(def, i % 2 ? 'red' : 'blue');
   const x = (i - (ids.length - 1) / 2) * gap;
   rig.group.position.set(x, 0, 0);
-  rig.group.rotation.y = 0.55;
+  rig.group.rotation.y = rot;
   scene.add(rig.group);
 
   // 목표 위상까지 고정 스텝으로 진행 → 결정론적 포즈
@@ -95,8 +100,8 @@ ids.forEach((id, i) => {
 });
 
 const w = window.innerWidth / window.innerHeight;
-camera.position.set(0, 3.4, ids.length > 4 ? 23 : 15.5);
-camera.lookAt(0, 1.5, 0);
+camera.position.set(0, camY, dist || (ids.length > 4 ? 23 : 15.5));
+camera.lookAt(0, lookY, 0);
 camera.updateProjectionMatrix();
 renderer.render(scene, camera);
 

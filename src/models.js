@@ -1927,9 +1927,9 @@ function buildSans(g, m, rig) {
     // 1) 검은 망토 — 어깨에서 둥글게 부풀어 아래로 흘러내리며 바닥에서 퍼지는 실루엣
     const robeProfile = [
       [0.0, -0.85], [0.78, -0.85], [0.94, -0.79], [0.9, -0.66],
-      [0.76, -0.4], [0.61, -0.08], [0.53, 0.38], [0.5, 0.8],
-      [0.54, 1.1], [0.62, 1.36], [0.64, 1.5], [0.55, 1.65],
-      [0.33, 1.8], [0.19, 1.87], [0.0, 1.9],
+      [0.78, -0.42], [0.62, -0.1], [0.52, 0.35], [0.46, 0.72],
+      [0.5, 1.02], [0.62, 1.28], [0.72, 1.46], [0.7, 1.56],
+      [0.52, 1.72], [0.3, 1.84], [0.18, 1.89], [0.0, 1.9],
     ];
     const robe = add(ghost, new THREE.LatheGeometry(robeProfile.map(([r, y]) => new THREE.Vector2(r, y)), 14),
       robeMat, [0, 0, 0], null, null, false);
@@ -1939,43 +1939,43 @@ function buildSans(g, m, rig) {
 
     // 2) 가슴 상단의 회색 가로 줄무늬(갈비뼈/칼라) 4줄
     const ribGeo = new THREE.TorusGeometry(1, 0.055, 4, 16);
-    [[0.95, 0.52], [1.12, 0.55], [1.3, 0.59], [1.46, 0.62]].forEach(([ry, rr]) => {
+    [[0.95, 0.5], [1.1, 0.55], [1.25, 0.62], [1.4, 0.7]].forEach(([ry, rr]) => {
       const r = add(ghost, ribGeo, ribMat, [0, ry, 0], null, [Math.PI / 2, 0, 0], false);
       r.scale.set(rr, rr * 0.58, 1);
     });
 
     // 3) 창백하게 녹아내린 가스터 얼굴
     const ghHead = new THREE.Group();
-    ghHead.position.set(0, 2.02, 0.02);
+    ghHead.position.set(0, 1.98, 0.02);
     ghost.add(ghHead); rig.ghostHead = ghHead;
-    add(ghHead, G.sphere, faceMat, [0, 0, 0], [0.28, 0.4, 0.26], null, false);
-    add(ghHead, G.sphereLow, faceMat, [0, -0.21, 0.02], [0.25, 0.2, 0.23], null, false);
+    add(ghHead, G.sphere, faceMat, [0, 0, 0], [0.33, 0.45, 0.3], null, false);
+    add(ghHead, G.sphereLow, faceMat, [0, -0.24, 0.02], [0.29, 0.22, 0.26], null, false);
     // 아래로 축 처진 살점 (녹아내림)
-    add(ghHead, G.sphereLow, faceMat, [-0.1, -0.34, 0.04], [0.055, 0.1, 0.055], null, false);
-    add(ghHead, G.sphereLow, faceMat, [0.09, -0.37, 0.03], [0.045, 0.085, 0.045], null, false);
-    add(ghHead, G.sphereLow, faceMat, [0.0, -0.4, 0.02], [0.07, 0.07, 0.06], null, false);
+    add(ghHead, G.sphereLow, faceMat, [-0.11, -0.38, 0.05], [0.06, 0.11, 0.06], null, false);
+    add(ghHead, G.sphereLow, faceMat, [0.1, -0.41, 0.04], [0.05, 0.09, 0.05], null, false);
+    add(ghHead, G.sphereLow, faceMat, [0.0, -0.44, 0.03], [0.075, 0.075, 0.065], null, false);
     // 얼굴 균열 두 갈래 (왼 눈 위로 비스듬히 · 오른 눈 아래에서 입가로)
-    add(ghHead, G.box, inkMat, [-0.12, 0.2, 0.205], [0.026, 0.26, 0.02], [0, 0, 0.5], false);
-    add(ghHead, G.box, inkMat, [-0.2, 0.32, 0.14], [0.018, 0.11, 0.02], [0, 0, 0.9], false);
-    add(ghHead, G.box, inkMat, [0.13, -0.08, 0.205], [0.024, 0.22, 0.02], [0, 0, 0.52], false);
-    add(ghHead, G.box, inkMat, [0.19, -0.2, 0.15], [0.018, 0.1, 0.02], [0, 0, 0.3], false);
+    add(ghHead, G.box, inkMat, [-0.14, 0.22, 0.235], [0.03, 0.3, 0.02], [0, 0, 0.5], false);
+    add(ghHead, G.box, inkMat, [-0.235, 0.36, 0.15], [0.02, 0.13, 0.02], [0, 0, 0.9], false);
+    add(ghHead, G.box, inkMat, [0.15, -0.1, 0.24], [0.028, 0.25, 0.02], [0, 0, 0.52], false);
+    add(ghHead, G.box, inkMat, [0.225, -0.24, 0.17], [0.02, 0.11, 0.02], [0, 0, 0.3], false);
     // 깊고 까만 눈구멍 + 작고 기묘한 연노란 점 눈동자
     [-1, 1].forEach((side) => {
-      add(ghHead, G.sphereLow, socketMat, [side * 0.115, 0.05, 0.2], [0.085, 0.115, 0.055], null, false);
-      add(ghHead, G.sphereLow, pupilMat, [side * 0.108, 0.045, 0.238], [0.026, 0.034, 0.02], null, false);
-      add(ghHead, G.box, pupilMat, [side * 0.108 - side * 0.006, 0.012, 0.236], [0.014, 0.03, 0.016], [0, 0, side * 0.3], false);
+      add(ghHead, G.sphereLow, socketMat, [side * 0.135, 0.06, 0.23], [0.1, 0.14, 0.07], null, false);
+      add(ghHead, G.sphereLow, pupilMat, [side * 0.125, 0.05, 0.285], [0.031, 0.04, 0.022], null, false);
+      add(ghHead, G.box, pupilMat, [side * 0.118, 0.008, 0.282], [0.016, 0.036, 0.018], [0, 0, side * 0.3], false);
     });
     // 넓고 기묘하게 휘어진 검은 웃음 — 작은 세그먼트로 호를 그린다
     const MOUTH_N = 9;
     for (let i = 0; i < MOUTH_N; i++) {
-      const a = -0.78 + (i / (MOUTH_N - 1)) * 1.56;
-      const mx = Math.sin(a) * 0.165;
-      const my = -0.15 + (1 - Math.cos(a)) * 0.13;
-      const mz = 0.2 - Math.pow(mx / 0.28, 2) * 0.05;
-      const tilt = Math.atan2(0.13 * Math.sin(a), 0.165 * Math.cos(a));
-      add(ghHead, G.box, inkMat, [mx, my, mz], [0.062, 0.045, 0.03], [0, 0, tilt], false);
+      const a = -0.82 + (i / (MOUTH_N - 1)) * 1.64;
+      const mx = Math.sin(a) * 0.2;
+      const my = -0.16 + (1 - Math.cos(a)) * 0.15;
+      const mz = 0.235 - Math.pow(mx / 0.33, 2) * 0.06;
+      const tilt = Math.atan2(0.15 * Math.sin(a), 0.2 * Math.cos(a));
+      add(ghHead, G.box, inkMat, [mx, my, mz], [0.072, 0.05, 0.03], [0, 0, tilt], false);
       if (i % 2 === 0) {
-        add(ghHead, G.box, toothMat, [mx, my + 0.012, mz + 0.017], [0.016, 0.026, 0.012], [0, 0, tilt], false);
+        add(ghHead, G.box, toothMat, [mx, my + 0.014, mz + 0.018], [0.019, 0.03, 0.012], [0, 0, tilt], false);
       }
     }
 
@@ -1983,17 +1983,17 @@ function buildSans(g, m, rig) {
     rig.ghostHands = [];
     [-1, 1].forEach((side, i) => {
       const hand = new THREE.Group();
-      hand.position.set(side * 0.86, 0.86, 0.34);
-      hand.rotation.set(0.06, side * -0.38, side * 0.12);
+      hand.position.set(side * 0.98, 0.42, 0.36);
+      hand.rotation.set(0.1, side * -0.4, side * 0.16);
       ghost.add(hand);
-      add(hand, G.sphereLow, handMat, [0, 0, 0], [0.14, 0.16, 0.058], null, false);
-      add(hand, G.sphereLow, socketMat, [0, 0, 0.05], [0.052, 0.058, 0.026], null, false);
+      add(hand, G.sphereLow, handMat, [0, 0, 0], [0.13, 0.15, 0.055], null, false);
+      add(hand, G.sphereLow, socketMat, [0, 0, 0.048], [0.05, 0.055, 0.028], null, false);
       for (let f = 0; f < 4; f++) {
-        const fx = -0.09 + f * 0.06;
-        add(hand, G.box, handMat, [fx, 0.19, 0], [0.04, 0.15, 0.042], [0, 0, fx * 1.4], false);
-        add(hand, G.sphereLow, handMat, [fx - fx * 1.4 * 0.08, 0.27, 0], [0.022, 0.028, 0.024], null, false);
+        const fx = -0.093 + f * 0.062;
+        add(hand, G.box, handMat, [fx, 0.2, 0], [0.036, 0.17, 0.04], [0, 0, fx * 1.9], false);
+        add(hand, G.sphereLow, handMat, [fx - fx * 1.9 * 0.09, 0.29, 0], [0.021, 0.028, 0.023], null, false);
       }
-      add(hand, G.box, handMat, [side * 0.135, 0.03, 0.005], [0.045, 0.12, 0.042], [0, 0, side * 0.85], false);
+      add(hand, G.box, handMat, [side * 0.14, 0.03, 0.005], [0.042, 0.13, 0.04], [0, 0, side * 1.0], false);
       rig.ghostHands.push({ node: hand, baseY: hand.position.y, baseRotZ: hand.rotation.z, phase: i * Math.PI });
     });
     // 발밑 푸른/붉은 오라
