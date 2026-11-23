@@ -1987,7 +1987,7 @@ function buildSans(g, m, rig) {
     rig.ghostHands = [];
     [-1, 1].forEach((side, i) => {
       const hand = new THREE.Group();
-      hand.position.set(side * 0.98, 0.42, 0.36);
+      hand.position.set(side * 1.08, 0.44, 0.4);
       hand.rotation.set(0.1, side * -0.4, side * 0.16);
       ghost.add(hand);
       add(hand, G.sphereLow, handMat, [0, 0, 0], [0.13, 0.15, 0.055], null, false);
