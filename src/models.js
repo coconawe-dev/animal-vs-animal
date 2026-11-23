@@ -1902,8 +1902,8 @@ function buildSans(g, m, rig) {
       transparent: true, opacity: 0.86, emissive: 0x050608, emissiveIntensity: 1,
     });
     const ribMat = new THREE.MeshStandardMaterial({
-      color: 0x444854, flatShading: true, roughness: 0.82,
-      transparent: true, opacity: 0.82, emissive: 0x14171c, emissiveIntensity: 0.55,
+      color: 0x474c58, flatShading: true, roughness: 0.82,
+      transparent: true, opacity: 0.86, emissive: 0x1c2029, emissiveIntensity: 0.85,
     });
     const faceMat = new THREE.MeshStandardMaterial({
       color: 0xc4c9d4, flatShading: true, roughness: 0.6, metalness: 0.02,
@@ -1928,19 +1928,19 @@ function buildSans(g, m, rig) {
     const robeProfile = [
       [0.0, -0.85], [0.78, -0.85], [0.94, -0.79], [0.9, -0.66],
       [0.78, -0.42], [0.62, -0.1], [0.52, 0.35], [0.5, 0.72],
-      [0.52, 1.02], [0.58, 1.22], [0.67, 1.38], [0.69, 1.48],
-      [0.5, 1.58], [0.28, 1.66], [0.0, 1.68],
+      [0.52, 1.02], [0.6, 1.2], [0.67, 1.35], [0.69, 1.45],
+      [0.62, 1.56], [0.4, 1.65], [0.22, 1.7], [0.0, 1.71],
     ];
-    const robe = add(ghost, new THREE.LatheGeometry(robeProfile.map(([r, y]) => new THREE.Vector2(r, y)), 14),
+    const robe = add(ghost, new THREE.LatheGeometry(robeProfile.map(([r, y]) => new THREE.Vector2(r, y)), 18),
       robeMat, [0, 0, 0], null, null, false);
     robe.scale.set(1, 1, 0.62);
     // 목덜미를 감싸는 짙은 칼라
-    add(ghost, G.cyl, robeMat, [0, 1.6, 0], [0.2, 0.16, 0.17], null, false);
+    add(ghost, G.cyl, robeMat, [0, 1.6, 0], [0.2, 0.18, 0.17], null, false);
     // 칼라 위로 드러나는 창백한 목
     add(ghost, G.cyl, faceMat, [0, 1.66, 0], [0.11, 0.22, 0.1], null, false);
 
     // 2) 가슴 상단의 회색 가로 줄무늬(갈비뼈/칼라) 4줄 — 망토 표면을 띠처럼 감싼다
-    const ribGeo = new THREE.CylinderGeometry(1, 1, 1, 14, 1, true);
+    const ribGeo = new THREE.CylinderGeometry(1, 1, 1, 18, 1, true);
     [[0.92, 0.515], [1.08, 0.541], [1.24, 0.594], [1.4, 0.677]].forEach(([ry, rr]) => {
       const r = add(ghost, ribGeo, ribMat, [0, ry, 0], null, null, false);
       r.scale.set(rr, 0.05, rr * 0.62);
@@ -1958,8 +1958,8 @@ function buildSans(g, m, rig) {
     add(ghHead, G.sphereLow, faceMat, [0.11, -0.47, 0.04], [0.05, 0.09, 0.05], null, false);
     add(ghHead, G.sphereLow, faceMat, [0.0, -0.52, 0.03], [0.075, 0.075, 0.065], null, false);
     // 얼굴 균열 두 갈래 (왼 눈 위로 비스듬히 · 오른 눈 아래에서 입가로)
-    add(ghHead, G.box, inkMat, [-0.14, 0.22, 0.235], [0.03, 0.3, 0.02], [0, 0, 0.5], false);
-    add(ghHead, G.box, inkMat, [-0.235, 0.36, 0.15], [0.02, 0.13, 0.02], [0, 0, 0.9], false);
+    add(ghHead, G.box, inkMat, [-0.12, 0.19, 0.235], [0.028, 0.22, 0.02], [0, 0, 0.5], false);
+    add(ghHead, G.box, inkMat, [-0.21, 0.32, 0.14], [0.018, 0.11, 0.02], [0, 0, 0.9], false);
     add(ghHead, G.box, inkMat, [0.15, -0.1, 0.24], [0.028, 0.25, 0.02], [0, 0, 0.52], false);
     add(ghHead, G.box, inkMat, [0.225, -0.24, 0.17], [0.02, 0.11, 0.02], [0, 0, 0.3], false);
     // 깊고 까만 눈구멍 + 작고 기묘한 연노란 점 눈동자
