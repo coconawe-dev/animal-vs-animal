@@ -1928,14 +1928,16 @@ function buildSans(g, m, rig) {
     const robeProfile = [
       [0.0, -0.85], [0.78, -0.85], [0.94, -0.79], [0.9, -0.66],
       [0.78, -0.42], [0.62, -0.1], [0.52, 0.35], [0.46, 0.72],
-      [0.5, 1.02], [0.62, 1.28], [0.72, 1.46], [0.7, 1.56],
-      [0.52, 1.72], [0.3, 1.84], [0.18, 1.89], [0.0, 1.9],
+      [0.5, 1.02], [0.62, 1.22], [0.72, 1.4], [0.66, 1.5],
+      [0.44, 1.6], [0.24, 1.66], [0.0, 1.68],
     ];
     const robe = add(ghost, new THREE.LatheGeometry(robeProfile.map(([r, y]) => new THREE.Vector2(r, y)), 14),
       robeMat, [0, 0, 0], null, null, false);
-    robe.scale.set(1, 1, 0.56);
+    robe.scale.set(1, 1, 0.62);
     // 목덜미를 감싸는 짙은 칼라
-    add(ghost, G.cyl, robeMat, [0, 1.85, 0], [0.21, 0.14, 0.18], null, false);
+    add(ghost, G.cyl, robeMat, [0, 1.6, 0], [0.2, 0.16, 0.17], null, false);
+    // 칼라 위로 드러나는 창백한 목
+    add(ghost, G.cyl, faceMat, [0, 1.66, 0], [0.11, 0.22, 0.1], null, false);
 
     // 2) 가슴 상단의 회색 가로 줄무늬(갈비뼈/칼라) 4줄
     const ribGeo = new THREE.TorusGeometry(1, 0.055, 4, 16);
@@ -1949,11 +1951,12 @@ function buildSans(g, m, rig) {
     ghHead.position.set(0, 1.98, 0.02);
     ghost.add(ghHead); rig.ghostHead = ghHead;
     add(ghHead, G.sphere, faceMat, [0, 0, 0], [0.33, 0.45, 0.3], null, false);
-    add(ghHead, G.sphereLow, faceMat, [0, -0.24, 0.02], [0.29, 0.22, 0.26], null, false);
+    add(ghHead, G.sphereLow, faceMat, [0, -0.26, 0.03], [0.27, 0.24, 0.26], null, false);
+    add(ghHead, G.sphereLow, faceMat, [0, -0.44, 0.02], [0.17, 0.14, 0.19], null, false);
     // 아래로 축 처진 살점 (녹아내림)
-    add(ghHead, G.sphereLow, faceMat, [-0.11, -0.38, 0.05], [0.06, 0.11, 0.06], null, false);
-    add(ghHead, G.sphereLow, faceMat, [0.1, -0.41, 0.04], [0.05, 0.09, 0.05], null, false);
-    add(ghHead, G.sphereLow, faceMat, [0.0, -0.44, 0.03], [0.075, 0.075, 0.065], null, false);
+    add(ghHead, G.sphereLow, faceMat, [-0.12, -0.44, 0.05], [0.06, 0.11, 0.06], null, false);
+    add(ghHead, G.sphereLow, faceMat, [0.11, -0.47, 0.04], [0.05, 0.09, 0.05], null, false);
+    add(ghHead, G.sphereLow, faceMat, [0.0, -0.52, 0.03], [0.075, 0.075, 0.065], null, false);
     // 얼굴 균열 두 갈래 (왼 눈 위로 비스듬히 · 오른 눈 아래에서 입가로)
     add(ghHead, G.box, inkMat, [-0.14, 0.22, 0.235], [0.03, 0.3, 0.02], [0, 0, 0.5], false);
     add(ghHead, G.box, inkMat, [-0.235, 0.36, 0.15], [0.02, 0.13, 0.02], [0, 0, 0.9], false);
@@ -1965,17 +1968,18 @@ function buildSans(g, m, rig) {
       add(ghHead, G.sphereLow, pupilMat, [side * 0.125, 0.05, 0.285], [0.031, 0.04, 0.022], null, false);
       add(ghHead, G.box, pupilMat, [side * 0.118, 0.008, 0.282], [0.016, 0.036, 0.018], [0, 0, side * 0.3], false);
     });
-    // 넓고 기묘하게 휘어진 검은 웃음 — 작은 세그먼트로 호를 그린다
+    // 넓고 기묘하게 휘어진 검은 웃음 — 작은 세그먼트로 호를 그린다 (얼굴 곡면을 따라 전면에 붙임)
     const MOUTH_N = 9;
     for (let i = 0; i < MOUTH_N; i++) {
-      const a = -0.82 + (i / (MOUTH_N - 1)) * 1.64;
-      const mx = Math.sin(a) * 0.2;
-      const my = -0.16 + (1 - Math.cos(a)) * 0.15;
-      const mz = 0.235 - Math.pow(mx / 0.33, 2) * 0.06;
-      const tilt = Math.atan2(0.15 * Math.sin(a), 0.2 * Math.cos(a));
-      add(ghHead, G.box, inkMat, [mx, my, mz], [0.072, 0.05, 0.03], [0, 0, tilt], false);
+      const a = -0.86 + (i / (MOUTH_N - 1)) * 1.72;
+      const mx = Math.sin(a) * 0.215;
+      const my = -0.21 + (1 - Math.cos(a)) * 0.17;
+      const surf = Math.sqrt(Math.max(0.05, 1 - Math.pow(mx / 0.33, 2) - Math.pow(my / 0.45, 2)));
+      const mz = 0.3 * surf + 0.012;
+      const tilt = Math.atan2(0.17 * Math.sin(a), 0.215 * Math.cos(a));
+      add(ghHead, G.box, inkMat, [mx, my, mz], [0.078, 0.058, 0.035], [0, 0, tilt], false);
       if (i % 2 === 0) {
-        add(ghHead, G.box, toothMat, [mx, my + 0.014, mz + 0.018], [0.019, 0.03, 0.012], [0, 0, tilt], false);
+        add(ghHead, G.box, toothMat, [mx, my + 0.016, mz + 0.022], [0.022, 0.032, 0.016], [0, 0, tilt], false);
       }
     }
 
