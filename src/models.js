@@ -1902,8 +1902,8 @@ function buildSans(g, m, rig) {
       transparent: true, opacity: 0.86, emissive: 0x050608, emissiveIntensity: 1,
     });
     const ribMat = new THREE.MeshStandardMaterial({
-      color: 0x474c58, flatShading: true, roughness: 0.82,
-      transparent: true, opacity: 0.86, emissive: 0x1c2029, emissiveIntensity: 0.85,
+      color: 0x585d6a, flatShading: true, roughness: 0.82,
+      transparent: true, opacity: 0.86, emissive: 0x2a2f3a, emissiveIntensity: 0.9,
     });
     const faceMat = new THREE.MeshStandardMaterial({
       color: 0xc4c9d4, flatShading: true, roughness: 0.6, metalness: 0.02,
