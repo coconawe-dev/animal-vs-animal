@@ -166,8 +166,9 @@ const ui = new UI(app, {
     if (app.focusUid != null) enterPossession(app.focusUid);
   },
   onReleasePossess: () => exitPossession(),
-  onAttackHold: (on) => { fireHeld = !!on; if (on) sfx.init(); },
-  onSkillHold: (on) => { skillHeld = !!on; if (on) sfx.init(); },
+  // 짧게 톡 누른 입력도 다음 프레임에 반드시 한 번 전달되도록 대기열에 넣는다
+  onAttackHold: (on) => { fireHeld = !!on; if (on) { attackQueued = true; sfx.init(); } },
+  onSkillHold: (on) => { skillHeld = !!on; if (on) { skillQueued = true; sfx.init(); } },
   onToggleSound: () => {
     app.sound = !app.sound;
     sfx.init();
@@ -892,6 +893,8 @@ function togglePause() {
 
 function endBattle() {
   if (possessUid != null) exitPossession(true);
+  ui.hideUnitAction();
+  ui.setFocusTag(null);
   phase = 'ended';
   const summary = battleSummary(battle);
   const mvp = mvpOf(battle);
@@ -1316,6 +1319,8 @@ let possessUid = null;
 let aimYaw = 0;
 let fireHeld = false;
 let skillHeld = false;
+let attackQueued = false;
+let skillQueued = false;
 const keys = new Set();
 const joy = { x: 0, y: 0 };
 let joyPid = null;
@@ -1397,6 +1402,8 @@ function exitPossession(quiet = false) {
   app.possessing = false;
   fireHeld = false;
   skillHeld = false;
+  attackQueued = false;
+  skillQueued = false;
   keys.clear();
   resetJoyKnob();
   if (battle) {
@@ -1468,12 +1475,18 @@ function frame(now) {
       ui.toast(`💀 ${wasName}이(가) 쓰러져 조종이 해제됐습니다`);
     } else {
       const input = possessionInput();
+      const canAtk = (pu.attackTimer || 0) <= 0.02;
+      const canSkill = (pu.skillTimer || 0) <= 0.02;
+      if (attackQueued) input.atk = true;
+      if (skillQueued) input.sk = true;
       aimYaw = input.yaw;
       if (!partyGuest()) setUnitInput(pu, input);
       else if (app.party && performance.now() - lastCtlAt > 55) {
         lastCtlAt = performance.now();
         app.party.control(possessUid, input);
       }
+      if (attackQueued && canAtk) attackQueued = false;
+      if (skillQueued && canSkill) skillQueued = false;
       possessFocus = tmpFocus2.set(pu.x, pu.y + 1.05, pu.z);
       stage.camGoal.dist = 4.2 + (pu.def.size || 1) * 2.6;
       stage.camGoal.phi = Math.max(0.1, Math.min(0.95, stage.camGoal.phi));
@@ -1647,6 +1660,8 @@ window.addEventListener('keydown', (e) => {
   if (possessUid == null || !POSSESS_KEYS.has(e.code)) return;
   e.preventDefault();
   keys.add(e.code);
+  if (e.code === 'Space') attackQueued = true;
+  if (e.code === 'KeyE' || e.code === 'ShiftLeft' || e.code === 'ShiftRight') skillQueued = true;
   sfx.init();
 });
 window.addEventListener('keyup', (e) => { keys.delete(e.code); });
