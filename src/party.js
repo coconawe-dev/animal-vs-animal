@@ -2,7 +2,7 @@
 //  · 방장(Host)이 유일한 권한자: 진영 배정, 예산 검증, 전투 시뮬레이션, 스냅샷 전송
 //  · 손님(Guest)은 자기 진영 배치를 보내고, 방장의 스냅샷/이벤트를 받아 그대로 그린다.
 //  · Net(중계)과 Sim(전투)만 쓰고 THREE/DOM 에 의존하지 않는다 → 노드 테스트 가능.
-import { createBattle, step, possessUnit, releasePossession, setUnitInput } from './sim.js';
+import { createBattle, step, possessUnit, releasePossession, setUnitInput, forceEndBattle } from './sim.js';
 import { PARTY, partyTeams, teamDef, sectorBounds, TUNING } from './config.js';
 import { reclampList, costOf, clampSide } from './placement.js';
 import { Net, normalizeRoomCode } from './net.js';
@@ -419,6 +419,7 @@ export class PartySession {
     this._snapAcc = 0;
     this._endSent = false;
     this._endPushed = false;
+    this._localEnd = false;
     this._outEvents = [];
     this._outLog = battle.logTotal || 0;
     battle._partyPlayers = payload.players || [];
@@ -428,11 +429,35 @@ export class PartySession {
     return battle;
   }
 
+  /* ── ⏹ 강제 종료 ── */
+
+  // 방장: 지금 전투를 끝내고 승패를 모든 참가자에게 즉시 알린다 (전원 화면이 함께 종료)
+  forceEnd() {
+    if (!this.isHost) return false;
+    if (this.phase !== PHASE.BATTLE || !this.battle) return false;
+    forceEndBattle(this.battle);
+    // 패킷이 사라져도 전달되도록 tick 이 1.5초마다 종료 스냅샷을 다시 보낸다
+    this.sendSnapshot(true);
+    return true;
+  }
+
+  // 손님: 방장 신호가 끊겼거나 멈춰도 빠져나올 수 있게 내 화면만 즉시 끝낸다
+  //  (방에는 그대로 남아, 방장이 다시 시작하면 그때 새 전투를 받는다)
+  forceEndLocal() {
+    if (this.isHost) return false;
+    if (this.phase !== PHASE.BATTLE || !this.battle) return false;
+    this._localEnd = true;
+    forceEndBattle(this.battle);
+    this.pushEnd();
+    return true;
+  }
+
   rematch() {
     if (!this.isHost) return false;
     if (this.battle) releasePossession(this.battle);
     this.phase = PHASE.PLACE;
     this.battle = null;
+    this._localEnd = false;
     for (const p of this.players.values()) p.ready = false;
     this.broadcastRoster();
     this.broadcastPlacements();
@@ -558,6 +583,7 @@ export class PartySession {
         this.battle.over = true;
         this.battle.winner = p.winner || 'draw';
         this.battle.endReason = p.reason || 'elimination';
+        if (this.battle.endReason === 'force') this.battle.forcedEnd = true;
         this.pushEnd();
       }
     } else if (type === 'bye') {
@@ -719,6 +745,8 @@ export class PartySession {
   applySnapshot(p) {
     const b = this.battle;
     if (!b || !p) return;
+    // 내가 손님으로서 강제 종료한 뒤에는 방장 스냅샷으로 배틀을 되살리지 않는다
+    if (this._localEnd && !this.isHost) return;
     b.time = Number(p.t) || b.time;
     const byUid = new Map(b.units.map((u) => [u.uid, u]));
     for (const a of p.u || []) {
@@ -753,6 +781,7 @@ export class PartySession {
       b.over = true;
       b.winner = p.w || 'draw';
       b.endReason = p.r || 'elimination';
+      if (b.endReason === 'force') b.forcedEnd = true;
       for (const a of p.mv || []) {
         const u = byUid.get(a[0]);
         if (u) { u.dmgDealt = a[1]; u.kills = a[2]; u.skillCasts = a[3]; }

@@ -8,7 +8,7 @@ import {
 } from './config.js';
 import {
   createBattle, step, drainEvents, battleSummary, mvpOf,
-  possessUnit, releasePossession, setUnitInput, unitByUid,
+  possessUnit, releasePossession, setUnitInput, unitByUid, forceEndBattle,
 } from './sim.js';
 import { placeUnits, removeNearest, mirrorTeam, nearestIndex, sanitizeList, clampSide } from './placement.js';
 import { PartySession, PHASE } from './party.js';
@@ -143,6 +143,7 @@ const ui = new UI(app, {
     backToBuilder();
   },
   onPause: () => togglePause(),
+  onForceEnd: () => forceEndNow(),
   onSpeed: () => {
     app.speed = app.speed === 2 ? 1 : 2;
     ui.setSpeed(app.speed);
@@ -895,10 +896,39 @@ function togglePause() {
   ui.setPaused(app.paused);
 }
 
+// ⏹ 강제 종료 — 기다리지 않고 지금 전투를 끝내고 결과 배너를 띄운다.
+//  · 조종 중 → 조종 해제, 일시정지 → 해제 (전투 시뮬레이션이 멈춰 있어도 판정은 그대로)
+//  · 파티 방장 → 끝낸 전투를 모든 참가자에게 동기화 (전원 화면이 함께 종료)
+//  · 파티 손님 → 방장 신호를 못 받아도 내 화면은 즉시 끝낸다 (방에는 그대로 남음)
+function forceEndNow() {
+  if (phase !== 'battle' || !battle) return;
+  if (possessUid != null) exitPossession(true);
+  if (app.paused) {
+    app.paused = false;
+    ui.setPaused(false);
+  }
+  ui.hideUnitAction();
+
+  const s = partyActive() ? app.party : null;
+  if (s && !s.isHost) {
+    s.forceEndLocal();
+    endBattle();
+    ui.toast('⏹ 강제 종료 — 내 화면에서 끝냈습니다 (방에는 그대로 있음)');
+    return;
+  }
+
+  forceEndBattle(battle);
+  if (s) s.forceEnd();   // 방장: 손님에게 종료(end) + 종료 스냅샷을 즉시 전송
+  endBattle();
+  ui.toast(s ? '⏹ 강제 종료 — 모든 참가자 화면을 함께 끝냈습니다' : '⏹ 강제 종료 — 남은 전력으로 판정했습니다');
+}
+
 function endBattle() {
+  if (phase !== 'battle') return;
   if (possessUid != null) exitPossession(true);
   ui.hideUnitAction();
   ui.setFocusTag(null);
+  ui.setForceEnd(false);
   phase = 'ended';
   const summary = battleSummary(battle);
   const mvp = mvpOf(battle);
@@ -1742,19 +1772,25 @@ window.addEventListener('pointerup', () => { fireHeld = false; });
       zone.setPointerCapture?.(e.pointerId);
       apply(e);
     }, { passive: false });
-    zone.addEventListener('pointermove', (e) => {
-      if (joyPid !== e.pointerId) return;
+    // 조이스틱을 잡은 손가락은 다른 손가락이 공격/스킬 버튼을 눌러도 계속 추적한다.
+    // (존 밖으로 손가락이 미끄러져도 · 브라우저가 존 포인터를 놓아도 이동이 끊기지 않게 window에서도 받는다)
+    const steer = (e) => {
+      if (joyPid == null || joyPid !== e.pointerId) return;
       e.preventDefault();
-      e.stopPropagation();
       apply(e);
-    }, { passive: false });
+    };
     const end = (e) => {
-      if (joyPid !== e.pointerId) return;
+      if (joyPid == null || joyPid !== e.pointerId) return;
       joyPid = null;
       resetJoyKnob();
     };
+    zone.addEventListener('pointermove', steer, { passive: false });
     zone.addEventListener('pointerup', end);
     zone.addEventListener('pointercancel', end);
+    zone.addEventListener('lostpointercapture', end);
+    window.addEventListener('pointermove', steer, { passive: false });
+    window.addEventListener('pointerup', end);
+    window.addEventListener('pointercancel', end);
   }
 }
 

@@ -44,7 +44,7 @@ const app = {
 const calls = {
   start: 0, rematch: 0, rebuild: 0, pause: 0, speed: 0, slow: 0, follow: 0,
   undo: 0, clear: [], mirror: [], preset: [], arena: [], mode: [], challenge: [], nextStage: [],
-  possess: 0, release: 0, attack: 0, attackOff: 0, skill: 0, skillOff: 0,
+  possess: 0, release: 0, attack: 0, attackOff: 0, skill: 0, skillOff: 0, forceEnd: 0,
 };
 const ui = new UI(app, {
   onStart: () => calls.start++,
@@ -66,6 +66,7 @@ const ui = new UI(app, {
   onReleasePossess: () => calls.release++,
   onAttackHold: (on) => { if (on) calls.attack++; else calls.attackOff++; },
   onSkillHold: (on) => { if (on) calls.skill++; else calls.skillOff++; },
+  onForceEnd: () => calls.forceEnd++,
 });
 
 const CARDS = PLACEABLES.filter((c) => !c.variantOf).length; // 샌즈 페이즈는 카드 하나 / 아이템 5종 포함
@@ -209,6 +210,7 @@ check(calls.start === 1, '배틀 시작 콜백');
 
 /* ── 전투 HUD ── */
 const battle = createBattle({ blue: app.teams.blue, red: app.teams.red, arenaId: 'savanna', seed: 3 });
+check($('#btn-force-end').classList.contains('hidden') && $('#btn-force-end').disabled, '전투 전에는 ⏹ 강제 종료 숨김');
 ui.showBattleUI();
 ui.buildBattle(battle);
 check(!$('#battle-hud').classList.contains('hidden'), 'HUD 표시');
@@ -238,6 +240,27 @@ $('#btn-slow').click();
 $('#btn-follow').click();
 check(calls.pause === 1 && calls.speed === 1 && calls.slow === 1 && calls.follow === 1, 'HUD 버튼 콜백');
 
+/* ── ⏹ 강제 종료 버튼 ── */
+check($('.hud-actions #btn-force-end') === $('#btn-force-end'), '강제 종료 버튼은 전투 컨트롤 바 안에 있다');
+check(!$('#btn-force-end').classList.contains('hidden') && !$('#btn-force-end').disabled, '전투 중 → 강제 종료 버튼 노출');
+check($('#btn-force-end').textContent.includes('⏹') && $('#btn-force-end').textContent.includes('강제 종료'), '강제 종료 라벨');
+check($('#btn-force-end').title.includes('배틀'), '강제 종료 툴팁');
+// 일시정지 중에도 누를 수 있어야 한다
+ui.setPaused(true);
+$('#btn-force-end').click();
+check(calls.forceEnd === 1, '일시정지 중에도 강제 종료 클릭');
+ui.setPaused(false);
+// 유닛 직접 조종 중에도 누를 수 있어야 한다
+ui.setPossess(true, battle.units[0]);
+check(!$('#possess-hud').classList.contains('hidden'), '조종 HUD 표시');
+$('#btn-force-end').click();
+check(calls.forceEnd === 2, '직접 조종 중에도 강제 종료 클릭');
+ui.setPossess(false);
+// 배너가 뜬 뒤(endBattle)에는 숨김·비활성 → 두 번 끝나지 않는다
+ui.setForceEnd(false);
+$('#btn-force-end').click();
+check(calls.forceEnd === 2, '종료 후에는 강제 종료가 눌리지 않는다');
+
 ui.pushLog({ t: 12.4, text: '🦖 티라노 「죽음의 턱」', kind: 'skill' });
 ui.pushLog({ t: 130, text: '🔵 블루 팀 승리!', kind: 'end' });
 check($$('#log-list li').length === 2, '전투 기록 2줄');
@@ -253,6 +276,13 @@ ui.showBanner({ winner: 'blue', reason: 'elimination', time: 12.3 }, mvp);
 check(!$('#banner').classList.contains('hidden'), '배너 표시');
 check($('#banner-title').textContent.includes('블루'), '승리 문구');
 check($('#banner-mvp').textContent.includes(mvp.name), 'MVP 표시');
+// 강제 종료 판정 배너
+ui.hideBanner();
+ui.showBanner({ winner: 'blue', reason: 'force', time: 24.5, forcedEnd: true }, mvp);
+check($('#banner-sub').textContent.includes('강제 종료'), '강제 종료로 판정된 배너 문구');
+check($('#banner-sub').textContent.includes('24.5'), '강제 종료 배너 시간 표시');
+ui.hideBanner();
+ui.showBanner({ winner: 'blue', reason: 'elimination', time: 12.3 }, mvp);
 $('#btn-rematch').click();
 check(calls.rematch === 1, '다시 배틀 콜백');
 ui.hideBanner();
@@ -450,8 +480,13 @@ check($$('#challenge-list .stage.cleared').length === 6, '6단계 모두 클리�
 
   $('#btn-possess-attack').dispatchEvent(new dom.window.Event('pointerdown'));
   check(calls.attack === 1, '공격 버튼 누름');
+  // 조이스틱을 잡은 채로 공격해도, 손가락이 조금 미끄러져도 공격이 끊기지 않는다
+  $('#btn-possess-attack').dispatchEvent(new dom.window.Event('pointerleave'));
+  check(calls.attackOff === 0, '버튼에서 살짝 벗어나도 공격 유지 (pointerleave 무시)');
   $('#btn-possess-attack').dispatchEvent(new dom.window.Event('pointerup'));
   check(calls.attackOff === 1, '공격 버튼 뗌');
+  $('#btn-possess-attack').dispatchEvent(new dom.window.Event('lostpointercapture'));
+  check(calls.attackOff === 2, '포인터 캐처를 잃어도 공격 해제');
   $('#btn-possess-skill').dispatchEvent(new dom.window.Event('pointerdown'));
   check(calls.skill === 1, '스킬 버튼 누름');
   $('#btn-possess-skill').dispatchEvent(new dom.window.Event('pointerup'));

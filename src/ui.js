@@ -39,6 +39,7 @@ export class UI {
       clock: $('#battle-clock'), state: $('#battle-state'),
       hpBlue: $('#hp-blue'), hpRed: $('#hp-red'),
       pause: $('#btn-pause'), speed: $('#btn-speed'), slow: $('#btn-slow'),
+      forceEnd: $('#btn-force-end'),
       follow: $('#btn-follow'), logBtn: $('#btn-log'), rebuild: $('#btn-rebuild'),
       focusTag: $('#focus-tag'),
       log: $('#battle-log'), logList: $('#log-list'),
@@ -76,6 +77,7 @@ export class UI {
     this.buildArenas();
     this.bind();
     this.render();
+    this.setForceEnd(false);   // ⏹ 강제 종료는 전투가 시작될 때만 보인다
   }
 
   /* ───────────── 배치 도구 ───────────── */
@@ -302,6 +304,10 @@ export class UI {
     $('#btn-back').addEventListener('click', () => this.hooks.onRebuild?.());
 
     this.el.pause.addEventListener('click', () => this.hooks.onPause?.());
+    this.el.forceEnd?.addEventListener('click', () => {
+      if (this.el.forceEnd.disabled) return;
+      this.hooks.onForceEnd?.();
+    });
     this.el.speed.addEventListener('click', () => this.hooks.onSpeed?.());
     this.el.slow.addEventListener('click', () => this.hooks.onSlow?.());
     this.el.follow.addEventListener('click', () => this.hooks.onFollow?.());
@@ -344,12 +350,19 @@ export class UI {
     this.el.releasePossess?.addEventListener('click', () => this.hooks.onReleasePossess?.());
     const hold = (btn, fn) => {
       if (!btn) return;
-      const on = (e) => { e.preventDefault(); btn.classList.add('held'); fn(true); };
+      // 포인터를 버튼이 붙잡는다 — 손가락이 조금 미끄러져도 공격/스킬 유지가 끊기지 않고,
+      // 같은 손으로 조이스틱을 잡고 있어도(다른 포인터) 서로 방해하지 않는다
+      const on = (e) => {
+        e.preventDefault();
+        try { btn.setPointerCapture?.(e.pointerId); } catch (err) { /* 포인터 캡처를 못 해도 입력은 그대로 */ }
+        btn.classList.add('held');
+        fn(true);
+      };
       const off = () => { btn.classList.remove('held'); fn(false); };
       btn.addEventListener('pointerdown', on);
       btn.addEventListener('pointerup', off);
       btn.addEventListener('pointercancel', off);
-      btn.addEventListener('pointerleave', off);
+      btn.addEventListener('lostpointercapture', off);
       btn.addEventListener('contextmenu', (e) => e.preventDefault());
     };
     hold(this.el.possessAttack, (v) => this.hooks.onAttackHold?.(v));
@@ -665,10 +678,12 @@ export class UI {
 
   showBattleUI() {
     this.el.hud.classList.remove('hidden');
+    this.setForceEnd(true);
   }
 
   hideBattleUI() {
     this.el.hud.classList.add('hidden');
+    this.setForceEnd(false);
     this.el.log.classList.add('hidden');
     this.el.focusTag.classList.add('hidden');
     this.hideUnitAction();
@@ -712,6 +727,14 @@ export class UI {
     this.el.pause.textContent = paused ? '▶' : '⏸';
     this.el.pause.classList.toggle('warn', paused);
     if (this.el.state) this.el.state.textContent = paused ? '일시정지' : '전투 중';
+  }
+
+  // ⏹ 강제 종료 버튼 — 전투 중에만 보이고 눌린다
+  setForceEnd(on) {
+    const b = this.el.forceEnd;
+    if (!b) return;
+    b.classList.toggle('hidden', !on);
+    b.disabled = !on;
   }
 
   setSpeed(speed) {
@@ -823,7 +846,9 @@ export class UI {
       const secs = summary.time;
       this.el.bannerSub.textContent = summary.reason === 'timeout'
         ? `시간 종료 · 남은 체력으로 판정 (${secs.toFixed(1)}초)`
-        : `${secs.toFixed(1)}초 만에 전투 종료`;
+        : summary.reason === 'force'
+          ? `⏹ 강제 종료 · 남은 전력으로 판정 (${secs.toFixed(1)}초)`
+          : `${secs.toFixed(1)}초 만에 전투 종료`;
       $('#btn-rematch').textContent = opts.party ? '🔁 다시 배치' : '🔁 다시 배틀';
     }
 

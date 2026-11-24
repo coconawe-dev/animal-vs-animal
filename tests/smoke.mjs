@@ -12,7 +12,7 @@ import {
 } from '../src/config.js';
 import {
   createBattle, step, simulate, battleSummary, mvpOf, applyDamage, aliveCount,
-  teamHpRatio, mulberry32, drainEvents,
+  teamHpRatio, mulberry32, drainEvents, forceEndBattle,
   possessUnit, releasePossession, possessedUnit, setUnitInput,
 } from '../src/sim.js';
 import {
@@ -1654,6 +1654,291 @@ for (const n of [3, 4]) {
   check(guest.battle.over && guest.battle.winner === host.battle.winner, '아이템 파티 승자 동기화');
   host.leave();
   guest.leave();
+}
+
+/* ── 8. ⏹ 강제 종료 (즉시 종료 · 승패 판정 · 조종 중 · 파티 동기화) ── */
+{
+  // ① 전투 중 강제 종료 → 그 자리에서 끝나고 남은 체력 비율로 승자가 난다
+  const b = createBattle({ blue: [P('trex', -6, 0), P('raptor', -4, 2)], red: [P('triceratops', 6, 0)], seed: 11 });
+  simulate(b, 1 / 60, 1.5);
+  check(!b.over, '강제 종료 전에는 전투가 진행 중');
+  const tBefore = b.time;
+  const forces = drainEvents(b).filter((e) => e.type === 'end').length;
+  const ratioBlue = teamHpRatio(b, 'blue');
+  const ratioRed = teamHpRatio(b, 'red');
+  const expectWin = Math.abs(ratioBlue - ratioRed) >= 0.03
+    ? (ratioBlue > ratioRed ? 'blue' : 'red')
+    : (aliveCount(b, 'blue') === aliveCount(b, 'red') ? 'draw' : (aliveCount(b, 'blue') > aliveCount(b, 'red') ? 'blue' : 'red'));
+  forceEndBattle(b);
+  check(b.over === true, '강제 종료 → 즉시 over');
+  check(b.forcedEnd === true, '강제 종료 플래그(forcedEnd)');
+  check(b.endReason === 'force', `종료 사유 = force (${b.endReason})`);
+  check(b.winner === expectWin, `남은 체력 비율로 승자 판정 (${b.winner} / 기대 ${expectWin})`);
+  check(Math.abs(b.time - tBefore) < 1e-9, '강제 종료는 시간을 더 흘리지 않는다');
+  check(drainEvents(b).filter((e) => e.type === 'end').length === 1 && forces === 0,
+    '강제 종료는 end 이벤트를 한 번만 낸다');
+  check(b.log.some((l) => l.text.includes('강제 종료')), '전투 기록에 강제 종료 표시');
+  check(b.log[b.log.length - 1].kind === 'end', '마지막 기록은 승패 줄');
+  const sum = battleSummary(b);
+  check(sum.reason === 'force' && sum.forcedEnd === true && sum.winner === b.winner, 'battleSummary 에 강제 종료 판정 반영');
+  check(!!mvpOf(b), '강제 종료 후에도 MVP 를 고를 수 있다');
+  const again = forceEndBattle(b);
+  check(again.winner === b.winner && again.endReason === 'force', '이미 끝난 전투는 판정을 바꾸지 않는다');
+
+  // ② 시간 종료 전에 끝나도 시뮬레이션은 더 돌지 않는다
+  const t0 = b.time;
+  for (let i = 0; i < 60; i++) step(b, 1 / 60);
+  check(b.time === t0, '종료된 전투는 step 해도 시간이 늘지 않는다');
+}
+{
+  // ③ 조종 중 강제 종료 → 조종이 풀리고 그대로 판정된다
+  const b = createBattle({ blue: [P('lion', -5, 0)], red: [P('wolf', 5, 0)], seed: 5 });
+  simulate(b, 1 / 60, 0.5);
+  const lion = b.units.find((u) => u.id === 'lion');
+  possessUnit(b, lion.uid, 'p1');
+  setUnitInput(lion, { mx: 0, mz: 1, atk: true });
+  check(possessedUnit(b)?.uid === lion.uid, '조종 중 상태 확인');
+  forceEndBattle(b);
+  check(b.over && possessedUnit(b) === null, '조종 중 강제 종료 → 조종 해제');
+  check(b.units.every((u) => !u.possessed && u.input === null), '모든 유닛의 조종 입력이 정리된다');
+  check(b.winner === 'blue' || b.winner === 'red' || b.winner === 'draw', `조종 중 강제 종료도 승패를 낸다 (${b.winner})`);
+}
+{
+  // ④ 살아 있는 유닛이 없거나 체력이 같으면 무승부
+  const b = createBattle({ blue: [P('lion', -5, 0)], red: [P('wolf', 5, 0)], seed: 9 });
+  const [bl, rd] = [b.units.find((u) => u.team === 'blue'), b.units.find((u) => u.team === 'red')];
+  bl.hp = bl.maxHp * 0.5;
+  rd.hp = rd.maxHp * 0.5;
+  forceEndBattle(b);
+  check(b.winner === 'draw', `체력 비율이 같으면 무승부 (${b.winner})`);
+
+  // 체력이 높은 쪽이 이긴다 (반대 방향도 확인)
+  const b2 = createBattle({ blue: [P('lion', -5, 0)], red: [P('wolf', 5, 0)], seed: 9 });
+  const [bl2, rd2] = [b2.units.find((u) => u.team === 'blue'), b2.units.find((u) => u.team === 'red')];
+  bl2.hp = bl2.maxHp * 0.2;
+  rd2.hp = rd2.maxHp * 0.9;
+  forceEndBattle(b2);
+  check(b2.winner === 'red', `체력이 높은 진영 승리 (${b2.winner})`);
+}
+
+// ⑤ 파티: 방장이 강제 종료하면 손님 화면도 함께 끝나고, 손님은 혼자서도 빠져나올 수 있다
+{
+  const hub = new MemoryHub();
+  const [host, guest] = makeLoopback(2, { hub });
+  const code = await host.host('지우');
+  await guest.join(code, '친구');
+  await sleep(60);
+  host.setPlacements([P('trex', -6, 0), P('raptor', -4, 2)]);
+  guest.setPlacements([P('triceratops', 6, 0), P('wolf', 8, 0)]);
+  await sleep(80);
+  host.setReady(true);
+  guest.setReady(true);
+  await sleep(80);
+  check(host.requestStart(), '강제 종료 테스트 파티 배틀 시작');
+  await sleep(120);
+  for (let i = 0; i < 90; i++) {
+    simulate(host.battle, 1 / 60, 1 / 60);
+    host.tick(1 / 60);
+    guest.tick(1 / 60);
+    guest.battle.events.length = 0;
+  }
+  check(!host.battle.over && host.phase === PHASE.BATTLE, '강제 종료 전 파티 전투 진행 중');
+
+  // 손님이 먼저 혼자 빠져나온다 — 방장 시뮬레이션은 계속 돌아간다
+  check(guest.forceEndLocal() === true, '손님 forceEndLocal() 성공');
+  check(guest.battle.over && guest.battle.endReason === 'force', '손님 화면은 즉시 종료');
+  check(guest.phase === PHASE.END, '손님 파티 단계 = 종료');
+  check(!host.battle.over && host.phase === PHASE.BATTLE, '손님 강제 종료가 방장 전투를 멈추지 않는다');
+  const gWinner = guest.battle.winner;
+  await sleep(80);
+  host.tick(1 / 60);
+  guest.tick(1 / 60);
+  check(guest.battle.over && guest.battle.winner === gWinner, '손님은 이후 스냅샷에도 배틀이 되살아나지 않는다');
+  check(host.forceEnd() === false || host.battle.over, '강제 종료 이후 중복 호출은 안전');
+  host.leave();
+  guest.leave();
+}
+{
+  const hub = new MemoryHub();
+  const [host, guest] = makeLoopback(2, { hub });
+  const code = await host.host('지우');
+  await guest.join(code, '친구');
+  await sleep(60);
+  host.setPlacements([P('lion', -6, 0), P('bear', -4, 2)]);
+  guest.setPlacements([P('wolf', 6, 0), P('boar', 8, 0)]);
+  await sleep(80);
+  host.setReady(true);
+  guest.setReady(true);
+  await sleep(80);
+  host.requestStart();
+  await sleep(120);
+  for (let i = 0; i < 90; i++) {
+    simulate(host.battle, 1 / 60, 1 / 60);
+    host.tick(1 / 60);
+    guest.tick(1 / 60);
+    guest.battle.events.length = 0;
+  }
+  const ended = [];
+  guest.onEnd = (b) => ended.push(b.winner);
+  check(host.forceEnd() === true, '방장 forceEnd() 성공');
+  check(host.battle.over && host.battle.endReason === 'force', '방장 전투 즉시 종료');
+  await sleep(90);
+  check(guest.battle.over, '손님 화면도 즉시 종료 (end 동기화)');
+  check(ended.length === 1 && ended[0] === host.battle.winner, '손님 결과 배너 콜백이 승자와 함께 한 번 뜨다');
+  check(guest.battle.winner === host.battle.winner, `방장·손님 승자 동일 (${host.battle.winner})`);
+  check(guest.battle.endReason === 'force', '손님도 강제 종료 판정으로 표시');
+  check(guest.battle.forcedEnd === true, '손님 배틀에도 forcedEnd 플래그');
+  check(guest.phase === PHASE.END, '손님 파티 단계 = 종료');
+
+  // 패킷이 사라져도 다시 전달된다 — 종료 후 tick 이 종료 스냅샷을 재전송한다
+  const sentBefore = host.stats.sent;
+  host._lastEndAt = 0;
+  host.tick(1 / 60);
+  check(host.stats.sent > sentBefore, '종료 후에도 tick 이 종료 스냅샷을 재전송');
+  check(host.battle.over && host.battle.winner === guest.battle.winner, '종료 후에도 파티 상태가 유지된다');
+  host.leave();
+  guest.leave();
+}
+{
+  // ⑥ 소스 배선: main.js 가 버튼 → 조종 해제 · 일시정지 해제 · endBattle · 파티 동기화로 잇는다
+  const mainSrc = fs.readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+  const uiSrc = fs.readFileSync(new URL('../src/ui.js', import.meta.url), 'utf8');
+  const htmlSrc = fs.readFileSync(new URL('../index.html', import.meta.url), 'utf8');
+  check(htmlSrc.includes('id="btn-force-end"') && htmlSrc.includes('⏹ 강제 종료'), 'index.html 에 ⏹ 강제 종료 버튼');
+  check(/\?v=(\d+)/.test(htmlSrc), 'index.html 캐시 버지닝 ?v= 유지');
+  check(uiSrc.includes("$('#btn-force-end')"), 'ui.js 가 강제 종료 버튼을 참조');
+  check(/this\.hooks\.onForceEnd\?\.\(\)/.test(uiSrc), 'ui.js 클릭 → onForceEnd 콜백');
+  check(/setForceEnd\(true\)/.test(uiSrc) && /setForceEnd\(false\)/.test(uiSrc), 'ui.js 전투 중에만 버튼 표시');
+  check(/onForceEnd:\s*\(\)\s*=>\s*forceEndNow\(\)/.test(mainSrc), 'main.js onForceEnd 배선');
+  const fn = mainSrc.match(/function forceEndNow\(\)\s*\{([\s\S]*?)\n\}/);
+  check(!!fn, 'main.js forceEndNow()');
+  const body = fn ? fn[1] : '';
+  check(/exitPossession\(true\)/.test(body), '강제 종료 시 조종 해제');
+  check(/app\.paused\s*=\s*false/.test(body) && /ui\.setPaused\(false\)/.test(body), '강제 종료 시 일시정지 해제');
+  check(/forceEndBattle\(battle\)/.test(body), 'sim.forceEndBattle 호출');
+  check(/endBattle\(\)/.test(body), '강제 종료 → endBattle() 결과 배너');
+  check(/forceEndLocal\(\)/.test(body) && /forceEnd\(\)/.test(body), '파티 방장/손님 경로 분기');
+  check(/if \(phase !== 'battle'\) return;/.test(mainSrc), 'endBattle 은 전투 중에만 동작 (중복 배너 방지)');
+  check(/setForceEnd\(false\)/.test(mainSrc), '종료 시 강제 종료 버튼 숨김');
+  const partySrc = fs.readFileSync(new URL('../src/party.js', import.meta.url), 'utf8');
+  check(/forceEnd\(\)\s*\{/.test(partySrc) && /forceEndLocal\(\)\s*\{/.test(partySrc), 'party.js 방장/손님 강제 종료 API');
+  check(/this\._localEnd = true/.test(partySrc), '손님 로컬 종료 상태 기록');
+}
+
+/* ── 9. 직접 조종: 공격·스킬 중에도 이동이 막히지 않는다 (무빙어택/무빙샷) ── */
+{
+  // 조종 유닛을 입력대로 n프레임 움직이며 이동 거리·대시·기절 프레임을 재는 도우미
+  const run = (opts) => {
+    const b = createBattle({
+      blue: [P(opts.id, opts.x ?? -5, opts.z ?? 0)],
+      red: [P(opts.foe || 'wolf', opts.foeX ?? 0, opts.foeZ ?? 0)],
+      seed: 6,
+    });
+    const u = b.units.find((x) => x.team === 'blue');
+    if (!u) return null;
+    possessUnit(b, u.uid);
+    u.ccImmune = 99;   // 기절 때문에 멈추는 경우와 구분하려고 스턴 면역으로 둔다
+    u.skillTimer = 0;  // 첫 프레임에 바로 스킬을 쓸 수 있게
+    u.attackTimer = 0;
+    const x0 = u.x, z0 = u.z;
+    let dashFrames = 0, skillCasts = 0;
+    const frames = opts.frames || 60;
+    for (let i = 0; i < frames; i++) {
+      setUnitInput(u, {
+        mx: opts.mx ?? 0, mz: opts.mz ?? 1,
+        atk: !!opts.atk, sk: !!opts.sk && i === 0,
+        yaw: opts.yaw ?? 0,
+      });
+      step(b, 1 / 60);
+      if (u.dash) dashFrames++;
+      if (u.skillTimer > 0) skillCasts++;
+    }
+    return { u, x0, z0, dx: u.x - x0, dz: u.z - z0, moved: Math.hypot(u.x - x0, u.z - z0), dashFrames, skillCasts, dead: u.dead };
+  };
+
+  // ① 공격을 계속 누르고 있어도 이동 입력대로 전진한다
+  for (const id of ['lion', 'trex', 'bear', 'eagle', 'goblin']) {
+    const free = run({ id });
+    const atk = run({ id, atk: true, foeX: -3.2 });
+    check(!!free && !!atk, `[${id}] 조종 실행`);
+    if (!free || !atk) continue;
+    check(free.moved > 1.5, `[${id}] 이동 입력대로 이동 (${free.moved.toFixed(2)})`);
+    check(!atk.dead && atk.moved > 1.5, `[${id}] 공격 중에도 실제로 이동 (${atk.moved.toFixed(2)})`);
+    check(atk.moved >= free.moved * 0.9, `[${id}] 공격 모션 중 감속 없음 (${atk.moved.toFixed(2)} / ${free.moved.toFixed(2)})`);
+  }
+
+  // ② 공격한 바로 그 프레임에도 이동이 적용된다 (공격이 이동을 덮어쓰지 않는다)
+  {
+    const b = createBattle({ blue: [P('lion', -5, 0)], red: [P('wolf', -3.2, 0)], seed: 6 });
+    const u = b.units.find((x) => x.team === 'blue');
+    possessUnit(b, u.uid);
+    u.ccImmune = 99;
+    setUnitInput(u, { mx: 0, mz: 1, atk: true, sk: false, yaw: 0 });
+    const before = { x: u.x, z: u.z };
+    step(b, 1 / 60);
+    check(u.attackTimer > 0, '공격이 실제로 발동됨');
+    check(Math.hypot(u.x - before.x, u.z - before.z) > 0.001, '공격한 같은 프레임에도 이동');
+    check(u.moving === true, '공격 중에도 걸음(moving) 상태 유지');
+  }
+
+  // ③ 스킬을 쓴 뒤에도 계속 이동한다
+  for (const id of ['lion', 'trex', 'bear']) {
+    const sk = run({ id, sk: true, foeX: -2.5 });
+    check(!!sk && sk.skillCasts > 0, `[${id}] 스킬 발동`);
+    if (!sk) continue;
+    check(!sk.dead && sk.moved > 1.5, `[${id}] 스킬 사용 후에도 이동 (${sk.moved.toFixed(2)})`);
+  }
+
+  // ④ 돌진(대시) 스킬 중에도 플레이어 입력으로 방향을 틀 수 있다
+  {
+    const base = run({ id: 'rhino', sk: true, yaw: 0, x: 0, z: -8, foeX: 0, foeZ: 0, frames: 45 });
+    const steer = run({ id: 'rhino', sk: true, mx: 1, yaw: 0, x: 0, z: -8, foeX: 0, foeZ: 0, frames: 45 });
+    check(!!base && base.dashFrames > 0, `돌진 스킬이 실제로 대시를 만든다 (${base ? base.dashFrames : '?'}프레임)`);
+    check(!!steer, '돌진 중 조종 실행');
+    if (base && steer) {
+      check(Math.abs(steer.dx - base.dx) > 0.8, `대시 중 옆 입력으로 방향을 튼다 (${base.dx.toFixed(2)} → ${steer.dx.toFixed(2)})`);
+      check(steer.moved > base.moved * 0.95, '대시 중에도 입력 이동이 더해진다');
+    }
+  }
+
+  // ⑤ 기절 중에는 움직이지 않는다 (조종 중에도 기절은 그대로 적용)
+  {
+    const b = createBattle({ blue: [P('lion', -5, 0)], red: [P('wolf', 0, 0)], seed: 6 });
+    const u = b.units.find((x) => x.team === 'blue');
+    possessUnit(b, u.uid);
+    u.stun = 0.5;
+    const before = { x: u.x, z: u.z };
+    for (let i = 0; i < 30; i++) {
+      setUnitInput(u, { mx: 0, mz: 1, atk: true, sk: false, yaw: 0 });
+      step(b, 1 / 60);
+    }
+    check(Math.hypot(u.x - before.x, u.z - before.z) < 0.001, '기절 중에는 이동 입력이 통해도 못 움직인다');
+    // 기절이 풀리면 바로 다시 움직인다
+    const x1 = u.x, z1 = u.z;
+    for (let i = 0; i < 45; i++) {
+      setUnitInput(u, { mx: 0, mz: 1, atk: false, sk: false, yaw: 0 });
+      step(b, 1 / 60);
+    }
+    check(Math.hypot(u.x - x1, u.z - z1) > 1.0, '기절이 풀리면 즉시 다시 이동');
+  }
+
+  // ⑥ 소스 배선: 조종 분기가 대시·기절보다 먼저 잡히고, 이동은 공격 뒤에 적용된다
+  {
+    const simSrc = fs.readFileSync(new URL('../src/sim.js', import.meta.url), 'utf8');
+    const actUnit = simSrc.match(/function actUnit\([^)]*\)\s*\{([\s\S]*?)\n\}/);
+    const body = actUnit ? actUnit[1] : '';
+    check(/u\.possessed && !u\.dead/.test(body), 'actUnit: 조종 분기를 맨 앞에서 처리');
+    check(/if \(u\.dash\) updateDash\(state, u, dt\);\s*\n\s*if \(u\.stun > 0\)/.test(body), '조종 중 대시는 유지하고 기절만 막는다');
+    const actPossessed = simSrc.match(/function actPossessed\([^)]*\)\s*\{([\s\S]*?)\n\}/);
+    const pos = actPossessed ? actPossessed[1] : '';
+    check(/movePossessed\(state, u, mx, mz, yaw, dt\);/.test(pos), 'actPossessed: 이동을 마지막에 적용');
+    const moveAt = pos.indexOf('movePossessed(');
+    check(moveAt > pos.indexOf('inp.sk') && moveAt > pos.indexOf('inp.atk'), '이동이 스킬·공격 처리 뒤에 온다');
+    const move = simSrc.match(/function movePossessed\([^)]*\)\s*\{([\s\S]*?)\n\}/);
+    const mbody = move ? move[1] : '';
+    check(/const speed = unitSpeed\(u, state\);/.test(mbody) && !/castLock > 0 \? 0\.55/.test(mbody), '조종 이동에 감속(0.55×) 없음');
+    check(!/\*\s*0\.55/.test(mbody), '조종 이동 속도에 castLock 감속이 없다');
+  }
 }
 
 // 유닛을 소환/삭제할 때 카메라가 자동으로 확대·축소되지 않아야 한다

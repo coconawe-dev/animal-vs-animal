@@ -1638,29 +1638,12 @@ function actPossessed(state, u, dt) {
   const inLen = Math.hypot(mx, mz);
   if (inLen > 1) { mx /= inLen; mz /= inLen; }
   const yaw = Number.isFinite(inp.yaw) ? inp.yaw : u.facing;
-  const fx = Math.sin(yaw), fz = Math.cos(yaw);
-  // yaw 는 카메라가 보는 방향 — 앞으로(mz) · 옆으로(mx)
-  const wx = fx * mz - fz * mx;
-  const wz = fz * mz + fx * mx;
-  const wlen = Math.hypot(wx, wz);
 
-  if (wlen > 0.06) {
-    const speed = unitSpeed(u, state) * (u.castLock > 0 ? 0.55 : 1);
-    u.x += (wx / wlen) * speed * dt;
-    u.z += (wz / wlen) * speed * dt;
-    u.moving = true;
-    u.state = 'chase';
-    const want = Math.atan2(wx, wz);
-    u.facing = shortenAngle(u.facing + shortenAngle(want - u.facing) * Math.min(1, dt * 14));
-    u.aimYaw = u.facing;
-  } else if (u.castLock <= 0) {
-    u.facing = shortenAngle(u.facing + shortenAngle(yaw - u.facing) * Math.min(1, dt * 12));
-    u.aimYaw = u.facing;
-    u.state = 'ready';
-  }
+  // ① 스킬 · 기본 공격을 먼저 처리한다
+  //    (공격 모션·스킬 선딜은 아래 ②의 이동을 막지 않는다 — 무빙샷/무빙어택)
 
-  // 스킬 — 쿨타임이 남아 있으면 발동하지 않는다
-  if (inp.sk) {
+  // 스킬 — 쿨타임이 남아 있으면 발동하지 않는다 (대시 중에는 새 스킬을 걸지 않는다)
+  if (inp.sk && !u.dash) {
     const s = u.def.skill;
     const reach = Math.max(u.range, (s && s.range) || 0, 10);
     const t = nearestEnemyTo(state, u, reach);
@@ -1681,6 +1664,34 @@ function actPossessed(state, u, dt) {
       u.hitsLanded++;
       emit(state, { type: 'attack', uid: u.uid, target: null, ranged: !!u.def.ranged, weapon: u.weaponId });
     }
+  }
+
+  // ② 이동 — 마지막에 적용해, 공격/스킬/대시가 끝난 같은 프레임에도 입력대로 움직인다.
+  //    조종 중에는 이동 잠금(castLock) 감속도 없다. 기절·사망만 움직임을 막는다.
+  movePossessed(state, u, mx, mz, yaw, dt);
+}
+
+// 조종 이동 — 플레이어 입력 방향으로 그대로 이동한다 (공격·스킬 모션 중에도 같은 속도)
+function movePossessed(state, u, mx, mz, yaw, dt) {
+  const fx = Math.sin(yaw), fz = Math.cos(yaw);
+  // yaw 는 카메라가 보는 방향 — 앞으로(mz) · 옆으로(mx)
+  const wx = fx * mz - fz * mx;
+  const wz = fz * mz + fx * mx;
+  const wlen = Math.hypot(wx, wz);
+
+  if (wlen > 0.06) {
+    const speed = unitSpeed(u, state);
+    u.x += (wx / wlen) * speed * dt;
+    u.z += (wz / wlen) * speed * dt;
+    u.moving = true;
+    if (!u.dash) u.state = 'chase';
+    const want = Math.atan2(wx, wz);
+    u.facing = shortenAngle(u.facing + shortenAngle(want - u.facing) * Math.min(1, dt * 14));
+    u.aimYaw = u.facing;
+  } else if (u.castLock <= 0 && !u.dash) {
+    u.facing = shortenAngle(u.facing + shortenAngle(yaw - u.facing) * Math.min(1, dt * 12));
+    u.aimYaw = u.facing;
+    u.state = 'ready';
   }
 }
 
@@ -1750,10 +1761,16 @@ function tickEffects(state, u, dt) {
 }
 
 function actUnit(state, u, dt) {
+  // 플레이어가 직접 조종하는 유닛은 AI 이동·자동 공격·자동 추격을 전혀 쓰지 않는다.
+  //  · 기절(stun) 중이 아니면 스킬 대시 중에도 플레이어 입력을 계속 받는다
+  if (u.possessed && !u.dead) {
+    if (u.dash) updateDash(state, u, dt);
+    if (u.stun > 0) { u.state = 'stun'; return; }
+    actPossessed(state, u, dt);
+    return;
+  }
   if (u.dash) { updateDash(state, u, dt); return; }
   if (u.stun > 0) { u.state = 'stun'; return; }
-  // 플레이어가 직접 조종하는 유닛은 AI 이동·자동 공격을 멈춘다
-  if (u.possessed) { actPossessed(state, u, dt); return; }
   // 전장 아이템(구조물)은 제자리에서 자기 기능만 한다
   if (u.isStructure) { actStructure(state, u, dt); return; }
 
@@ -1875,6 +1892,47 @@ function finish(state) {
   });
 }
 
+/* ─────────────────────────── 강제 종료 (⏹) ─────────────────────────── */
+
+// 전투를 기다리지 않고 지금 끝낸다. 승패는 그 순간의 생존/체력 비율로 판정한다.
+//  · 살아 있는 진영이 하나면 그 진영 승리
+//  · 여럿이면 남은 체력 비율이 높은 진영 승리 (시간 종료 판정과 같은 3% 무승부 기준,
+//    비율이 비슷하면 살아 있는 유닛이 많은 쪽)
+//  · 살아 있는 진영이 없으면 무승부
+// 결과는 endReason='force' · forcedEnd=true 로 남겨 UI 가 '강제 종료'로 표시한다.
+export function forceEndBattle(state) {
+  if (!state) return state;
+  // 이미 끝난 전투는 원래 판정을 덮어쓰지 않는다
+  if (state.over) return state;
+
+  const teams = state.teams || ['blue', 'red'];
+  const ranked = teams
+    .map((t) => ({ t, alive: aliveCount(state, t), r: teamHpRatio(state, t) }))
+    .filter((x) => x.alive > 0)
+    .sort((a, b) => (b.r - a.r) || (b.alive - a.alive));
+
+  let winner = 'draw';
+  if (ranked.length === 1) {
+    winner = ranked[0].t;
+  } else if (ranked.length > 1) {
+    const [a, b] = ranked;
+    if (Math.abs(a.r - b.r) >= 0.03) winner = a.t;
+    else if (a.alive !== b.alive) winner = a.alive > b.alive ? a.t : b.t;
+    else winner = 'draw';
+  }
+
+  // 조종 중이던 유닛이 있으면 먼저 놓아 준다 (배너 뒤에서 계속 조종되지 않게)
+  releasePossession(state);
+
+  state.over = true;
+  state.winner = winner;
+  state.endReason = 'force';
+  state.forcedEnd = true;
+  pushLog(state, { text: '⏹ 강제 종료 — 남은 전력으로 판정', kind: 'system' });
+  finish(state);
+  return state;
+}
+
 export function simulate(state, dt = TUNING.SIM_DT, maxSeconds = 400) {
   const limit = Math.ceil(maxSeconds / dt);
   let i = 0;
@@ -1888,6 +1946,7 @@ export function battleSummary(state) {
   const teams = state.teams || ['blue', 'red'];
   const out = {
     winner: state.winner, reason: state.endReason, time: Math.round(state.time * 10) / 10,
+    forcedEnd: !!state.forcedEnd,
     teams: teams.slice(), teamSize: teams.length,
     blue: state.units.filter((u) => u.team === 'blue').map(summarizeUnit),
     red: state.units.filter((u) => u.team === 'red').map(summarizeUnit),
