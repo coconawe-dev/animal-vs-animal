@@ -2,7 +2,7 @@
 import {
   CREATURE_BY_ID, CATEGORIES, WEAPONS, WEAPON_BY_ID, PLACEABLES,
   ARENAS, PRESETS, CHALLENGES, TUNING, animalTierStars, placementCost,
-  PARTY, TEAM_ORDER, teamDef, partyTeams, SANS_PHASES, isVariant, phaseIdsOf,
+  PARTY, TEAM_ORDER, teamDef, partyTeams, SANS_PHASES, isVariant, phaseIdsOf, variantOptionsOf,
 } from './config.js';
 
 const $ = (sel) => document.querySelector(sel);
@@ -87,13 +87,14 @@ export class UI {
   }
 
   buildUnitBar() {
-    // 샌즈 1·2·3페이즈는 카드 하나로 묶고, 고르면 아래에 페이즈 버튼이 열린다
+    // 샌즈 1·2·3페이즈 · 원소 골렘 5원소는 카드 하나로 묶고, 고르면 아래에 선택 버튼이 열린다
     this.el.unitBar.innerHTML = PLACEABLES.filter((a) => !isVariant(a)).map((a) => {
       const color = '#' + a.colors.main.toString(16).padStart(6, '0');
-      const phases = phaseIdsOf(a);
+      const opts = variantOptionsOf(a);
+      const badge = a.badge || (opts ? '1·2·3' : '');
       return `<button class="ucard${a.isStructure ? ' item' : ''}" data-id="${a.id}" data-cat="${a.cat}" style="--accent:${color}" aria-label="${a.name}">
         <span class="u-cost">${a.cost}</span>
-        ${phases ? '<span class="u-phases">1·2·3</span>' : ''}
+        ${badge ? `<span class="u-phases">${badge}</span>` : ''}
         ${a.isStructure ? '<span class="u-item">고정</span>' : ''}
         <span class="u-emoji">${a.emoji}</span>
         <span class="u-name">${shortName(a)}</span>
@@ -102,22 +103,23 @@ export class UI {
     }).join('');
   }
 
-  // 선택된 유닛이 샌즈면 1·2·3페이즈 선택 버튼을 보여 준다
+  // 선택된 유닛이 샌즈/원소 골렘이면 변종 선택 버튼을 보여 준다
   renderPhaseRow() {
     const row = this.el.phaseRow;
     if (!row) return;
     const a = this.app;
-    const ids = phaseIdsOf(CREATURE_BY_ID[a.selected]);
-    if (!ids) {
+    const def = CREATURE_BY_ID[a.selected];
+    const opts = variantOptionsOf(def);
+    if (!opts) {
       if (this._phaseSig !== '') { this._phaseSig = ''; row.innerHTML = ''; }
       row.classList.add('hidden');
       return;
     }
-    if (this._phaseSig !== 'sans') {
-      this._phaseSig = 'sans';
-      row.innerHTML = SANS_PHASES.map((p) => (
-        `<button class="pchip" data-phase="${p.id}" title="${p.note}">`
-        + `<b>${p.label}</b><i>${p.cost}</i><small>${p.note}</small></button>`
+    if (this._phaseSig !== (def.variantOf || def.id)) {
+      this._phaseSig = def.variantOf || def.id;
+      row.innerHTML = opts.map((p) => (
+        `<button class="pchip" data-phase="${p.id}" title="${p.note}"${p.color ? ` style="--pcolor:${p.color}"` : ''}>`
+        + `<b>${p.emoji ? p.emoji + ' ' : ''}${p.label}</b><i>${p.cost}</i><small>${p.note}</small></button>`
       )).join('');
     }
     row.classList.remove('hidden');
@@ -165,10 +167,13 @@ export class UI {
     this.el.unitBar.addEventListener('click', (e) => {
       const card = e.target.closest('.ucard');
       if (!card) return;
-      this.app.selected = card.dataset.id;
+      const cardDef = CREATURE_BY_ID[card.dataset.id];
+      const opts = variantOptionsOf(cardDef);
+      // 변종 카드(원소 골렘)는 첫 원소로 바로 선택된다 — 샌즈 카드는 자기 자신이 1페이즈
+      this.app.selected = opts ? opts[0].id : card.dataset.id;
       this.app.eraser = false;
       this.render();
-      this.hooks.onSelectUnit?.(card.dataset.id);
+      this.hooks.onSelectUnit?.(this.app.selected);
     });
 
     this.el.catRow.addEventListener('click', (e) => {

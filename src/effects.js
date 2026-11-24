@@ -516,6 +516,78 @@ export class Effects {
     this.burst(x, 1.2, z, 0x9dffb0, 18, 3.4, { grav: -3.2 });
   }
 
+  /* ───────── 원소 골렘 연출 (불·물·풀·전기·얼음) ───────── */
+
+  // 🔥 화염 폭발 — 갈라진 땅에서 불기둥이 솟는다
+  golemFire(x, z, r = 6.8) {
+    this.ring(x, z, 0.7, r * 1.1, 0xff7a2a, 0.5);
+    this.ring(x, z, 0.3, r * 0.72, 0xffd166, 0.42);
+    this.flash(x, 1.4, z, 1.8, 0xffb04a, 0.3);
+    this.burst(x, 0.9, z, 0xff8a3a, 30, 8);
+    this.burst(x, 1.7, z, 0xffe08a, 16, 5, { grav: -3 });
+    this.dust(x, z, 14, 0x6a3a28);
+    for (let i = 0; i < 6; i++) {
+      const a = (i / 6) * Math.PI * 2 + 0.4;
+      const d = r * (0.28 + (i % 3) * 0.2);
+      this.flame(x + Math.cos(a) * d, 1.0, z + Math.sin(a) * d, 2.0, 0xff5a1a);
+    }
+  }
+
+  // 💧 해일 강타 — 원형 물결이 바깥으로 퍼진다
+  golemWave(x, z, r = 7.2) {
+    this.ring(x, z, 0.6, r * 1.2, 0x4fd3ff, 0.62);
+    this.ring(x, z, 0.35, r * 0.82, 0xd6f7ff, 0.5);
+    this.ring(x, z, 0.2, r * 0.46, 0x9fe8ff, 0.36);
+    this.flash(x, 1.2, z, 1.7, 0x8fe3ff, 0.28);
+    this.burst(x, 0.8, z, 0x6fd8ff, 28, 7.2);
+    this.burst(x, 1.3, z, 0xdffaff, 16, 4.6, { grav: -2 });
+    this.dust(x, z, 14, 0x3a6a8a);
+  }
+
+  // 🌿 덩굴 속박 — 땅에서 덩굴이 솟아 적을 묶는다
+  golemVine(x, z, r = 6.6) {
+    this.ring(x, z, 0.5, r * 1.05, 0x8dff7a, 0.55);
+    this.flash(x, 1.3, z, 1.5, 0x9dffb0, 0.26);
+    this.burst(x, 0.7, z, 0x6fbf4a, 24, 6.4);
+    for (let i = 0; i < 8; i++) {
+      const a = (i / 8) * Math.PI * 2 + 0.3;
+      const d = r * (0.35 + (i % 3) * 0.2);
+      const bx = x + Math.sin(a) * d;
+      const bz = z + Math.cos(a) * d;
+      this.beam(bx, 0.1, bz, bx + Math.sin(a) * 0.5, 2.5, bz + Math.cos(a) * 0.5, 0x8dff7a, 0.2);
+      this.burst(bx, 1.2, bz, 0x9dffb0, 5, 2.8);
+    }
+    this.dust(x, z, 18, 0x4a6a3a);
+  }
+
+  // ⚡ 연쇄 감전 — 지그재그 번개가 적을 타고 이어지고 하늘에서 낙뢰가 내리친다
+  golemBolt(x, z, x2, z2, y = 1.6, y2 = 1.2) {
+    const seg = 4;
+    let px = x, py = y, pz = z;
+    for (let i = 1; i <= seg; i++) {
+      const t = i / seg;
+      const last = i === seg;
+      const jx = last ? x2 : x + (x2 - x) * t + (Math.random() - 0.5) * 1.1;
+      const jz = last ? z2 : z + (z2 - z) * t + (Math.random() - 0.5) * 1.1;
+      const jy = last ? y2 : y + (y2 - y) * t + (Math.random() - 0.5) * 0.4;
+      this.beam(px, py, pz, jx, jy, jz, 0xffe85a, 0.2);
+      px = jx; py = jy; pz = jz;
+    }
+    this.beam(x2, 9.5, z2, x2, y2, z2, 0xfff3a0, 0.24);
+    this.flash(x2, y2, z2, 1.2, 0xffe85a, 0.24);
+    this.burst(x2, y2, z2, 0xfff3a0, 10, 4.6);
+  }
+
+  // ❄️ 서리 폭풍 — 얼음 결정 파편과 함께 땅이 얼어붙는다
+  golemFrost(x, z, r = 7) {
+    this.ring(x, z, 0.7, r * 1.12, 0xbdf2ff, 0.58);
+    this.ring(x, z, 0.4, r * 0.75, 0xffffff, 0.46);
+    this.flash(x, 1.5, z, 1.9, 0xd8f6ff, 0.3);
+    this.burst(x, 1.4, z, 0xd8f6ff, 30, 6.4, { grav: -1 });
+    this.burst(x, 0.8, z, 0x9fe8ff, 18, 5.2);
+    this.dust(x, z, 18, 0xcfe9f5);
+  }
+
   // 가시 바리케이드 · 지뢰 — 짧은 가시 충격
   spikeHit(x, z) {
     this.ring(x, z, 0.35, 1.5, 0xffb09a, 0.3);

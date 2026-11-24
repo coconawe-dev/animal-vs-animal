@@ -812,7 +812,7 @@ function fitDistance() {
   else if (aspect < 0.68) narrow = 2.2;
   else if (aspect < 0.85) narrow = 1.6;
   else if (aspect < 0.98) narrow = 1.15;
-  return Math.max(11, Math.min(64, (maxD * 0.62 + 8.4) * narrow));
+  return Math.max(11, Math.min(320, (maxD * 0.62 + 8.4) * narrow));
 }
 
 function fitPreviewCamera() {
@@ -824,7 +824,11 @@ function fitPreviewCamera() {
 
 function previewFit() {
   const aspect = (canvas.clientWidth || 1) / (canvas.clientHeight || 1);
-  return Math.min(70, fitDistance() * (aspect < 1 ? 1.12 : 1.3));
+  // 배치된 유닛들이 화면에 알맞게 차도록 — 넓어진 전장(반경 198)에서도 유닛이 점처럼 작아지지 않게
+  // 너무 멀리 잡지 않고 상한을 둔다. 전장 전체 조망은 줌 아웃(maxDist 720)으로.
+  const fit = fitDistance() * (aspect < 1 ? 1.12 : 1.3);
+  const cap = aspect < 0.62 ? 230 : aspect < 0.85 ? 215 : aspect < 1.05 ? 200 : 190;
+  return Math.max(40, Math.min(cap, fit));
 }
 
 function startBattle() {
@@ -950,6 +954,7 @@ const SK_COLORS = {
   sneakStrike: 0xa8ff6a,
   featherStorm: 0xffe9a8, gasterBlast: 0x9ff4ff,
   tuskQuake: 0xffd9a0, tripleVenom: 0x9bf06a, kongQuake: 0xffb066, heroPunch: 0xffd166,
+  fireNova: 0xff7a2a, tidalCrush: 0x4fd3ff, vineGrasp: 0x8dff7a, chainStorm: 0xffe85a, frostStorm: 0xbdf2ff,
 };
 
 function handleEvent(ev) {
@@ -1155,6 +1160,41 @@ function handleEvent(ev) {
       );
       sfx.tesla();
       if (target) triggerSkill(target.rig);
+      break;
+    }
+    case 'golemFire': {
+      effects.golemFire(ev.x, ev.z, ev.r || 6.8);
+      sfx.golemFire();
+      stage.shake = Math.max(stage.shake, 0.42);
+      break;
+    }
+    case 'golemWave': {
+      effects.golemWave(ev.x, ev.z, ev.r || 7.2);
+      sfx.golemWave();
+      stage.shake = Math.max(stage.shake, 0.4);
+      break;
+    }
+    case 'golemVine': {
+      effects.golemVine(ev.x, ev.z, ev.r || 6.6);
+      sfx.golemVine();
+      stage.shake = Math.max(stage.shake, 0.2);
+      break;
+    }
+    case 'golemBolt': {
+      effects.golemBolt(ev.x, ev.z, ev.x2 == null ? ev.x : ev.x2, ev.z2 == null ? ev.z : ev.z2);
+      sfx.golemBolt();
+      stage.shake = Math.max(stage.shake, 0.16);
+      break;
+    }
+    case 'golemFrost': {
+      effects.golemFrost(ev.x, ev.z, ev.r || 7);
+      sfx.golemFrost();
+      stage.shake = Math.max(stage.shake, 0.34);
+      break;
+    }
+    case 'heal': {
+      effects.text(ev.x, 2.2, ev.z, `+${ev.amount || 0}`, { color: '#8dff9a', size: 0.8, life: 0.85 });
+      if (target) effects.ring(ev.x, ev.z, 0.5, 1.6, 0x8dff9a, 0.4);
       break;
     }
     case 'healPulse': {

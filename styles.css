@@ -302,7 +302,7 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
   font-size: 7.5px; font-weight: 800; display: grid; place-items: center; letter-spacing: -0.04em;
 }
 
-/* ── 샌즈 1·2·3페이즈 선택 ── */
+/* ── 샌즈 1·2·3페이즈 · 원소 골렘 5원소 선택 ── */
 .phase-row { display: flex; gap: 5px; padding: 2px 1px 6px; overflow-x: auto; scrollbar-width: none; }
 .phase-row::-webkit-scrollbar { display: none; }
 .phase-row.hidden { display: none; }
@@ -322,6 +322,10 @@ h1, h2, h3 { margin: 0; font-weight: 800; }
   background: linear-gradient(160deg, rgba(159,244,255,.28), rgba(159,244,255,.05));
   box-shadow: 0 0 0 1px rgba(159,244,255,.3) inset;
 }
+/* 원소 골렘 — 원소 색으로 테두리와 이름을 물들인다 */
+.pchip[style*="--pcolor"] { border-color: var(--pcolor); background: linear-gradient(160deg, rgba(255,255,255,.06), rgba(255,255,255,.02)); }
+.pchip[style*="--pcolor"] b { color: var(--pcolor); }
+.pchip[style*="--pcolor"].on { box-shadow: 0 0 0 1px var(--pcolor) inset, 0 0 12px -2px var(--pcolor); }
 
 .detail-line {
   min-height: 26px; padding: 4px 8px; margin-bottom: 5px;

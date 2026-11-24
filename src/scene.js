@@ -51,7 +51,7 @@ function groundTexture(arena) {
 }
 
 function gradientSky(top, mid, bottom) {
-  const SKY_R = 900;
+  const SKY_R = 1600;
   const geo = new THREE.SphereGeometry(SKY_R, 24, 16);
   const pos = geo.attributes.position;
   const colors = new Float32Array(pos.count * 3);
@@ -120,9 +120,9 @@ export class Stage {
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
 
     this.scene = new THREE.Scene();
-    this.camera = new THREE.PerspectiveCamera(46, 1, 0.1, 2400);
-    this.cam = { theta: 0.75, phi: 0.92, dist: 40, target: new THREE.Vector3(0, 1.2, 0) };
-    this.camGoal = { theta: 0.75, phi: 0.92, dist: 40, target: new THREE.Vector3(0, 1.2, 0) };
+    this.camera = new THREE.PerspectiveCamera(46, 1, 0.5, 4800);
+    this.cam = { theta: 0.75, phi: 0.92, dist: 120, target: new THREE.Vector3(0, 1.2, 0) };
+    this.camGoal = { theta: 0.75, phi: 0.92, dist: 120, target: new THREE.Vector3(0, 1.2, 0) };
     this.shake = 0;
     this.focusShift = 0;
     this.arenaGroup = null;
@@ -144,14 +144,14 @@ export class Stage {
     this.ghostMat = new THREE.MeshBasicMaterial({
       color: 0x3f86ff, transparent: true, opacity: 0.75, side: THREE.DoubleSide, depthWrite: false,
     });
-    const ring = new THREE.Mesh(new THREE.RingGeometry(0.72, 1.0, 40), this.ghostMat);
+    const ring = new THREE.Mesh(new THREE.RingGeometry(1.1, 1.55, 40), this.ghostMat);
     ring.rotation.x = -Math.PI / 2;
     ring.position.y = 0.06;
     g.add(ring);
     this.ghostDiscMat = new THREE.MeshBasicMaterial({
       color: 0x3f86ff, transparent: true, opacity: 0.16, depthWrite: false,
     });
-    const disc = new THREE.Mesh(new THREE.CircleGeometry(0.72, 24), this.ghostDiscMat);
+    const disc = new THREE.Mesh(new THREE.CircleGeometry(1.1, 24), this.ghostDiscMat);
     disc.rotation.x = -Math.PI / 2;
     disc.position.y = 0.05;
     g.add(disc);
@@ -230,7 +230,7 @@ export class Stage {
     const rnd = rngFrom(arena.id.length * 7919 + arena.obstacles.length * 31);
 
     // 바깥 지형
-    const outerGeo = new THREE.CircleGeometry(620, 48);
+    const outerGeo = new THREE.CircleGeometry(1400, 64);
     const outerMat = new THREE.MeshStandardMaterial({ color: arena.ground2, roughness: 1, flatShading: true });
     const outer = new THREE.Mesh(outerGeo, outerMat);
     outer.rotation.x = -Math.PI / 2;
@@ -242,7 +242,7 @@ export class Stage {
     const R = TUNING.ARENA_RADIUS;
     const tex = groundTexture(arena);
     const floor = new THREE.Mesh(
-      new THREE.CircleGeometry(R + 1.6, 96),
+      new THREE.CircleGeometry(R + 1.6, 128),
       new THREE.MeshStandardMaterial({ map: tex, color: 0xffffff, roughness: 0.96, metalness: 0 }),
     );
     floor.rotation.x = -Math.PI / 2;
@@ -253,18 +253,18 @@ export class Stage {
     const rimMat = new THREE.MeshStandardMaterial({
       color: arena.rim, emissive: arena.rim, emissiveIntensity: 0.25, roughness: 0.7, flatShading: true,
     });
-    const rim = new THREE.Mesh(new THREE.TorusGeometry(R + 1.5, 0.35, 8, 72), rimMat);
+    const rim = new THREE.Mesh(new THREE.TorusGeometry(R + 1.5, 0.6, 8, 128), rimMat);
     rim.rotation.x = -Math.PI / 2;
     rim.position.y = 0.12;
     group.add(rim);
 
     const wallMat = new THREE.MeshStandardMaterial({ color: arena.rim, roughness: 0.9, flatShading: true });
-    const seg = 96;
+    const seg = 160;
     for (let i = 0; i < seg; i++) {
       const a = (i / seg) * Math.PI * 2;
       const w = (Math.PI * 2 * (R + 2.4)) / seg * 0.86;
-      const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.7 + rnd() * 0.5, 1.5), wallMat);
-      b.position.set(Math.sin(a) * (R + 3.2), 0.3, Math.cos(a) * (R + 3.2));
+      const b = new THREE.Mesh(new THREE.BoxGeometry(w, 0.9 + rnd() * 0.7, 2.2), wallMat);
+      b.position.set(Math.sin(a) * (R + 3.2), 0.4, Math.cos(a) * (R + 3.2));
       b.rotation.y = a;
       b.castShadow = false; b.receiveShadow = true;
       group.add(b);
@@ -277,7 +277,7 @@ export class Stage {
     this.buildZones();
 
     // 중앙 원
-    const centerRing = new THREE.Mesh(new THREE.RingGeometry(1.6, 1.75, 40), new THREE.MeshBasicMaterial({
+    const centerRing = new THREE.Mesh(new THREE.RingGeometry(R * 0.032, R * 0.036, 48), new THREE.MeshBasicMaterial({
       color: 0xffffff, transparent: true, opacity: 0.22, side: THREE.DoubleSide, depthWrite: false,
     }));
     centerRing.rotation.x = -Math.PI / 2;
@@ -286,7 +286,7 @@ export class Stage {
 
     // 낮은 담장 기단 — 블록이 공중에 뜬 것처럼 보이지 않게 바닥과 잇는다
     const baseMat = new THREE.MeshStandardMaterial({ color: arena.rim, roughness: 0.95, flatShading: true, side: THREE.DoubleSide });
-    const base = new THREE.Mesh(new THREE.CylinderGeometry(R + 3.6, R + 3.9, 0.5, 56, 1, true), baseMat);
+    const base = new THREE.Mesh(new THREE.CylinderGeometry(R + 3.6, R + 3.9, 0.6, 96, 1, true), baseMat);
     base.position.y = 0.24;
     base.receiveShadow = true;
     group.add(base);
@@ -300,10 +300,10 @@ export class Stage {
     });
 
     // 경기장 밖 장식
-    const decorCount = (arena.decor === 'canyon' ? 16 : 24) * 3;
+    const decorCount = (arena.decor === 'canyon' ? 16 : 24) * 4;
     for (let i = 0; i < decorCount; i++) {
       const a = rnd() * Math.PI * 2;
-      const rad = R + 10 + rnd() * R * 2.2;
+      const rad = R + 20 + rnd() * R * 2.4;
       const x = Math.sin(a) * rad, z = Math.cos(a) * rad;
       if (arena.decor === 'savanna') {
         if (rnd() < 0.45) {
@@ -355,9 +355,9 @@ export class Stage {
       color: arena.decor === 'savanna' ? 0xb9a24a : arena.decor === 'tundra' ? 0xeaf6ff : 0xc08f52,
       roughness: 1, flatShading: true,
     });
-    const tufts = new THREE.InstancedMesh(tuftGeo, tuftMat, 700);
+    const tufts = new THREE.InstancedMesh(tuftGeo, tuftMat, 1800);
     const dummy = new THREE.Object3D();
-    for (let i = 0; i < 700; i++) {
+    for (let i = 0; i < 1800; i++) {
       const a = rnd() * Math.PI * 2;
       const rad = R * 0.2 + Math.sqrt(rnd()) * (R + 10);
       dummy.position.set(Math.sin(a) * rad, 0.24, Math.cos(a) * rad);
@@ -374,11 +374,11 @@ export class Stage {
 
     // 떠다니는 입자
     const dustGeo = new THREE.BufferGeometry();
-    const n = 420;
+    const n = 800;
     const arr = new Float32Array(n * 3);
     for (let i = 0; i < n; i++) {
       arr[i * 3] = (rnd() - 0.5) * R * 4.4;
-      arr[i * 3 + 1] = rnd() * 36;
+      arr[i * 3 + 1] = rnd() * 70;
       arr[i * 3 + 2] = (rnd() - 0.5) * R * 4.4;
     }
     dustGeo.setAttribute('position', new THREE.BufferAttribute(arr, 3));
@@ -397,16 +397,17 @@ export class Stage {
     this.scene.add(this.hemi);
 
     const sun = new THREE.DirectionalLight(arena.sun, arena.sunI);
-    sun.position.set(arena.sunPos[0], arena.sunPos[1], arena.sunPos[2]);
+    const sunK = R / 49.5;
+    sun.position.set(arena.sunPos[0] * sunK, arena.sunPos[1] * sunK, arena.sunPos[2] * sunK);
     sun.castShadow = true;
     sun.shadow.mapSize.set(2048, 2048);
-    const half = R * 1.55;
+    const half = R * 1.18;
     sun.shadow.camera.left = -half;
     sun.shadow.camera.right = half;
     sun.shadow.camera.top = half;
     sun.shadow.camera.bottom = -half;
     sun.shadow.camera.near = 1;
-    sun.shadow.camera.far = 420;
+    sun.shadow.camera.far = 1200;
     sun.shadow.bias = -0.0012;
     sun.shadow.normalBias = 0.03;
     this.scene.add(sun);
@@ -414,7 +415,7 @@ export class Stage {
     this.sun = sun;
 
     const fill = new THREE.DirectionalLight(0xffffff, 0.35);
-    fill.position.set(-20, 18, -22);
+    fill.position.set(-20 * sunK, 18 * sunK, -22 * sunK);
     this.scene.add(fill);
     this.fill = fill;
   }
@@ -538,7 +539,7 @@ export class Stage {
     this.camGoal.phi = clamp(this.camGoal.phi - dy * 0.0045, 0.22, 1.42);
   }
   zoom(factor) {
-    this.camGoal.dist = clamp(this.camGoal.dist * factor, 13, 260);
+    this.camGoal.dist = clamp(this.camGoal.dist * factor, 13, 720);
   }
   setFollowTarget(t) { this.camGoal.target.copy(t); }
 

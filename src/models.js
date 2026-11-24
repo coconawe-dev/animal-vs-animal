@@ -1524,6 +1524,156 @@ function buildStoneGolem(g, m, rig) {
   rig.upright = true;
 }
 
+/* ─────────────────────── 원소 골렘 (불·물·풀·전기·얼음) ───────────────────────
+   스톤골렘의 묵직한 바위 체형을 바탕으로, 가슴 코어와 어깨 장식을 원소별로 바꾼다. */
+const ELEMENT_STYLE = {
+  fire: { core: 0xff8a3a, glow: 0xff4a10 },
+  water: { core: 0x5fd8ff, glow: 0x1a7ad0 },
+  grass: { core: 0x9dff7a, glow: 0x2a9a3a },
+  electric: { core: 0xffe85a, glow: 0xffb400 },
+  ice: { core: 0xc4f4ff, glow: 0x5fc8f0 },
+};
+
+function buildElementalGolem(g, m, rig) {
+  const el = rig.def.element || 'fire';
+  const style = ELEMENT_STYLE[el] || ELEMENT_STYLE.fire;
+  const coreMat = mat(style.core, { roughness: 0.3, metalness: 0.15, emissive: style.glow, emissiveIntensity: 1.0 });
+  const glowMat = mat(style.glow, { roughness: 0.45, metalness: 0.1, emissive: style.glow, emissiveIntensity: 0.4 });
+  rig.matList.push(coreMat, glowMat);
+  rig.coreMat = coreMat;
+
+  const body = new THREE.Group();
+  body.position.y = 1.12;
+  g.add(body); rig.body = body; rig.bodyY = 1.12;
+
+  // 바위 몸통 — 어깨가 넓은 묵직한 체형
+  add(body, G.box, m.main, [0, 0.06, 0], [1.24, 0.98, 0.86]);
+  add(body, G.box, m.dark, [0, 0.4, 0.02], [1.0, 0.42, 0.72], [0.05, 0.08, 0]);
+  add(body, G.sphereLow, m.main, [0.36, 0.52, 0.16], [0.4, 0.34, 0.36]);
+  add(body, G.sphereLow, m.main, [-0.36, 0.52, 0.16], [0.4, 0.34, 0.36]);
+  add(body, G.sphereLow, m.dark, [0.02, 0.06, 0.46], [0.36, 0.34, 0.22], null, false);
+  // 가슴을 감싸는 바위 판
+  add(body, G.box, m.belly, [0, 0.02, 0.4], [0.62, 0.5, 0.1], [0, 0, 0]);
+  // 등 판 조각
+  for (let i = 0; i < 3; i++) {
+    add(body, G.sphereLow, m.dark, [-0.28 + i * 0.28, 0.28 - i * 0.04, -0.42], [0.22, 0.2, 0.14], null, false);
+  }
+
+  // 원소 코어 — 가슴 한가운데에서 빛난다
+  const core = add(body, G.sphere, coreMat, [0, 0.06, 0.4], [0.19, 0.19, 0.12], null, false);
+  rig.core = core;
+  // 코어를 둘러싼 바위 테
+  for (let i = 0; i < 6; i++) {
+    const a = (i / 6) * Math.PI * 2;
+    add(body, G.box, m.dark, [Math.cos(a) * 0.26, 0.06 + Math.sin(a) * 0.26, 0.38], [0.1, 0.06, 0.06], [0, 0, a], false);
+  }
+
+  // 다리 — 짧고 두꺼운 바위 다리
+  rig.legs = quadLegs(body, m.dark, { x: 0.4, zf: 0.24, zb: -0.26, len: 0.64, r: 0.21 });
+
+  // 거대한 주먹 팔
+  const arms = [];
+  [1, -1].forEach((side) => {
+    const sh = new THREE.Group();
+    sh.position.set(side * 0.76, 0.44, 0.02);
+    body.add(sh);
+    add(sh, G.box, m.dark, [0, -0.36, 0], [0.34, 0.74, 0.32]);
+    add(sh, G.box, m.main, [0, -0.84, 0.02], [0.54, 0.48, 0.5]);
+    add(sh, G.sphereLow, glowMat, [0, -0.84, 0.26], [0.07, 0.07, 0.05], null, false);
+    arms.push({ pivot: sh, side });
+  });
+  rig.arms = arms;
+
+  // 머리 — 낮게 박힌 바위 머리 + 빛나는 눈
+  const head = new THREE.Group();
+  head.position.set(0, 0.82, 0.16);
+  body.add(head); rig.head = head;
+  add(head, G.box, m.main, [0, 0, 0], [0.58, 0.48, 0.52]);
+  add(head, G.box, m.dark, [0, -0.07, 0.24], [0.42, 0.18, 0.1], null, false);
+  add(head, G.box, coreMat, [0.13, 0.1, 0.24], [0.1, 0.075, 0.04], null, false);
+  add(head, G.box, coreMat, [-0.13, 0.1, 0.24], [0.1, 0.075, 0.04], null, false);
+  add(head, G.box, m.dark, [0, 0.26, -0.02], [0.64, 0.1, 0.52], null, false);
+  const jaw = new THREE.Group();
+  jaw.position.set(0, -0.18, 0.12);
+  head.add(jaw); rig.jaw = jaw;
+  add(jaw, G.box, m.dark, [0, 0, 0.08], [0.4, 0.1, 0.24], null, false);
+
+  /* ── 원소별 장식 ── */
+  if (el === 'fire') {
+    // 어깨에서 타오르는 불꽃 뿔 + 가슴 균열
+    [1, -1].forEach((side) => {
+      for (let i = 0; i < 3; i++) {
+        add(body, G.coneLow, glowMat, [side * (0.34 + i * 0.1), 0.66 + i * 0.04, -0.12 + i * 0.16],
+          [0.09 - i * 0.015, 0.34 - i * 0.06, 0.09], [0.18, 0, side * (0.18 + i * 0.12)], false);
+      }
+      add(body, G.coneLow, coreMat, [side * 0.2, 0.42, 0.31], [0.06, 0.34, 0.05], [0.1, 0, side * 0.5], false);
+    });
+    add(head, G.coneLow, glowMat, [0.18, 0.34, -0.02], [0.07, 0.3, 0.07], [0.15, 0, -0.32]);
+    add(head, G.coneLow, glowMat, [-0.18, 0.34, -0.02], [0.07, 0.3, 0.07], [0.15, 0, 0.32]);
+  } else if (el === 'water') {
+    // 물결 크리스탈 — 어깨와 등에 돋는 푸른 결정
+    [1, -1].forEach((side) => {
+      add(body, G.sphereLow, glowMat, [side * 0.6, 0.44, 0.06], [0.3, 0.07, 0.24], [0, 0.4, side * -0.2], false);
+      add(body, G.coneLow, coreMat, [side * 0.72, 0.66, -0.02], [0.11, 0.34, 0.1], [0.1, 0, side * 0.5]);
+      add(body, G.coneLow, glowMat, [side * 0.5, 0.62, -0.16], [0.07, 0.24, 0.06], [-0.2, 0, side * 0.3], false);
+    });
+    add(body, G.torus, glowMat, [0, 0.5, 0.1], [0.42, 0.42, 0.28], [Math.PI / 2, 0, 0], false);
+    add(head, G.coneLow, coreMat, [0, 0.34, -0.04], [0.09, 0.3, 0.08], [-0.15, 0, 0]);
+    for (let i = 0; i < 4; i++) {
+      add(body, G.sphereLow, glowMat, [-0.36 + i * 0.24, 0.2 + (i % 2) * 0.08, 0.46], [0.06, 0.04, 0.03], null, false);
+    }
+  } else if (el === 'grass') {
+    // 나무뿌리 덩굴 + 잎
+    for (let i = 0; i < 5; i++) {
+      const side = i % 2 ? 1 : -1;
+      const y0 = 0.5 - (i % 3) * 0.22;
+      add(body, G.cyl, m.dark, [side * 0.62, y0, 0.2 - (i % 2) * 0.1], [0.045, 0.5, 0.045], [0, 0, side * (0.4 + i * 0.1)]);
+      add(body, G.sphereLow, glowMat, [side * 0.7, y0 + 0.16, 0.24], [0.13, 0.05, 0.1], [0, side * 0.4, side * 0.5], false);
+    }
+    // 어깨·머리의 잎사귀
+    [1, -1].forEach((side) => {
+      add(body, G.coneLow, glowMat, [side * 0.44, 0.7, -0.02], [0.16, 0.3, 0.1], [0.3, 0, side * 0.7], false);
+      add(body, G.coneLow, glowMat, [side * 0.3, 0.74, 0.12], [0.12, 0.24, 0.08], [0.5, 0, side * 0.4], false);
+    });
+    add(head, G.coneLow, glowMat, [0.2, 0.34, 0.02], [0.1, 0.26, 0.08], [0.2, 0, -0.7], false);
+    add(head, G.coneLow, glowMat, [-0.2, 0.34, 0.02], [0.1, 0.26, 0.08], [0.2, 0, 0.7], false);
+    // 이끼 덮인 어깨
+    add(body, G.sphereLow, m.belly, [0.36, 0.58, 0.06], [0.3, 0.16, 0.28], null, false);
+    add(body, G.sphereLow, m.belly, [-0.36, 0.58, 0.06], [0.3, 0.16, 0.28], null, false);
+  } else if (el === 'electric') {
+    // 코일 — 어깨와 팔뚝을 감은 도선
+    [1, -1].forEach((side) => {
+      add(body, G.torus, coreMat, [side * 0.62, 0.5, 0.02], [0.28, 0.28, 0.16], [Math.PI / 2, 0, 0], false);
+      add(body, G.torus, glowMat, [side * 0.62, 0.38, 0.02], [0.24, 0.24, 0.14], [Math.PI / 2, 0, 0], false);
+      add(body, G.coneLow, coreMat, [side * 0.62, 0.74, -0.04], [0.06, 0.3, 0.06], [0, 0, side * 0.2], false);
+    });
+    add(head, G.coneLow, coreMat, [0.2, 0.38, -0.02], [0.05, 0.3, 0.05], [0.1, 0, -0.5], false);
+    add(head, G.coneLow, coreMat, [-0.2, 0.38, -0.02], [0.05, 0.3, 0.05], [0.1, 0, 0.5], false);
+    for (let i = 0; i < 3; i++) {
+      add(body, G.box, glowMat, [-0.2 + i * 0.2, 0.22, 0.47], [0.05, 0.24, 0.04], [0, 0, i % 2 ? 0.4 : -0.4], false);
+    }
+  } else {
+    // 얼음 — 등·어깨·머리에 돋는 빙하 가시
+    [1, -1].forEach((side) => {
+      for (let i = 0; i < 3; i++) {
+        add(body, G.coneLow, coreMat, [side * (0.3 + i * 0.2), 0.62 + (i === 1 ? 0.08 : 0), -0.3 - i * 0.06],
+          [0.1 - i * 0.02, 0.38 - i * 0.06, 0.09], [0.4, 0, side * (0.2 + i * 0.2)], false);
+      }
+      add(body, G.coneLow, glowMat, [side * 0.74, 0.58, 0.04], [0.08, 0.26, 0.07], [0, 0, side * 0.6], false);
+    });
+    add(head, G.coneLow, coreMat, [0.17, 0.44, -0.04], [0.08, 0.4, 0.07], [-0.1, 0, -0.28]);
+    add(head, G.coneLow, coreMat, [-0.17, 0.44, -0.04], [0.08, 0.4, 0.07], [-0.1, 0, 0.28]);
+    add(head, G.coneLow, coreMat, [0, 0.46, -0.16], [0.07, 0.34, 0.06], [-0.3, 0, 0]);
+    // 서리 결정
+    for (let i = 0; i < 5; i++) {
+      add(body, G.sphereLow, glowMat, [-0.4 + i * 0.2, 0.08 + (i % 2) * 0.14, 0.46], [0.05, 0.05, 0.04], null, false);
+    }
+  }
+
+  rig.height = 2.3;
+  rig.upright = true;
+}
+
 /* ───────────────────────────── 드래곤 ───────────────────────────── */
 function buildDragon(g, m, rig) {
   const body = new THREE.Group();
@@ -2465,6 +2615,8 @@ const BUILDERS = {
   hyena: buildHyena, drex: buildDRex,
   shark: buildShark, megalodon: buildMegalodon, mosasaurus: buildMosasaurus,
   leviathan: buildLeviathan, stone_golem: buildStoneGolem, dragon: buildDragon,
+  golem_fire: buildElementalGolem, golem_water: buildElementalGolem, golem_grass: buildElementalGolem,
+  golem_electric: buildElementalGolem, golem_ice: buildElementalGolem,
   goblin: buildGoblin,
   strong_chicken: buildStrongChicken, sans: buildSans,
   sans_p2: buildSans, sans_p3: buildSans,
@@ -2485,6 +2637,8 @@ export const ATTACK_STYLE = {
   zombie: 'claw', skeleton: 'slash', drex: 'combo',
   shark: 'bite', megalodon: 'bite', mosasaurus: 'bite', leviathan: 'bite',
   stone_golem: 'smash', dragon: 'swoop', goblin: 'slash',
+  golem_fire: 'smash', golem_water: 'smash', golem_grass: 'smash',
+  golem_electric: 'smash', golem_ice: 'smash',
   strong_chicken: 'bite', sans: 'claw', sans_p2: 'claw', sans_p3: 'claw',
   mammoth: 'gore', hydra: 'bite', king_kong: 'smash', hero: 'claw',
 };
@@ -2706,6 +2860,13 @@ export function animateRig(rig, s) {
     rig.head.position.y = rig.headBaseY;
   }
   if (rig.jaw) rig.jaw.rotation.x = atk * 0.55 + sk * 0.35;
+
+  // 원소 골렘 — 가슴 코어가 박동하고 스킬 순간 밝게 타오른다
+  if (rig.core) {
+    const beat = 1 + Math.sin(rig.t * 2.6) * 0.05 + sk * 0.3 + atk * 0.12;
+    rig.core.scale.set(0.19 * beat, 0.19 * beat, 0.12 * beat);
+    if (rig.coreMat) rig.coreMat.emissiveIntensity = 0.9 + Math.sin(rig.t * 2.6) * 0.15 + sk * 1.1;
+  }
 
   // 날개
   for (const w of rig.wings || []) {

@@ -2,7 +2,7 @@
 // 순수 로직(THREE/DOM 비의존)이라 브라우저와 노드 테스트가 같은 함수를 쓴다.
 // 파티 모드(2~4팀)에서는 각자 자기 진영 부채꼴 안에만 놓을 수 있다.
 
-import { CREATURE_BY_ID, TUNING, WEAPON_BY_ID, clampToSector, sectorBounds } from './config.js';
+import { CREATURE_BY_ID, TUNING, WEAPON_BY_ID, PLACE_SCALE, clampToSector, sectorBounds } from './config.js';
 
 export const SIDE_GAP = 1.0;         // 중앙 구분선 여백
 const MIN_GAP = 1.25;                // 같은 편 유닛끼리 최소 간격
@@ -63,8 +63,10 @@ export function normalizePlacement(p) {
 }
 
 // 자동 진형 (x/z 가 없는 배치를 진영에 흩어 놓는다)
+// 전장 반경에 맞춰 간격을 늘린다 (기본 반경 49.5 기준 비율)
 export function autoPositions(list, team, teams = null) {
   const list2 = teamList(teams);
+  const K = PLACE_SCALE / 3;   // 예전 3배 전장 기준 배치 간격 → 지금 배율
   const b = sectorBounds(list2, team);
   const dirX = Math.sin(b.center);
   const dirZ = Math.cos(b.center);
@@ -74,11 +76,11 @@ export function autoPositions(list, team, teams = null) {
     const row = i % 5;
     if (list2.length <= 2) {
       const sx = team === 'blue' ? -1 : 1;
-      return { ...p, x: sx * (4.6 + col * 2.5), z: (row - 2) * 2.4 };
+      return { ...p, x: sx * (4.6 + col * 2.5) * K, z: (row - 2) * 2.4 * K };
     }
     // 부채꼴: 중심 방향에서 좌우로 흩뿌린다
-    const d = 6 + col * 3.4;
-    const spread = (row - 2) * 2.6;
+    const d = (6 + col * 3.4) * K;
+    const spread = (row - 2) * 2.6 * K;
     return {
       ...p,
       x: dirX * d + Math.cos(b.center) * spread,
@@ -151,6 +153,7 @@ export function placeUnits(list, {
 }) {
   const def = CREATURE_BY_ID[id];
   if (!def) return { added: [], skipped: 'unknown' };
+  if (def.cardOnly) return { added: [], skipped: 'card' };
   if (budget != null) {
     const left = budget - costOf(list);
     if (def.cost > left) return { added: [], skipped: 'budget', left };

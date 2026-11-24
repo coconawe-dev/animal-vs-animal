@@ -96,6 +96,11 @@ export class Sfx {
   skill(kind) {
     if (kind === 'titanSlam' || kind === 'rockCrush' || kind === 'abyssVortex') return this.roar();
     if (kind === 'kongQuake') return this.roar();
+    if (kind === 'fireNova') return this.golemFire();
+    if (kind === 'tidalCrush') return this.golemWave();
+    if (kind === 'vineGrasp') return this.golemVine();
+    if (kind === 'chainStorm') return this.golemBolt();
+    if (kind === 'frostStorm') return this.golemFrost();
     if (kind === 'tuskQuake') return this.slam();
     if (kind === 'tripleVenom') return this.venom();
     if (kind === 'heroPunch') return this.hero('power');
@@ -171,6 +176,60 @@ export class Sfx {
     this.lastVenom = now;
     this.noiseBurst({ dur: 0.5, freq: 1400, q: 0.6, gain: 0.24, type: 'lowpass', sweep: 260 });
     this.tone({ freq: 180, freq2: 92, dur: 0.4, gain: 0.16, type: 'sawtooth' });
+  }
+
+  // ── 원소 골렘 5종 ──
+  // 🔥 화염 폭발 — 낮게 갈라지는 대형 폭발과 타닥거림
+  golemFire() {
+    if (!this.ok) return;
+    if (performance.now() - (this.lastBoom || 0) < 70) return;
+    this.tone({ freq: 130, freq2: 38, dur: 0.5, gain: 0.46, type: 'sine' });
+    this.noiseBurst({ dur: 0.55, freq: 900, q: 0.6, gain: 0.4, type: 'lowpass', sweep: 160 });
+    this.noiseBurst({ dur: 0.3, freq: 2600, q: 1.2, gain: 0.16, type: 'bandpass', sweep: 700 });
+  }
+
+  // 💧 해일 강타 — 밀려오는 물결 소리
+  golemWave() {
+    if (!this.ok) return;
+    const now = performance.now();
+    if (now - (this.lastWave || 0) < 90) return;
+    this.lastWave = now;
+    this.noiseBurst({ dur: 0.7, freq: 520, q: 0.5, gain: 0.34, type: 'lowpass', sweep: 180 });
+    this.tone({ freq: 160, freq2: 60, dur: 0.55, gain: 0.24, type: 'sine' });
+    this.tone({ freq: 720, freq2: 240, dur: 0.3, gain: 0.1, type: 'triangle' });
+  }
+
+  // 🌿 덩굴 속박 — 바스락거리는 줄기와 맑은 회복음
+  golemVine() {
+    if (!this.ok) return;
+    const now = performance.now();
+    if (now - (this.lastVine || 0) < 90) return;
+    this.lastVine = now;
+    this.noiseBurst({ dur: 0.4, freq: 1100, q: 0.9, gain: 0.26, type: 'bandpass', sweep: 320 });
+    this.tone({ freq: 220, freq2: 140, dur: 0.3, gain: 0.2, type: 'triangle' });
+    this.tone({ freq: 660, freq2: 990, dur: 0.34, gain: 0.1, type: 'sine', delay: 0.08 });
+  }
+
+  // ⚡ 연쇄 감전 — 지글거리는 전기와 천둥
+  golemBolt() {
+    if (!this.ok) return;
+    const now = performance.now();
+    if (now - (this.lastTesla || 0) < 70) return;
+    this.lastTesla = now;
+    this.noiseBurst({ dur: 0.22, freq: 4200, q: 1.7, gain: 0.22, type: 'highpass', sweep: 1400 });
+    this.tone({ freq: 1800, freq2: 320, dur: 0.2, gain: 0.18, type: 'square' });
+    this.tone({ freq: 96, freq2: 44, dur: 0.34, gain: 0.26, type: 'sawtooth' });
+  }
+
+  // ❄️ 서리 폭풍 — 유리처럼 얼어붙는 소리
+  golemFrost() {
+    if (!this.ok) return;
+    const now = performance.now();
+    if (now - (this.lastFrost || 0) < 90) return;
+    this.lastFrost = now;
+    this.noiseBurst({ dur: 0.45, freq: 3200, q: 1.1, gain: 0.2, type: 'highpass', sweep: 900 });
+    this.tone({ freq: 1200, freq2: 380, dur: 0.28, gain: 0.14, type: 'triangle' });
+    this.noiseBurst({ dur: 0.5, freq: 320, q: 0.5, gain: 0.24, type: 'lowpass', sweep: 120 });
   }
 
   // 킹콩 가슴 두드리기

@@ -24,7 +24,7 @@ globalThis.Node = dom.window.Node;
 
 const { UI } = await import('../src/ui.js');
 const { createBattle, simulate } = await import('../src/sim.js');
-const { CREATURES, WEAPONS, CATEGORIES, PRESETS, CHALLENGES, ARENAS, CREATURE_BY_ID, ITEMS, PLACEABLES } = await import('../src/config.js');
+const { CREATURES, WEAPONS, CATEGORIES, PRESETS, CHALLENGES, ARENAS, CREATURE_BY_ID, ITEMS, PLACEABLES, PARTY, ELEMENT_GOLEMS } = await import('../src/config.js');
 
 let pass = 0;
 const fails = [];
@@ -329,6 +329,49 @@ check(CREATURE_BY_ID.titan.name === '거대 타이탄', '타이탄 데이터');
   ui.render();
 }
 
+/* ── 원소 골렘 — 카드 1장 + 5원소 선택 ── */
+{
+  app.mode = 'sandbox';
+  app.challenge = null;
+  app.activeCat = 'monster';
+  app.selected = 'trex';
+  ui.render();
+  check($$('#unit-bar .ucard:not(.hide)').length === CREATURES.filter((c) => c.cat === 'monster' && !c.variantOf).length + 1, '괴수 탭에 괴수 카드 + 원소 골렘 카드');
+  const card = $('.ucard[data-id="golem_elemental"]');
+  check(card !== null, '원소 골렘 카드');
+  check(card.querySelector('.u-phases').textContent === '5원소', '원소 골렘 카드에 5원소 배지');
+  check(card.querySelector('.u-cost').textContent === '5', '원소 골렘 카드 코스트 5');
+  check(card.querySelector('.u-emoji').textContent === '🪨', '원소 골렘 카드 이모지');
+  check($('#phase-row').classList.contains('hidden'), '평소에는 원소 버튼 숨김');
+
+  card.click();
+  check(app.selected === 'golem_fire', '원소 골렘 카드 탭 → 첫 원소(불) 선택');
+  check(!$('#phase-row').classList.contains('hidden'), '원소 골렘을 고르면 5원소 버튼 표시');
+  check($$('#phase-row .pchip').length === 5, '원소 버튼 5개');
+  check($('#phase-row .pchip[data-phase="golem_fire"]').classList.contains('on'), '불 원소 선택 표시');
+  const rowText = $('#phase-row').textContent;
+  check(['불', '물', '풀', '전기', '얼음'].every((t) => rowText.includes(t)), `5원소 버튼 이름 (${rowText})`);
+  check($$('#phase-row .pchip i').every((i) => i.textContent === '5'), '5원소 모두 코스트 5');
+  check($('.ucard[data-id="golem_elemental"]').classList.contains('sel'), '원소 골렘 카드는 선택 상태');
+
+  $('#phase-row .pchip[data-phase="golem_ice"]').click();
+  check(app.selected === 'golem_ice', '얼음 원소 선택');
+  check($('#phase-row .pchip[data-phase="golem_ice"]').classList.contains('on'), '얼음 버튼 활성');
+  check($('#detail-line').textContent.includes('얼음 골렘'), '원소 골렘 상세 이름');
+  check($('#detail-line').textContent.includes('서리 폭풍'), '원소 골렘 상세 스킬');
+  check($('#detail-line').textContent.includes('5'), '원소 골렘 상세 코스트');
+  check($('#place-hint').textContent.includes('얼음골렘'), '원소 골렘 배치 힌트');
+
+  $('#phase-row .pchip[data-phase="golem_electric"]').click();
+  check(app.selected === 'golem_electric' && $('#detail-line').textContent.includes('전기 골렘'), '전기 원소 선택');
+
+  ui.setSelected('trex');
+  check($('#phase-row').classList.contains('hidden'), '원소 골렘을 벗어나면 원소 버튼 숨김');
+  app.activeCat = 'all';
+  app.selected = 'trex';
+  ui.render();
+}
+
 /* ── 신규 4종 카드 ── */
 for (const id of ['mammoth', 'hydra', 'king_kong', 'hero']) {
   const card = $(`.ucard[data-id="${id}"]`);
@@ -447,7 +490,7 @@ check(app.mode === 'party', '파티 탭 → 파티 모드');
 check(!$('#party-panel').classList.contains('hidden'), '파티 패널 열림');
 check(!$('#party-setup').classList.contains('hidden'), '방 만들기 화면');
 check($('#party-panel').textContent.includes('최대'), '최대 인원 안내');
-check($('#party-panel').textContent.includes('60'), '1인당 예산 60 안내');
+check($('#party-panel').textContent.includes(String(PARTY.BUDGET)), `1인당 예산 ${PARTY.BUDGET} 안내`);
 check($('#btn-fight').classList.contains('hidden'), '파티에서는 하단 배틀 버튼 숨김');
 
 ui.el.partyNick.value = '지우';
@@ -538,7 +581,7 @@ check($$('#team-switch [data-team]').length === 1, '파티에서는 진영 스�
 check($('#team-switch [data-team="green"]') !== null, '내 진영(그린) 표시');
 check($('#place-hint').textContent.includes('그린'), '배치 힌트에 내 진영');
 check(!$('#budget').classList.contains('hidden'), '파티 예산 표시');
-check($('#budget').textContent.includes('60'), '파티 예산 60 표시');
+check($('#budget').textContent.includes(String(PARTY.BUDGET)), `파티 예산 ${PARTY.BUDGET} 표시`);
 check($('#budget').textContent.includes('그린'), '예산 줄에 내 진영');
 check($('#dock-count').textContent.includes('Σ 3/200'), '파티 전체 유닛 합계');
 check($('#btn-fight').classList.contains('hidden'), '파티에서 하단 시작 버튼 숨김');

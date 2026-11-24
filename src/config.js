@@ -3,7 +3,7 @@
 // 이 파일은 THREE/DOM 에 의존하지 않는다. tests/smoke.mjs 가 그대로 불러 검증한다.
 
 export const TUNING = {
-  ARENA_RADIUS: 49.5,        // 전장 반경 (기존 16.5의 3배 — 거대한 3× 전장)
+  ARENA_RADIUS: 198,         // 전장 반경 (기존 49.5의 4배 — 거대한 12× 전장)
   DIVIDER: 0,                // 진영 구분선 (x = 0)
   MAX_UNITS_PER_TEAM: 100,   // 한 팀 최대 배치 수 (팀당 100마리 — 블루 100 vs 레드 100 가능)
   MAX_UNITS: 200,            // 전장 전체 최대 배치 수 (두 팀 × 100)
@@ -21,12 +21,12 @@ export const TUNING = {
    파티를 열면 2~4명이 함께 싸운다. 인원수에 따라 진영(팀)도 2~4개로 나뉜다.
    2명 → 블루/레드 (서/동 반원) · 3명 → 블루/레드/그린 (120° 3분할)
    4명 → 블루/레드/그린/골드 (90° 4분할)
-   각자 1인당 예산 60 안에서 자기 진영에만 유닛을 놓는다.                */
+   각자 1인당 예산 200 안에서 자기 진영에만 유닛을 놓는다.                */
 
 export const PARTY = {
   MAX_PLAYERS: 4,
   MIN_PLAYERS: 2,
-  BUDGET: 60,          // 1인당 배치 예산
+  BUDGET: 200,         // 1인당 배치 예산
   MAX_UNITS_PER_PLAYER: 40,
 };
 
@@ -118,10 +118,14 @@ export function sectorCenterDir(teams, team) {
   return { x: Math.sin(b.center), z: Math.cos(b.center) };
 }
 
-// 전장·배치 좌표를 몇 배로 늘릴지 (데이터는 기존 좌표로 쓰고 내보낼 때 확대한다)
-export const WORLD_SCALE = 3;
+// 전장 지형(바닥·안개·장애물)을 몇 배로 늘릴지 — 아레나 반경 198 에 맞춰 12배
+export const WORLD_SCALE = 12;
+// 프리셋·기본 배치 좌표에 곱하는 배율 — 전장은 4배가 되었지만 유닛이 점처럼 작아지지 않게
+// 배치 간격은 8배(기존의 약 2.7배)로 넓힌다. 남는 공간은 기동용으로 남긴다.
+export const PLACE_SCALE = 8;
 const S = (v) => v * WORLD_SCALE;
-const scaleList = (list) => list.map((p) => ({ ...p, x: S(p.x), z: S(p.z) }));
+const PS = (v) => v * PLACE_SCALE;
+const scaleList = (list) => list.map((p) => ({ ...p, x: PS(p.x), z: PS(p.z) }));
 
 export const CATEGORIES = [
   { id: 'all', name: '전체', emoji: '🎯' },
@@ -471,6 +475,69 @@ const MONSTER_LIST = [
     passive: '단단한 바위 몸 · 넉백 저항',
     armor: 0.26, kbResist: 0.85,
   },
+  /* ── 원소 골렘 5종 (코스트 5) ──
+     카드 하나("원소 골렘")를 고르면 불·물·풀·전기·얼음 다섯 원소 버튼이 열린다.
+     모두 같은 바위 몸체에 원소 코어·장식만 바뀌고, 스킬은 원소마다 다르다. */
+  {
+    id: 'golem_fire', name: '불 골렘', short: '불골렘', emoji: '🔥', cat: 'monster', tier: 3, cost: 5, role: '화염 수호자',
+    hp: 420, atk: 34, spd: 2.1, range: 3.2, atkInterval: 1.5,
+    colors: { main: 0x54302a, dark: 0x2a1512, accent: 0xff7a2a, belly: 0x7a4334 },
+    scale: 1.22, size: 1.42, variantOf: 'golem_elemental', element: 'fire',
+    desc: '붉은 용암 바위로 빚은 원소 골렘. 가슴의 용암 코어가 타오르고, 어깨에서 불꽃 뿔이 솟는다.',
+    skill: { kind: 'fireNova', name: '화염 폭발', icon: '🔥', cd: 7.4, range: 5.2, radius: 6.8, power: 1.85,
+      burn: 4.5, burnTime: 4, knock: 11,
+      desc: '주먹을 내리쳐 광역 화염 폭발 + 넉백 + 4초 지속 화상' },
+    passive: '바위 몸 · 넉백 저항 75% · 화염 코어',
+    armor: 0.24, kbResist: 0.75,
+  },
+  {
+    id: 'golem_water', name: '물 골렘', short: '물골렘', emoji: '💧', cat: 'monster', tier: 3, cost: 5, role: '해일 수호자',
+    hp: 420, atk: 34, spd: 2.2, range: 3.2, atkInterval: 1.5,
+    colors: { main: 0x2d4d6e, dark: 0x14283c, accent: 0x4fd3ff, belly: 0x46708f },
+    scale: 1.22, size: 1.42, variantOf: 'golem_elemental', element: 'water',
+    desc: '깊은 바다빛 산호 바위로 된 원소 골렘. 맑은 물빛 코어가 출렁이고 어깨에 물결 크리스탈이 돋는다.',
+    skill: { kind: 'tidalCrush', name: '해일 강타', icon: '🌊', cd: 7.8, range: 5.4, radius: 7.2, power: 1.7,
+      knock: 24, slow: 0.5, slowTime: 3.6,
+      desc: '거대한 물결 충격파로 광역 피해 + 강한 밀치기 + 3.6초 둔화' },
+    passive: '바위 몸 · 넉백 저항 75% · 물빛 코어',
+    armor: 0.22, kbResist: 0.75,
+  },
+  {
+    id: 'golem_grass', name: '풀 골렘', short: '풀골렘', emoji: '🌿', cat: 'monster', tier: 3, cost: 5, role: '숲 수호자',
+    hp: 430, atk: 32, spd: 2.0, range: 3.2, atkInterval: 1.5,
+    colors: { main: 0x415a37, dark: 0x1f2f1a, accent: 0x8dff7a, belly: 0x5f7f4a },
+    scale: 1.22, size: 1.42, variantOf: 'golem_elemental', element: 'grass',
+    desc: '이끼와 나무뿌리가 감긴 숲 바위 골렘. 연두빛 생명의 코어가 박동하고 등에 잎이 무성하다.',
+    skill: { kind: 'vineGrasp', name: '덩굴 속박', icon: '🌿', cd: 8.2, range: 5.2, radius: 6.6, power: 1.3,
+      stun: 1.3, slow: 0.45, slowTime: 3, heal: 70, healRadius: 7.5,
+      desc: '덩굴로 적을 속박해 광역 피해 + 기절·둔화, 자기와 주변 아군 HP 회복' },
+    passive: '바위 몸 · 넉백 저항 75% · 자연 재생',
+    armor: 0.26, kbResist: 0.75,
+  },
+  {
+    id: 'golem_electric', name: '전기 골렘', short: '전기골렘', emoji: '⚡', cat: 'monster', tier: 3, cost: 5, role: '번개 수호자',
+    hp: 410, atk: 36, spd: 2.2, range: 3.2, atkInterval: 1.45,
+    colors: { main: 0x2f2f38, dark: 0x14141a, accent: 0xffe14a, belly: 0x4d4d5a },
+    scale: 1.22, size: 1.42, variantOf: 'golem_elemental', element: 'electric',
+    desc: '검은 현무암 몸체에 노란 전기가 지글거리는 원소 골렘. 어깨의 코일이 번쩍인다.',
+    skill: { kind: 'chainStorm', name: '연쇄 감전', icon: '⚡', cd: 7.0, range: 11.5, radius: 7, power: 1.65,
+      chain: 4, stun: 0.9,
+      desc: '최대 4명의 적에게 연쇄 번개 피해 + 짧은 기절' },
+    passive: '바위 몸 · 넉백 저항 75% · 전격 코어',
+    armor: 0.2, kbResist: 0.75,
+  },
+  {
+    id: 'golem_ice', name: '얼음 골렘', short: '얼음골렘', emoji: '❄️', cat: 'monster', tier: 3, cost: 5, role: '서리 수호자',
+    hp: 440, atk: 33, spd: 1.95, range: 3.2, atkInterval: 1.55,
+    colors: { main: 0x5f8098, dark: 0x2a3f4f, accent: 0xbdf2ff, belly: 0x93bacd },
+    scale: 1.22, size: 1.42, variantOf: 'golem_elemental', element: 'ice',
+    desc: '서리 낀 빙하 바위로 된 원소 골렘. 머리에 얼음 결정 뿔이 자라고 하늘색 코어가 차갑게 빛난다.',
+    skill: { kind: 'frostStorm', name: '서리 폭풍', icon: '❄️', cd: 8.0, range: 5.4, radius: 7.0, power: 1.5,
+      stun: 1.4, slow: 0.6, slowTime: 4,
+      desc: '광역 빙결 피해 + 강한 둔화 + 1.4초 빙결(기절)' },
+    passive: '바위 몸 · 넉백 저항 75% · 냉기 코어',
+    armor: 0.25, kbResist: 0.75,
+  },
   {
     id: 'dragon', name: '드래곤', emoji: '🐲', cat: 'monster', tier: 4, cost: 10, role: '하늘의 군주',
     hp: 400, atk: 40, spd: 4.0, range: 4.6, atkInterval: 1.2, airborne: true,
@@ -588,20 +655,20 @@ const MONSTER_LIST = [
   },
   {
     id: 'sans_p3', name: '샌즈 3페이즈', short: '샌즈 P3', emoji: '💀', cat: 'monster', tier: 4, cost: 50, role: '최종 보스',
-    hp: 2100, atk: 115, spd: 5.4, range: 7.0, atkInterval: 0.86, ranged: true,
+    hp: 2100, atk: 95, spd: 5.4, range: 7.0, atkInterval: 0.86, ranged: true,
     colors: { main: 0x3b6fd4, dark: 0x1b2a4a, accent: 0xffffff, belly: 0xf2f4fa },
     scale: 1.12, size: 1.04,
     variantOf: 'sans', phase: 3, blink: true,
     desc: '두개골이 깨지고 눈이 새까맣게 변 샌즈. 등 뒤로 가스터의 그림자가 드리우고, 가스터손 펀치와 불미스러운 공격까지 퍼붓는다.',
     skill: {
-      kind: 'gasterBlast', name: '가스터 블래스터', icon: '💀', cd: 3.4, range: 16, radius: 6.2, power: 2.3,
+      kind: 'gasterBlast', name: '가스터 블래스터', icon: '💀', cd: 3.4, range: 16, radius: 6.2, power: 1.95,
       desc: '가스터 블래스터·뼈 발사·뼈 가시에 가스터손 펀치·불미스러운 공격까지 다섯 기술을 돌려 쓴다',
       kit: [
-        { id: 'gasterBlast', name: '가스터 블래스터', icon: '💀', radius: 2.0, range: 16, power: 2.3 },
-        { id: 'boneBarrage', name: '뼈 발사', icon: '🦴', radius: 1.0, range: 16, power: 0.5, count: 12 },
-        { id: 'boneSpikes', name: '뼈 가시', icon: '⛏️', radius: 7.0, range: 8.4, power: 1.7, stun: 0.8, slow: 0.5, slowTime: 2.4 },
-        { id: 'gasterHandPunch', name: '가스터손 펀치', icon: '🖐️', radius: 4.4, range: 12, power: 1.85, stun: 1.5, knock: 24 },
-        { id: 'rudeAttack', name: '불미스러운 공격', icon: '🖕', radius: 3.0, range: 16, power: 1.15, count: 5, slow: 0.5, slowTime: 2.4 },
+        { id: 'gasterBlast', name: '가스터 블래스터', icon: '💀', radius: 2.0, range: 16, power: 1.95 },
+        { id: 'boneBarrage', name: '뼈 발사', icon: '🦴', radius: 1.0, range: 16, power: 0.42, count: 12 },
+        { id: 'boneSpikes', name: '뼈 가시', icon: '⛏️', radius: 7.0, range: 8.4, power: 1.45, stun: 0.8, slow: 0.5, slowTime: 2.4 },
+        { id: 'gasterHandPunch', name: '가스터손 펀치', icon: '🖐️', radius: 4.4, range: 12, power: 1.57, stun: 1.5, knock: 24 },
+        { id: 'rudeAttack', name: '불미스러운 공격', icon: '🖕', radius: 3.0, range: 16, power: 0.98, count: 5, slow: 0.5, slowTime: 2.4 },
       ],
     },
     passive: '체력 2100 (강하닭과 동급) · 회피 30% · 순간이동 · 5가지 기술',
@@ -617,16 +684,57 @@ export const SANS_PHASES = [
 ];
 export const SANS_PHASE_IDS = SANS_PHASES.map((p) => p.id);
 
-// 유닛 카드에 하나로 묶어 보여줄 변종 (샌즈 1·2·3페이즈)
+/* ── 원소 골렘 선택 (유닛 카드 하나 → 불·물·풀·전기·얼음 버튼) ──
+   카드(id: golem_elemental)는 선택용 껍데기이고, 실제 배치되는 유닛은 5원소 골렘이다. */
+export const ELEMENT_GOLEMS = [
+  { id: 'golem_fire', element: 'fire', label: '불', emoji: '🔥', cost: 5, note: '화염 폭발', color: '#ff7a2a' },
+  { id: 'golem_water', element: 'water', label: '물', emoji: '💧', cost: 5, note: '해일 강타', color: '#4fd3ff' },
+  { id: 'golem_grass', element: 'grass', label: '풀', emoji: '🌿', cost: 5, note: '덩굴 속박', color: '#8dff7a' },
+  { id: 'golem_electric', element: 'electric', label: '전기', emoji: '⚡', cost: 5, note: '연쇄 감전', color: '#ffe14a' },
+  { id: 'golem_ice', element: 'ice', label: '얼음', emoji: '❄️', cost: 5, note: '서리 폭풍', color: '#bdf2ff' },
+];
+export const ELEMENT_GOLEM_IDS = ELEMENT_GOLEMS.map((g) => g.id);
+
+// 원소 골렘 카드 (스스로는 배치되지 않고, 5원소 중 하나를 골라 배치한다)
+export const GOLEM_CARD = {
+  id: 'golem_elemental', name: '원소 골렘', short: '원소골렘', emoji: '🪨', cat: 'monster', tier: 3, cost: 5,
+  role: '5원소 수호자', cardOnly: true, variants: ELEMENT_GOLEM_IDS, badge: '5원소',
+  hp: 420, atk: 34, spd: 2.1, range: 3.2, atkInterval: 1.5, armor: 0.24, kbResist: 0.75,
+  colors: { main: 0x6f6a5e, dark: 0x33302a, accent: 0xbfe8ff, belly: 0x8d887a },
+  scale: 1.22, size: 1.42,
+  desc: '바위 몸에 원소 코어를 품은 골렘. 아래에서 불·물·풀·전기·얼음 중 하나를 골라 배치한다.',
+  skill: { kind: 'fireNova', name: '원소 선택', icon: '🎨', cd: 7.5, range: 5.2, radius: 6.8, power: 1.7,
+    desc: '원소를 고르면 그 원소의 골렘으로 배치됩니다' },
+  passive: '바위 몸 · 넉백 저항 75%',
+};
+export const VARIANT_CARDS = [GOLEM_CARD];
+
+// 유닛 카드에 하나로 묶어 보여줄 변종 (샌즈 1·2·3페이즈 · 원소 골렘 5원소)
 export function isVariant(def) {
   return !!(def && def.variantOf);
 }
 
-export function phaseIdsOf(def) {
+// 변종 카드(스스로 배치되지 않는 껍데기)
+export function isVariantCard(def) {
+  return !!(def && def.cardOnly);
+}
+
+// 카드 → 선택 가능한 변종 목록
+export function variantOptionsOf(def) {
   if (!def) return null;
   const root = def.variantOf || def.id;
-  if (root !== 'sans') return null;
-  return SANS_PHASE_IDS;
+  if (root === 'sans') return SANS_PHASES;
+  if (root === 'golem_elemental') return ELEMENT_GOLEMS;
+  return null;
+}
+
+export function variantIdsOf(def) {
+  const opts = variantOptionsOf(def);
+  return opts ? opts.map((o) => o.id) : null;
+}
+
+export function phaseIdsOf(def) {
+  return variantIdsOf(def);
 }
 
 /* ──────────────────────── 전장 아이템 · 장치 (5종) ────────────────────────
@@ -714,8 +822,8 @@ export const CREATURES = [...ANIMAL_LIST, ...DINO_LIST, ...MONSTER_LIST];
 export const ITEMS = ITEM_LIST;
 export const ITEM_BY_ID = Object.fromEntries(ITEM_LIST.map((a) => [a.id, a]));
 export const ITEM_IDS = ITEM_LIST.map((a) => a.id);
-// 배치 가능한 전체 목록 (동물·공룡·괴수 + 전장 아이템)
-export const PLACEABLES = [...CREATURES, ...ITEM_LIST];
+// 배치 가능한 전체 목록 (동물·공룡·괴수 + 전장 아이템 + 변종 카드)
+export const PLACEABLES = [...CREATURES, ...ITEM_LIST, ...VARIANT_CARDS];
 export const CREATURE_BY_ID = Object.fromEntries(PLACEABLES.map((a) => [a.id, a]));
 export const CREATURE_IDS = CREATURES.map((a) => a.id);
 export const ANIMAL_BY_ID = Object.fromEntries(ANIMAL_LIST.map((a) => [a.id, a]));
@@ -976,6 +1084,16 @@ const PRESET_DATA = [
     blue: lineup('blue', ['mammoth', 'hydra', 'king_kong', 'hero'], { x0: 5.6, dz: 3.4 }),
     red: lineup('red', ['trex', 'triceratops', 'lion', 'bear'], { x0: 5.6, dz: 3.4 }),
     arena: 'savanna',
+  },
+  {
+    id: 'elemental-golems', name: '원소 골렘 5종', emoji: '🪨',
+    desc: '불·물·풀·전기·얼음 골렘 5마리 vs 스톤골렘·드래곤·히드라',
+    blue: [
+      P('golem_fire', -6.2, 0), P('golem_water', -7.0, 2.8), P('golem_grass', -7.0, -2.8),
+      P('golem_electric', -8.6, 1.4), P('golem_ice', -8.6, -1.4),
+    ],
+    red: [P('stone_golem', 6.4, 0), P('dragon', 8.0, 2.6), P('hydra', 8.0, -2.6)],
+    arena: 'tundra',
   },
   {
     id: 'battle-items', name: '전장 아이템 쇼케이스', emoji: '💣🗼⚡',

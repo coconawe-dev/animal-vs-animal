@@ -7,7 +7,8 @@ import {
   ARENAS, ARENA_BY_ID, PRESETS, CHALLENGES, WEAPONS, WEAPON_BY_ID, TUNING,
   DEFAULT_PLACEMENTS, CATEGORIES, powerOf, placementCost, creaturesOf, SANS_PHASES,
   PARTY, TEAM_ORDER, TEAM_DEFS, teamDef, partyTeams, sectorBounds, clampToSector,
-  ITEMS, ITEM_IDS, ITEM_BY_ID, PLACEABLES,
+  ITEMS, ITEM_IDS, ITEM_BY_ID, PLACEABLES, ELEMENT_GOLEMS, ELEMENT_GOLEM_IDS, GOLEM_CARD,
+  VARIANT_CARDS, variantOptionsOf, variantIdsOf, isVariant, isVariantCard,
 } from '../src/config.js';
 import {
   createBattle, step, simulate, battleSummary, mvpOf, applyDamage, aliveCount,
@@ -35,14 +36,14 @@ const P = (id, x, z, weapon = 'none') => ({ id, x, z, weapon });
 /* ─────────────── 1. 데이터 ─────────────── */
 check(ANIMALS.length === 17, `동물 17종 (현재 ${ANIMALS.length})`);
 check(DINOS.length === 9, `공룡·거대종 9종 (현재 ${DINOS.length})`);
-check(MONSTERS.length === 12, `괴수·언데드 12종 (현재 ${MONSTERS.length})`);
-check(CREATURES.length === 38, `전체 38종 (현재 ${CREATURES.length})`);
+check(MONSTERS.length === 17, `괴수·언데드 17종 (현재 ${MONSTERS.length})`);
+check(CREATURES.length === 43, `전체 43종 (현재 ${CREATURES.length})`);
 check(new Set(CREATURE_IDS).size === CREATURES.length, '유닛 id 중복 없음');
 check(CATEGORIES.length === 5, '카테고리 5개 (아이템 탭 추가)');
 check(CATEGORIES.some((c) => c.id === 'item' && c.emoji === '💣' && c.name === '아이템'), '💣 아이템 카테고리 탭');
-check(creaturesOf('animal').length === 17 && creaturesOf('dino').length === 8 && creaturesOf('monster').length === 13, '카테고리별 분류 (17/8/13)');
+check(creaturesOf('animal').length === 17 && creaturesOf('dino').length === 8 && creaturesOf('monster').length === 18, '카테고리별 분류 (17/8/18)');
 check(creaturesOf('item').length === 5 && creaturesOf('item').every((i) => i.isStructure), '아이템 카테고리 5종');
-check(creaturesOf('all').length === PLACEABLES.length && PLACEABLES.length === 43, '전체 카테고리 43종 (38 + 아이템 5)');
+check(creaturesOf('all').length === PLACEABLES.length && PLACEABLES.length === 49, '전체 카테고리 49종 (43 + 아이템 5 + 원소 골렘 카드 1)');
 for (const id of ['zombie', 'skeleton', 'snake', 'hyena', 'drex']) {
   check(!!CREATURE_BY_ID[id], `기존 유닛 ${id} 등록`);
 }
@@ -74,6 +75,16 @@ check(CREATURE_BY_ID.sans.cost === 15 && CREATURE_BY_ID.sans_p2.cost === 25 && C
 check(CREATURE_BY_ID.sans_p2.atk > CREATURE_BY_ID.sans.atk * 1.5 && CREATURE_BY_ID.sans_p2.hp > CREATURE_BY_ID.sans.hp, '2페이즈 — 같은 기술, 훨씬 강한 공격력');
 check(CREATURE_BY_ID.sans_p2.skill.kit.map((k) => k.id).join(',') === 'gasterBlast,boneBarrage,boneSpikes', '2페이즈 — 1페이즈와 같은 기술 구성');
 check(CREATURE_BY_ID.sans_p3.hp === CREATURE_BY_ID.strong_chicken.hp, '3페이즈 — 체력이 강하닭과 동급 (2100)');
+// 3페이즈 대미지 소폭 하향 (atk 115 → 95, 스킬 배율 약 15%↓) — 체력·방어·회피·코스트는 그대로
+check(CREATURE_BY_ID.sans_p3.atk >= 92 && CREATURE_BY_ID.sans_p3.atk <= 95, `3페이즈 — 공격력만 소폭 하향 (${CREATURE_BY_ID.sans_p3.atk})`);
+check(CREATURE_BY_ID.sans_p3.atk > CREATURE_BY_ID.sans_p2.atk * 1.1, '3페이즈 — 2페이즈보다는 여전히 강한 공격력');
+check(CREATURE_BY_ID.sans_p3.skill.power <= 2.0
+  && CREATURE_BY_ID.sans_p3.skill.kit.find((k) => k.id === 'gasterBlast').power <= 2.0
+  && CREATURE_BY_ID.sans_p3.skill.kit.find((k) => k.id === 'gasterHandPunch').power <= 1.6,
+  '3페이즈 — 강화 스킬 대미지 배율 소폭 하향');
+check(CREATURE_BY_ID.sans_p3.cost === 50 && CREATURE_BY_ID.sans_p3.hp === 2100
+  && CREATURE_BY_ID.sans_p3.evasion === 0.3 && CREATURE_BY_ID.sans_p3.armor === 0.12,
+  '3페이즈 — 코스트·체력·방어·회피는 그대로');
 check(CREATURE_BY_ID.sans_p3.skill.kit.length === 5
   && CREATURE_BY_ID.sans_p3.skill.kit.map((k) => k.id).join(',') === 'gasterBlast,boneBarrage,boneSpikes,gasterHandPunch,rudeAttack',
   '3페이즈 — 2페이즈 기술 + 가스터손 펀치 + 불미스러운 공격');
@@ -91,7 +102,40 @@ check(CREATURE_BY_ID.hero.cost >= 12 && CREATURE_BY_ID.hero.cost <= 14, '영웅 
 check(CREATURE_BY_ID.hero.skill.kit.map((k) => k.name).join(',') === '강력펀치,연속펀치,어퍼컷', '영웅 — 강력펀치·연속펀치·어퍼컷 3스킬');
 check(CREATURE_BY_ID.mammoth.skill.kind === 'tuskQuake' && CREATURE_BY_ID.hydra.skill.kind === 'tripleVenom'
   && CREATURE_BY_ID.king_kong.skill.kind === 'kongQuake' && CREATURE_BY_ID.hero.skill.kind === 'heroPunch', '신규 4종 스킬 종류');
-check(['mammoth', 'hydra', 'king_kong', 'hero'].every((id) => CREATURE_BY_ID[id].cost <= PARTY.BUDGET), '신규 4종 모두 파티 예산 60 이내');
+
+/* ── 원소 골렘 5종 — 카드 1장 + 5원소 선택 (모두 코스트 5) ── */
+{
+  check(ELEMENT_GOLEMS.length === 5 && ELEMENT_GOLEM_IDS.join(',') === 'golem_fire,golem_water,golem_grass,golem_electric,golem_ice',
+    '원소 골렘 — 불·물·풀·전기·얼음 5원소 순서');
+  check(ELEMENT_GOLEMS.every((g) => CREATURE_BY_ID[g.id] && CREATURE_BY_ID[g.id].element === g.element), '원소 골렘 — 원소 표시');
+  check(ELEMENT_GOLEM_IDS.every((id) => CREATURE_BY_ID[id].cost === 5), '원소 골렘 — 모두 코스트 5');
+  check(ELEMENT_GOLEM_IDS.every((id) => CREATURE_BY_ID[id].variantOf === 'golem_elemental'), '원소 골렘 — 카드 하나로 묶임');
+  check(VARIANT_CARDS.length === 1 && VARIANT_CARDS[0].id === 'golem_elemental' && GOLEM_CARD.badge === '5원소', '원소 골렘 카드 배지 5원소');
+  check(GOLEM_CARD.cardOnly === true && isVariantCard(GOLEM_CARD), '원소 골렘 카드는 선택용 껍데기');
+  check(!CREATURES.some((c) => c.id === 'golem_elemental'), '카드는 유닛 목록에 없다');
+  check(isVariant(CREATURE_BY_ID.golem_fire) && !isVariant(CREATURE_BY_ID.golem_elemental), '변종 표시');
+  check(variantOptionsOf(CREATURE_BY_ID.golem_elemental).length === 5
+    && variantIdsOf(CREATURE_BY_ID.golem_elemental)[4] === 'golem_ice', '카드 → 5원소 선택지');
+  check(ELEMENT_GOLEM_IDS.every((id) => CREATURE_BY_ID[id].cat === 'monster' && CREATURE_BY_ID[id].tier === 3), '원소 골렘 — 괴수 / 티어 3');
+  check(ELEMENT_GOLEM_IDS.every((id) => CREATURE_BY_ID[id].hp >= 400 && CREATURE_BY_ID[id].atk >= 30
+    && CREATURE_BY_ID[id].kbResist >= 0.7 && CREATURE_BY_ID[id].armor > 0), '원소 골렘 — 정예 바위 체급');
+  check(CREATURE_BY_ID.golem_fire.skill.kind === 'fireNova' && CREATURE_BY_ID.golem_fire.skill.burn > 0, '불 골렘 — 화염 폭발/화상');
+  check(CREATURE_BY_ID.golem_water.skill.kind === 'tidalCrush' && CREATURE_BY_ID.golem_water.skill.knock >= 20
+    && CREATURE_BY_ID.golem_water.skill.slow > 0, '물 골렘 — 해일 강타/강넉백/둔화');
+  check(CREATURE_BY_ID.golem_grass.skill.kind === 'vineGrasp' && CREATURE_BY_ID.golem_grass.skill.heal > 0
+    && CREATURE_BY_ID.golem_grass.skill.stun > 0, '풀 골렘 — 덩굴 속박 + 자연 재생');
+  check(CREATURE_BY_ID.golem_electric.skill.kind === 'chainStorm' && CREATURE_BY_ID.golem_electric.skill.chain >= 3
+    && CREATURE_BY_ID.golem_electric.skill.stun > 0, '전기 골렘 — 연쇄 감전/기절');
+  check(CREATURE_BY_ID.golem_ice.skill.kind === 'frostStorm' && CREATURE_BY_ID.golem_ice.skill.stun > 0
+    && CREATURE_BY_ID.golem_ice.skill.slow >= 0.5, '얼음 골렘 — 서리 폭풍/빙결');
+  const empty = [];
+  const res = placeUnits(empty, { id: 'golem_elemental', team: 'blue', x: -10, z: 0 });
+  check(res.added.length === 0 && empty.length === 0 && res.skipped === 'card', '원소 골렘 카드는 직접 배치되지 않는다');
+  const placed = [];
+  const r5 = placeUnits(placed, { id: 'golem_ice', team: 'blue', x: -10, z: 0 });
+  check(r5.added.length === 1 && placed[0].id === 'golem_ice', '원소 골렘 선택 후 배치');
+}
+check(['mammoth', 'hydra', 'king_kong', 'hero'].every((id) => CREATURE_BY_ID[id].cost <= PARTY.BUDGET), '신규 4종 모두 파티 예산 이내');
 
 const SKILL_KINDS = new Set([
   'roar', 'pounce', 'charge', 'slam', 'pack', 'dive', 'chomp', 'gore', 'evade', 'smash', 'sprint', 'gore2',
@@ -100,6 +144,7 @@ const SKILL_KINDS = new Set([
   'bloodFrenzy', 'deepBite', 'tidalJaw', 'abyssVortex', 'rockCrush', 'dragonBreath', 'sneakStrike',
   'featherStorm', 'gasterBlast',
   'tuskQuake', 'tripleVenom', 'kongQuake', 'heroPunch',
+  'fireNova', 'tidalCrush', 'vineGrasp', 'chainStorm', 'frostStorm',
 ]);
 for (const a of CREATURES) {
   const tag = `[${a.id}]`;
@@ -116,7 +161,7 @@ for (const a of CREATURES) {
   }
   check(powerOf(a) > 0, `${tag} 전투력 계산`);
 }
-check(new Set(CREATURES.map((a) => a.skill.kind)).size === 36, '서로 다른 스킬 36가지');
+check(new Set(CREATURES.map((a) => a.skill.kind)).size === 41, '서로 다른 스킬 41가지');
 
 check(WEAPONS.length === 5, '무기 5종');
 check(WEAPON_BY_ID.none && WEAPON_BY_ID.gatling && WEAPON_BY_ID.rocket && WEAPON_BY_ID.laser && WEAPON_BY_ID.shield, '무기 id');
@@ -129,7 +174,7 @@ check(WEAPON_BY_ID.rocket.aoe > 0 && WEAPON_BY_ID.rocket.knock > 0, '로켓 광�
 check(WEAPON_BY_ID.laser.pierce === true, '레이저 관통');
 
 check(ARENAS.length === 3, '전장 3개');
-check(TUNING.ARENA_RADIUS >= 45, `전장 반경 3배 확장 (${TUNING.ARENA_RADIUS})`);
+check(TUNING.ARENA_RADIUS === 198, `전장 반경 4배 확장 (${TUNING.ARENA_RADIUS})`);
 check(TUNING.MAX_UNITS_PER_TEAM === 100 && TUNING.MAX_UNITS === 200, '팀당 100마리 · 전장 전체 200마리 한도');
 for (const ar of ARENAS) {
   check(!!ARENA_BY_ID[ar.id], `${ar.id} 전장 등록`);
@@ -153,13 +198,15 @@ for (const p of PRESETS) {
 }
 const raptorPreset = PRESETS.find((p) => p.id === 'trex-raptors');
 check(raptorPreset && raptorPreset.red.length === 12, '티라노 vs 랩터 12마리 프리셋');
-check(raptorPreset && Math.max(...raptorPreset.blue.map((q) => Math.hypot(q.x, q.z))) > 12, '3배 전장에 맞게 프리셋 좌표 확대');
+check(raptorPreset && Math.max(...raptorPreset.blue.map((q) => Math.hypot(q.x, q.z))) > 40, '넓어진 전장에 맞게 프리셋 좌표 확대');
 check(PRESETS.some((p) => p.id === 'rocket-elephants' && p.blue.every((q) => q.weapon === 'rocket')), '로켓 코끼리 프리셋');
 check(PRESETS.some((p) => p.id === 'boss-raid' && p.blue.length >= 10), '보스 레이드 프리셋');
 check(PRESETS.some((p) => p.id === 'chicken-sans' && p.blue[0].id === 'strong_chicken' && p.red[0].id === 'sans'), '강하닭 vs 샌즈 프리셋');
 check(PRESETS.some((p) => p.id === 'lastbreath-p3' && p.blue[0].id === 'sans_p3' && p.red[0].id === 'strong_chicken'), '라스트 브레스 3페이즈 vs 강하닭 프리셋');
 check(PRESETS.some((p) => p.id === 'new-units-2026'
   && ['mammoth', 'hydra', 'king_kong', 'hero'].every((id) => p.blue.some((q) => q.id === id))), '신규 4종 쇼케이스 프리셋');
+check(PRESETS.some((p) => p.id === 'elemental-golems' && p.blue.length === 5
+  && ['golem_fire', 'golem_water', 'golem_grass', 'golem_electric', 'golem_ice'].every((id) => p.blue.some((q) => q.id === id))), '원소 골렘 5종 쇼케잍 프리셋');
 const mega = PRESETS.find((p) => p.id === 'mega-swarm');
 check(!!mega && mega.blue.length === 50 && mega.red.length === 50, '100마리 대난전 프리셋 (50 vs 50)');
 
@@ -304,7 +351,7 @@ for (const blue of CREATURE_IDS) {
   }
 }
 check(pairCount === CREATURES.length * CREATURES.length, `1:1 전 조합 ${CREATURES.length ** 2}판 실행`);
-check(skillSeen.size === 36, `모든 스킬 36종 발동 (미발동: ${[...SKILL_KINDS].filter((k) => !skillSeen.has(k)).join(',')})`);
+check(skillSeen.size === 41, `모든 스킬 41종 발동 (미발동: ${[...SKILL_KINDS].filter((k) => !skillSeen.has(k)).join(',')})`);
 
 // 프리셋 × 전장
 for (const p of PRESETS) {
@@ -541,6 +588,43 @@ for (const [id, skillName, evType] of [
   check(slowed, '히드라 맹독 — 둔화/지속 피해');
 }
 
+/* ── 원소 골렘 5종 — 스킬 발동과 원소별 상태이상 ── */
+for (const [id, skillName, evType] of [
+  ['golem_fire', '화염 폭발', 'golemFire'],
+  ['golem_water', '해일 강타', 'golemWave'],
+  ['golem_grass', '덩굴 속박', 'golemVine'],
+  ['golem_electric', '연쇄 감전', 'golemBolt'],
+  ['golem_ice', '서리 폭풍', 'golemFrost'],
+]) {
+  const s = createBattle({ blue: [P(id, -6, 0)], red: [P('stone_golem', 2, 0), P('bear', 4, 2)], seed: 141 });
+  s.units.forEach((u) => { u.hp = u.maxHp = 20000; });
+  const names = new Set();
+  let fx = 0, bolts = 0, healed = false;
+  let burned = false, slowed = false, stunned = false;
+  for (let i = 0; i < 2400 && !s.over; i++) {
+    step(s, TUNING.SIM_DT);
+    for (const ev of drainEvents(s)) {
+      if (ev.type === 'skill') names.add(ev.name);
+      if (ev.type === evType) fx++;
+      if (ev.type === 'golemBolt') bolts++;
+      if (ev.type === 'heal') healed = true;
+    }
+    for (const u of s.units) {
+      if (u.team !== 'red') continue;
+      if (u.bleeding.length) burned = true;
+      if (u.slow > 0) slowed = true;
+      if (u.stun > 0) stunned = true;
+    }
+  }
+  check(names.has(skillName), `[${id}] 「${skillName}」 사용`);
+  check(fx > 0, `[${id}] [${evType}] 연출 이벤트`);
+  if (id === 'golem_fire') check(burned, '🔥 불 골렘 — 화상(지속 피해) 부여');
+  if (id === 'golem_water') check(slowed, '💧 물 골렘 — 둔화 부여');
+  if (id === 'golem_grass') check(stunned && slowed && healed, '🌿 풀 골렘 — 속박 + 둔화 + 아군 재생');
+  if (id === 'golem_electric') check(bolts >= 2 && stunned, '⚡ 전기 골렘 — 여러 적 연쇄 + 기절');
+  if (id === 'golem_ice') check(slowed && stunned, '❄️ 얼음 골렘 — 둔화 + 빙결');
+}
+
 // 래그돌: 무거운 일격에 가벼운 유닛이 공중으로
 {
   const s = createBattle({ blue: [P('trex', -3, 0)], red: [P('fox', 3, 0)], seed: 19 });
@@ -663,11 +747,19 @@ check(CREATURE_BY_ID.turret === ITEM_BY_ID.turret && CREATURE_BY_ID.landmine ===
 check(placementCost([{ id: 'turret' }, { id: 'landmine' }, { id: 'healing_totem' }]) === 14, '아이템 예산 합산');
 
 {
-  // 예산 60 안에서 아이템만으로 편성
+  // 1인당 예산(PARTY.BUDGET) 안에서 아이템만으로 편성
+  const budget = PARTY.BUDGET;
+  const turretCost = CREATURE_BY_ID.turret.cost;
+  const fit = Math.floor(budget / turretCost);
   const list = [];
-  const r = placeUnits(list, { id: 'turret', team: 'blue', x: -6, z: 0, count: 12, budget: PARTY.BUDGET, limit: 99 });
-  check(r.added.length === 10 && costOf(list) === 60, `예산 60 → 포탑 10기 (${r.added.length})`);
-  check(r.skipped === 'budget', '예산 초과분은 놓지 않는다');
+  let guard = 0;
+  while (guard++ < 6) {
+    const r = placeUnits(list, { id: 'turret', team: 'blue', x: -6 - guard * 5, z: 0, count: fit, budget, limit: 400 });
+    if (!r.added.length) break;
+  }
+  check(list.length === fit && costOf(list) === fit * turretCost, `예산 ${budget} → 포탑 ${fit}기 (${list.length})`);
+  const overB = placeUnits(list, { id: 'turret', team: 'blue', x: -8, z: 8, budget, limit: 400 });
+  check(overB.added.length === 0 && overB.skipped === 'budget', '예산 초과분은 놓지 않는다');
 
   // 기존 유닛과 같은 경로로 배치·제거
   const mixed = [];
@@ -946,6 +1038,25 @@ check(ATTACK_STYLE.drex === 'combo', '디-렉스는 물기+주먹 콤보');
 check(ATTACK_STYLE.stone_golem === 'smash' && ATTACK_STYLE.goblin === 'slash' && ATTACK_STYLE.dragon === 'swoop', '신규 유닛 공격 모션');
 check(ATTACK_STYLE.strong_chicken === 'bite' && ATTACK_STYLE.sans === 'claw', '강하닭·샌즈 공격 모션');
 
+// 원소 골렘 5종 3D 모델 — 가슴 코어가 따로 있어 박동하고, 원소별 장식이 붙는다
+for (const def of ELEMENT_GOLEMS.map((g) => CREATURE_BY_ID[g.id])) {
+  const rig = buildAnimalModel(def, 'blue');
+  check(!!rig.core && !!rig.coreMat, `[${def.id}] 원소 코어`);
+  check(rig.arms && rig.arms.length === 2, `[${def.id}] 양팔`);
+  check(rig.coreMat.emissiveIntensity > 0.3, `[${def.id}] 코어 발광`);
+  const before = rig.core.scale.x;
+  for (let i = 0; i < 90; i++) animateRig(rig, { dt: 1 / 60, moving: true, speed: 3, attack: i % 30 === 0 ? 1 : 0, skill: 0, hurt: 0, dead: false });
+  check(Math.abs(rig.core.scale.x - before) > 1e-4, `[${def.id}] 코어 박동 애니메이션`);
+  rig.group.updateMatrixWorld(true);
+  let meshes = 0;
+  const box = new THREE.Box3().setFromObject(rig.group);
+  rig.group.traverse((o) => { if (o.isMesh) meshes++; });
+  check(meshes >= 25, `[${def.id}] 원소 장식 포함 메시 25개 이상 (${meshes})`);
+  check(box.min.y > -0.3 && box.min.y < 0.3, `[${def.id}] 지면에 놓임 (${box.min.y.toFixed(2)})`);
+  check(box.max.y - box.min.y > 2.0 && box.max.y - box.min.y < 4.2, `[${def.id}] 골렘 높이 적정 (${(box.max.y - box.min.y).toFixed(2)})`);
+  check([rig.group.position.x, rig.group.position.y, rig.group.position.z].every(Number.isFinite), `[${def.id}] NaN 없음`);
+}
+
 // 무기 발사는 근접 공격 모션을 쓰지 않는다
 triggerShoot(buildAnimalModel(CREATURE_BY_ID.lion, 'blue', { weapon: 'gatling' }));
 check(true, '발사 모션 호출');
@@ -1045,10 +1156,10 @@ check(blueRig.ring.material.color.getHex() !== redRig.ring.material.color.getHex
   check(ms < 9000, `프리셋 40판 빠름 (${ms}ms)`);
 }
 
-/* ─────────────── 6. 파티 멀티 (2~4팀 · 예산 60 · 4인 루프백) ─────────────── */
+/* ─────────────── 6. 파티 멀티 (2~4팀 · 예산 200 · 4인 루프백) ─────────────── */
 
 // 진영 데이터
-check(PARTY.MAX_PLAYERS === 4 && PARTY.BUDGET === 60, '파티 최대 4명 · 1인당 예산 60');
+check(PARTY.MAX_PLAYERS === 4 && PARTY.BUDGET === 200, '파티 최대 4명 · 1인당 예산 200');
 check(TEAM_ORDER.length === 4, '진영 4종');
 for (const t of TEAM_ORDER) {
   const d = TEAM_DEFS[t];
@@ -1111,26 +1222,31 @@ for (const n of [2, 3, 4]) {
   check(list.every((q) => Math.hypot(q.x, q.z) <= TUNING.ARENA_RADIUS), '4팀 배치가 경기장 안');
 }
 
-// 예산 60
+// 1인당 예산 (PARTY.BUDGET = 200)
 {
+  const budget = PARTY.BUDGET;
+  const lionCost = CREATURE_BY_ID.lion.cost;
+  const fit = Math.floor(budget / lionCost);
   const list = [];
-  const r = placeUnits(list, { id: 'lion', team: 'blue', x: -10, z: 0, count: 20, budget: PARTY.BUDGET, limit: 99 });
-  // 사자 코스트 4 → 60 안에서 15마리
-  check(r.added.length === 15, `예산 60 → 사자 15마리 (${r.added.length})`);
-  check(costOf(list) === 60, `사용 예산 60 (${costOf(list)})`);
-  check(r.skipped === 'budget', '예산 초과분은 놓지 않고 알림');
-  check(affordableCount(list, 'lion', PARTY.BUDGET) === 0, '예산을 다 써서 사자 불가');
-  check(affordableCount(list, 'fox', PARTY.BUDGET) === 0, '남은 0 으로 여우도 불가');
-  const over = placeUnits(list, { id: 'titan', team: 'blue', x: -10, z: 5, budget: PARTY.BUDGET });
+  let guard = 0;
+  while (guard++ < 12) {
+    const res = placeUnits(list, { id: 'lion', team: 'blue', x: -10 - (guard % 6) * 6, z: -20 + Math.floor(guard / 6) * 6, count: 20, budget, limit: 400 });
+    if (!res.added.length) break;
+  }
+  check(list.length === fit && costOf(list) === fit * lionCost, `예산 ${budget} → 사자 ${fit}마리 (${list.length})`);
+  check(costOf(list) <= budget, `사용 예산 ${costOf(list)} ≤ ${budget}`);
+  check(affordableCount(list, 'lion', budget) === 0, '예산을 다 써서 사자 불가');
+  check(affordableCount(list, 'fox', budget) === 0, '남은 0 으로 여우도 불가');
+  const over = placeUnits(list, { id: 'titan', team: 'blue', x: -10, z: 5, budget });
   check(over.added.length === 0 && over.skipped === 'budget', '예산 밖 타이탄 거부');
-  check(costOf(list) <= PARTY.BUDGET, '예산 초과 없음');
 
   const half = [];
-  placeUnits(half, { id: 'lion', team: 'blue', x: -10, z: 0, count: 14, budget: PARTY.BUDGET, limit: 99 });
-  check(costOf(half) === 56, `사자 14마리 = 56 (${costOf(half)})`);
-  check(affordableCount(half, 'lion', PARTY.BUDGET) === 1, '남은 4 로 사자 1마리');
-  check(affordableCount(half, 'fox', PARTY.BUDGET) === 2, '남은 4 로 여우 2마리');
-  check(affordableCount(half, 'strong_chicken', PARTY.BUDGET) === 0, '강하닭(20)은 남은 4 로 불가');
+  placeUnits(half, { id: 'lion', team: 'blue', x: -10, z: 0, count: 20, budget, limit: 400 });
+  const left = budget - costOf(half);
+  check(costOf(half) === 20 * lionCost, `사자 20마리 = ${20 * lionCost} (${costOf(half)})`);
+  check(affordableCount(half, 'lion', budget) === Math.floor(left / lionCost), `남은 ${left} 로 사자 ${Math.floor(left / lionCost)}마리`);
+  check(affordableCount(half, 'fox', budget) === Math.floor(left / CREATURE_BY_ID.fox.cost), '남은 예산으로 여우 계산');
+  check(affordableCount(half, 'strong_chicken', budget) === Math.floor(left / CREATURE_BY_ID.strong_chicken.cost), '남은 예산으로 강하닭 계산');
 }
 
 // 3팀 · 4팀 전투
@@ -1288,7 +1404,7 @@ for (const n of [3, 4]) {
   check(g2.net.active && g3.net.active && g4.net.active, '가득 참 거절이 다른 참가자 연결을 끊지 않는다');
   check(g5.net.role === null, '거절당한 참가자는 연결 정리');
 
-  // 예산 60 — 모두 자기 진영에만 놓는다
+  // 예산 200 — 모두 자기 진영에만 놓는다
   const pool = ['lion', 'tiger', 'bear', 'wolf', 'eagle', 'boar'];
   S.forEach((s, i) => {
     const list = [];
@@ -1299,7 +1415,7 @@ for (const n of [3, 4]) {
   for (const s of S) {
     check(s.playerCount === 4, '모두 4명을 본다');
     check(s.order.every((pid) => s.players.get(pid).placements.length > 0), '모두 배치를 공유');
-    check(costOf(s.me.placements) <= PARTY.BUDGET, `[${s.myTeam}] 예산 60 이내 (${costOf(s.me.placements)})`);
+    check(costOf(s.me.placements) <= PARTY.BUDGET, `[${s.myTeam}] 예산 ${PARTY.BUDGET} 이내 (${costOf(s.me.placements)})`);
   }
   const hostCounts = host.order.map((pid) => host.players.get(pid).placements.length);
   const guestCounts = g4.order.map((pid) => g4.players.get(pid).placements.length);

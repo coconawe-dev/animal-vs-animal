@@ -916,6 +916,10 @@ function tryCastSkill(state, u, target, d, opts = {}) {
       if (d > s.range + 0.7 || !target) return false;
       break;
     }
+    case 'fireNova':
+    case 'tidalCrush':
+    case 'vineGrasp':
+    case 'frostStorm':
     case 'abyssVortex':
     case 'rockCrush': {
       const r = s.radius || u.range;
@@ -928,6 +932,7 @@ function tryCastSkill(state, u, target, d, opts = {}) {
       if (d > s.range || d < 2.2) return false;
       break;
     }
+    case 'chainStorm':
     case 'pack':
     case 'chomp':
     case 'dive':
@@ -1228,6 +1233,84 @@ function tryCastSkill(state, u, target, d, opts = {}) {
       areaBurst(state, u, u.x, u.z, s.radius, u.atk * s.power, s.stun, s.knock);
       emit(state, { type: 'rockCrush', uid: u.uid, x: u.x, z: u.z, r: s.radius });
       emit(state, { type: 'quake', x: u.x, z: u.z, r: s.radius, big: true });
+      break;
+    }
+    /* ── 원소 골렘 5종 ── */
+    case 'fireNova': {
+      // 🔥 불 골렘 — 주먹을 내려찍어 광역 화염 폭발 + 지속 화상
+      areaBurst(state, u, u.x, u.z, s.radius, u.atk * s.power, 0, s.knock);
+      for (const e of state.units) {
+        if (!e.dead && e.team !== u.team && dist2(u.x, u.z, e.x, e.z) <= s.radius + 0.5) {
+          addBleed(state, e, u, s.burn || 4, s.burnTime || 4);
+        }
+      }
+      emit(state, { type: 'golemFire', uid: u.uid, x: u.x, z: u.z, r: s.radius });
+      emit(state, { type: 'quake', x: u.x, z: u.z, r: s.radius });
+      break;
+    }
+    case 'tidalCrush': {
+      // 💧 물 골렘 — 거대한 물결 충격파 + 강한 넉백 + 둔화
+      areaBurst(state, u, u.x, u.z, s.radius, u.atk * s.power, 0, s.knock);
+      for (const e of state.units) {
+        if (!e.dead && e.team !== u.team && dist2(u.x, u.z, e.x, e.z) <= s.radius + 0.6) {
+          slowUnit(state, e, s.slow || 0.5, s.slowTime || 3.5);
+        }
+      }
+      emit(state, { type: 'golemWave', uid: u.uid, x: u.x, z: u.z, r: s.radius });
+      break;
+    }
+    case 'vineGrasp': {
+      // 🌿 풀 골렘 — 덩굴 속박(기절·둔화) + 자기와 주변 아군 재생
+      emit(state, { type: 'golemVine', uid: u.uid, x: u.x, z: u.z, r: s.radius });
+      areaBurst(state, u, u.x, u.z, s.radius, u.atk * s.power, s.stun, 3);
+      for (const e of state.units) {
+        if (!e.dead && e.team !== u.team && dist2(u.x, u.z, e.x, e.z) <= s.radius + 0.6) {
+          slowUnit(state, e, s.slow || 0.45, s.slowTime || 3);
+        }
+      }
+      const hr = s.healRadius || s.radius;
+      let healed = 0;
+      for (const a of state.units) {
+        if (a.dead || a.team !== u.team) continue;
+        if (a !== u && dist2(u.x, u.z, a.x, a.z) > hr) continue;
+        const amt = Math.round((s.heal || 0) * (a === u ? 1 : 0.75));
+        if (amt <= 0 || a.hp >= a.maxHp) continue;
+        a.hp = Math.min(a.maxHp, a.hp + amt);
+        healed += amt;
+        emit(state, { type: 'heal', uid: a.uid, x: a.x, z: a.z, amount: amt });
+      }
+      if (healed > 0) emit(state, { type: 'healPulse', uid: u.uid, x: u.x, z: u.z, r: hr });
+      break;
+    }
+    case 'chainStorm': {
+      // ⚡ 전기 골렘 — 가까운 적부터 최대 chain 명까지 연쇄 번개 + 짧은 기절
+      const maxN = Math.max(1, s.chain || 4);
+      const hitList = state.units
+        .map((e) => ({ e, dd: dist2(u.x, u.z, e.x, e.z) }))
+        .filter((o) => !o.e.dead && o.e.team !== u.team && o.dd <= s.range + 0.6)
+        .sort((a, b) => a.dd - b.dd)
+        .slice(0, maxN);
+      let px = u.x, pz = u.z;
+      hitList.forEach((o, i) => {
+        emit(state, { type: 'golemBolt', uid: u.uid, x: px, z: pz, x2: o.e.x, z2: o.e.z, i });
+        applyDamage(state, u, o.e, u.atk * s.power * Math.pow(0.82, i), { element: 'shock' });
+        if (s.stun) stunUnit(state, o.e, s.stun);
+        px = o.e.x; pz = o.e.z;
+      });
+      if (!hitList.length) {
+        emit(state, { type: 'golemBolt', uid: u.uid, x: u.x, z: u.z, x2: u.x + (dirX / dirLen) * 6, z2: u.z + (dirZ / dirLen) * 6, i: 0 });
+      }
+      break;
+    }
+    case 'frostStorm': {
+      // ❄️ 얼음 골렘 — 광역 빙결 피해 + 강한 둔화 + 짧은 빙결(기절)
+      areaBurst(state, u, u.x, u.z, s.radius, u.atk * s.power, s.stun, 2);
+      for (const e of state.units) {
+        if (!e.dead && e.team !== u.team && dist2(u.x, u.z, e.x, e.z) <= s.radius + 0.6) {
+          slowUnit(state, e, s.slow || 0.6, s.slowTime || 4);
+        }
+      }
+      emit(state, { type: 'golemFrost', uid: u.uid, x: u.x, z: u.z, r: s.radius });
       break;
     }
     case 'dragonBreath': {
