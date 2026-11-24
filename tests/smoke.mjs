@@ -14,6 +14,7 @@ import {
   createBattle, step, simulate, battleSummary, mvpOf, applyDamage, aliveCount,
   teamHpRatio, mulberry32, drainEvents, forceEndBattle,
   possessUnit, releasePossession, possessedUnit, setUnitInput,
+  chooseTarget, ensureTarget, RETARGET_MARGIN,
 } from '../src/sim.js';
 import {
   placeUnits, removeNearest, nearestIndex, mirrorTeam, clampArena, clampSide,
@@ -1938,6 +1939,97 @@ for (const n of [3, 4]) {
     const mbody = move ? move[1] : '';
     check(/const speed = unitSpeed\(u, state\);/.test(mbody) && !/castLock > 0 \? 0\.55/.test(mbody), '조종 이동에 감속(0.55×) 없음');
     check(!/\*\s*0\.55/.test(mbody), '조종 이동 속도에 castLock 감속이 없다');
+  }
+}
+
+/* ── 10. 타겟 = 늘 가장 가까운 적 (이동 중 더 가까운 적이 나타나면 전환) ── */
+{
+  const mk = () => {
+    const b = createBattle({ blue: [P('lion', -8, 0)], red: [P('wolf', 0, 0), P('boar', 8, 0)], seed: 12 });
+    const lion = b.units.find((u) => u.team === 'blue');
+    const wolves = b.units.filter((u) => u.team === 'red');
+    // 좌표를 테스트용으로 직접 고정한다
+    lion.x = -8; lion.z = 0; lion.targetId = null;
+    wolves[0].x = 6; wolves[0].z = 0;
+    wolves[1].x = -4; wolves[1].z = 0;
+    return { b, lion, far: wolves[0], near: wolves[1] };
+  };
+
+  // ① chooseTarget — 거리 가중치 없이 순수 최단거리
+  {
+    const { b, lion, far, near } = mk();
+    far.hp = far.maxHp;
+    near.hp = near.maxHp * 0.1;   // 예전 점수식은 체력이 낮은 적을 피했다
+    check(chooseTarget(b, lion).uid === near.uid, 'chooseTarget = 가장 가까운 적 (HP 가중치 없음)');
+    // 동률이면 uid 가 작은 쪽으로 결정적
+    far.x = -12; far.z = 0;   // lion(-8) 에서 거리 4
+    near.x = -4; near.z = 0;  // 거리 4
+    const tie = chooseTarget(b, lion);
+    check(tie.uid === Math.min(far.uid, near.uid), '거리 동률이면 uid 작은 적으로 결정');
+  }
+
+  // ② 기존 타겟이 살아 있어도 더 가까운 적이 있으면 즉시 전환
+  {
+    const { b, lion, far, near } = mk();
+    lion.targetId = far.uid;
+    check(ensureTarget(b, lion).uid === near.uid, '더 가까운 적이 있으면 타겟 전환');
+    check(lion.targetId === near.uid, 'u.targetId 가 가장 가까운 적으로 옮겨진다');
+  }
+
+  // ③ 걸어가던 중 더 가까운 적이 다가오면 그 적으로 타겟이 옮겨진다
+  {
+    const { b, lion, far, near } = mk();
+    far.x = 2; far.z = 0;    // lion(-8) → 10
+    near.x = 40; near.z = 0; // 아주 멀리
+    lion.targetId = far.uid;
+    for (let i = 0; i < 20; i++) step(b, 1 / 60);
+    check(lion.targetId === far.uid, '멀리 있는 적을 향해 이동 중');
+    const dBefore = Math.hypot(far.x - lion.x, far.z - lion.z);
+    // 더 가까운 적이 앞에 나타난다 (배치·접근)
+    near.x = lion.x + 2.5; near.z = lion.z;
+    step(b, 1 / 60);
+    check(lion.targetId === near.uid, '이동 중 더 가까운 적이 나타나면 타겟 전환');
+    // 전환 후에는 새 타겟 쪽으로 간다
+    const dNewBefore = Math.hypot(near.x - lion.x, near.z - lion.z);
+    for (let i = 0; i < 30; i++) step(b, 1 / 60);
+    check(Math.hypot(near.x - lion.x, near.z - lion.z) < dNewBefore, '전환한 적에게 실제로 다가간다');
+  }
+
+  // ④ 아주 미세한 거리 차이로는 타겟이 깜박이지 않는다 (히스테리시스)
+  {
+    const { b, lion, far, near } = mk();
+    far.x = -3; far.z = 0;    // lion(-8) → 5
+    near.x = -13; near.z = 0; // → 5.1 (0.1 차이)
+    lion.targetId = far.uid;
+    check(ensureTarget(b, lion).uid === far.uid, `0.1m 차이로는 타겟을 바꾸지 않는다 (margin ${RETARGET_MARGIN})`);
+    near.x = -2.5; near.z = 0;  // → 5.5차이? lion(-8)에서 5.0 vs far 5.0
+    near.x = -3.5; near.z = 0;  // → 거리 4.5 (0.5 차이)
+    check(ensureTarget(b, lion).uid === near.uid, '0.25m 넘게 더 가까우면 타겟을 바꾼다');
+  }
+
+  // ⑤ 타겟이 죽으면 가장 가까운 살아있는 적으로
+  {
+    const { b, lion, far, near } = mk();
+    lion.targetId = near.uid;
+    near.dead = true; near.hp = 0;
+    const t = ensureTarget(b, lion);
+    check(t && t.uid === far.uid, '타겟이 죽으면 다음으로 가까운 적 선택');
+    far.dead = true; far.hp = 0;
+    check(ensureTarget(b, lion) === null, '적이 없으면 타겟 null');
+  }
+
+  // ⑥ 실제 전투에서도 타겟은 늘 가장 가까운 적 (소스 배선)
+  {
+    const simSrc = fs.readFileSync(new URL('../src/sim.js', import.meta.url), 'utf8');
+    check(/export function chooseTarget/.test(simSrc), 'chooseTarget 공개(테스트 가능)');
+    const ch = simSrc.match(/export function chooseTarget\([^)]*\)\s*\{([\s\S]*?)\n\}/);
+    const body = ch ? ch[1] : '';
+    check(!/onIt|ranged \? 5\.5|0\.82 \+ 0\.36/.test(body), 'chooseTarget 에 분산·HP 가중치가 없다');
+    check(/const d = dist2\(u\.x, u\.z, e\.x, e\.z\);/.test(body), 'chooseTarget 은 순수 거리 비교');
+    const en = simSrc.match(/export function ensureTarget\([^)]*\)\s*\{([\s\S]*?)\n\}/);
+    const ebody = en ? en[1] : '';
+    check(/chooseTarget\(state, u\)/.test(ebody), 'ensureTarget 이 매번 가장 가까운 적을 다시 계산');
+    check(/RETARGET_MARGIN/.test(ebody), 'ensureTarget 에 히스테리시스 적용');
   }
 }
 

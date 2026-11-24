@@ -314,29 +314,38 @@ function haste(u, amount, time) {
 
 /* ─────────────────────────────── 타겟 선택 ─────────────────────────────── */
 
-function chooseTarget(state, u) {
-  let best = null, bestScore = Infinity;
-  const allies = aliveUnits(state, u.team);
-  for (const e of aliveUnits(state)) {
-    if (e.team === u.team) continue;
+// 늘 '가장 가까운 살아있는 적'을 고른다 (거리 외 가중치 없음 · 동률은 uid 가 작은 쪽으로 결정적)
+export function chooseTarget(state, u) {
+  let best = null, bestD = Infinity;
+  for (const e of state.units) {
+    if (e.dead || e.team === u.team) continue;
     const d = dist2(u.x, u.z, e.x, e.z);
-    let score = d;
-    let onIt = 0;
-    for (const a of allies) if (a !== u && a.targetId === e.uid) onIt++;
-    score += onIt * (u.ranged ? 5.5 : 3.4);
-    score *= 0.82 + 0.36 * (e.hp / e.maxHp);
-    if (!u.ranged && d > 30) score += 6;
-    if (score < bestScore) { bestScore = score; best = e; }
+    if (d < bestD || (d === bestD && best && e.uid < best.uid)) { bestD = d; best = e; }
   }
   return best;
 }
 
-function ensureTarget(state, u) {
-  let t = u.targetId ? unitByUid(state, u.targetId) : null;
-  if (t && !t.dead && t.team !== u.team) return t;
-  t = chooseTarget(state, u);
-  u.targetId = t ? t.uid : null;
-  return t;
+// 타겟 유지/전환 — 이동 중에도 매 스텝 가장 가까운 적을 다시 확인한다.
+// 더 가까운 적이 나타나면 그 적으로 옮긴다. (0.25m 안쪽 차이는 그대로 두어 미세 진동을 막는다)
+export const RETARGET_MARGIN = 0.25;
+
+export function ensureTarget(state, u) {
+  const cur = u.targetId ? unitByUid(state, u.targetId) : null;
+  const nearest = chooseTarget(state, u);
+  if (!nearest) { u.targetId = null; return null; }
+  if (!cur || cur.dead || cur.team === u.team) {
+    u.targetId = nearest.uid;
+    return nearest;
+  }
+  if (nearest.uid !== cur.uid) {
+    const dCur = Math.hypot(u.x - cur.x, u.z - cur.z);
+    const dNew = Math.hypot(u.x - nearest.x, u.z - nearest.z);
+    if (dCur - dNew > RETARGET_MARGIN) {
+      u.targetId = nearest.uid;
+      return nearest;
+    }
+  }
+  return cur;
 }
 
 /* ───────────────────────────────── 이동 ───────────────────────────────── */
