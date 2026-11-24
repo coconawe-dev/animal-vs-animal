@@ -1546,26 +1546,28 @@ function buildElementalGolem(g, m, rig) {
   body.position.y = 1.12;
   g.add(body); rig.body = body; rig.bodyY = 1.12;
 
-  // 바위 몸통 — 어깨가 넓은 묵직한 체형
+  // 바위 몸통 — 어깨가 넓은 묵직한 체형 (바위 덩어이를 겹쳐 상자 느낌을 지운다)
   add(body, G.box, m.main, [0, 0.06, 0], [1.24, 0.98, 0.86]);
   add(body, G.box, m.dark, [0, 0.4, 0.02], [1.0, 0.42, 0.72], [0.05, 0.08, 0]);
   add(body, G.sphereLow, m.main, [0.36, 0.52, 0.16], [0.4, 0.34, 0.36]);
   add(body, G.sphereLow, m.main, [-0.36, 0.52, 0.16], [0.4, 0.34, 0.36]);
   add(body, G.sphereLow, m.dark, [0.02, 0.06, 0.46], [0.36, 0.34, 0.22], null, false);
-  // 가슴을 감싸는 바위 판
-  add(body, G.box, m.belly, [0, 0.02, 0.4], [0.62, 0.5, 0.1], [0, 0, 0]);
-  // 등 판 조각
-  for (let i = 0; i < 3; i++) {
-    add(body, G.sphereLow, m.dark, [-0.28 + i * 0.28, 0.28 - i * 0.04, -0.42], [0.22, 0.2, 0.14], null, false);
-  }
+  // 거친 바위 덩어리 — 모서리를 불룩하게 만들어 실루엣이 상자가 아니게
+  add(body, G.sphereLow, m.main, [0.52, 0.2, 0.34], [0.32, 0.34, 0.28], [0.3, 0.4, -0.2]);
+  add(body, G.sphereLow, m.main, [-0.52, 0.2, 0.34], [0.32, 0.34, 0.28], [0.3, -0.4, 0.2]);
+  add(body, G.sphereLow, m.dark, [0.44, -0.24, 0.24], [0.34, 0.28, 0.3], [0, 0.2, 0.3], false);
+  add(body, G.sphereLow, m.dark, [-0.44, -0.24, 0.24], [0.34, 0.28, 0.3], [0, -0.2, -0.3], false);
+  add(body, G.sphereLow, m.main, [0, 0.24, -0.46], [0.5, 0.34, 0.24], [0.2, 0, 0]);
 
-  // 원소 코어 — 가슴 한가운데에서 빛난다
-  const core = add(body, G.sphere, coreMat, [0, 0.06, 0.4], [0.19, 0.19, 0.12], null, false);
+  // 원소 코어 — 가슴 한가운데에서 앞으로 불쏙 내민다
+  const core = add(body, G.sphere, coreMat, [0, 0.06, 0.48], [0.23, 0.23, 0.17], null, false);
   rig.core = core;
+  const coreGlow = add(body, G.sphere, coreMat, [0, 0.2, -0.52], [0.13, 0.13, 0.1], null, false);
+  rig.coreGlow = coreGlow;
   // 코어를 둘러싼 바위 테
   for (let i = 0; i < 6; i++) {
     const a = (i / 6) * Math.PI * 2;
-    add(body, G.box, m.dark, [Math.cos(a) * 0.26, 0.06 + Math.sin(a) * 0.26, 0.38], [0.1, 0.06, 0.06], [0, 0, a], false);
+    add(body, G.box, m.dark, [Math.cos(a) * 0.3, 0.06 + Math.sin(a) * 0.3, 0.42], [0.12, 0.07, 0.08], [0, 0, a], false);
   }
 
   // 다리 — 짧고 두꺼운 바위 다리
@@ -2864,7 +2866,8 @@ export function animateRig(rig, s) {
   // 원소 골렘 — 가슴 코어가 박동하고 스킬 순간 밝게 타오른다
   if (rig.core) {
     const beat = 1 + Math.sin(rig.t * 2.6) * 0.05 + sk * 0.3 + atk * 0.12;
-    rig.core.scale.set(0.19 * beat, 0.19 * beat, 0.12 * beat);
+    rig.core.scale.set(0.23 * beat, 0.23 * beat, 0.17 * beat);
+    if (rig.coreGlow) rig.coreGlow.scale.set(0.13 * beat, 0.13 * beat, 0.1 * beat);
     if (rig.coreMat) rig.coreMat.emissiveIntensity = 0.9 + Math.sin(rig.t * 2.6) * 0.15 + sk * 1.1;
   }
 

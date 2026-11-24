@@ -481,7 +481,7 @@ const MONSTER_LIST = [
   {
     id: 'golem_fire', name: '불 골렘', short: '불골렘', emoji: '🔥', cat: 'monster', tier: 3, cost: 5, role: '화염 수호자',
     hp: 420, atk: 34, spd: 2.1, range: 3.2, atkInterval: 1.5,
-    colors: { main: 0x54302a, dark: 0x2a1512, accent: 0xff7a2a, belly: 0x7a4334 },
+    colors: { main: 0x8a4a38, dark: 0x45221a, accent: 0xff8a3a, belly: 0xb06a4a },
     scale: 1.22, size: 1.42, variantOf: 'golem_elemental', element: 'fire',
     desc: '붉은 용암 바위로 빚은 원소 골렘. 가슴의 용암 코어가 타오르고, 어깨에서 불꽃 뿔이 솟는다.',
     skill: { kind: 'fireNova', name: '화염 폭발', icon: '🔥', cd: 7.4, range: 5.2, radius: 6.8, power: 1.85,
@@ -493,7 +493,7 @@ const MONSTER_LIST = [
   {
     id: 'golem_water', name: '물 골렘', short: '물골렘', emoji: '💧', cat: 'monster', tier: 3, cost: 5, role: '해일 수호자',
     hp: 420, atk: 34, spd: 2.2, range: 3.2, atkInterval: 1.5,
-    colors: { main: 0x2d4d6e, dark: 0x14283c, accent: 0x4fd3ff, belly: 0x46708f },
+    colors: { main: 0x4a7aa0, dark: 0x214060, accent: 0x5fd8ff, belly: 0x6fa0bc },
     scale: 1.22, size: 1.42, variantOf: 'golem_elemental', element: 'water',
     desc: '깊은 바다빛 산호 바위로 된 원소 골렘. 맑은 물빛 코어가 출렁이고 어깨에 물결 크리스탈이 돋는다.',
     skill: { kind: 'tidalCrush', name: '해일 강타', icon: '🌊', cd: 7.8, range: 5.4, radius: 7.2, power: 1.7,
@@ -505,7 +505,7 @@ const MONSTER_LIST = [
   {
     id: 'golem_grass', name: '풀 골렘', short: '풀골렘', emoji: '🌿', cat: 'monster', tier: 3, cost: 5, role: '숲 수호자',
     hp: 430, atk: 32, spd: 2.0, range: 3.2, atkInterval: 1.5,
-    colors: { main: 0x415a37, dark: 0x1f2f1a, accent: 0x8dff7a, belly: 0x5f7f4a },
+    colors: { main: 0x62845a, dark: 0x32482b, accent: 0x9dff7a, belly: 0x8aa878 },
     scale: 1.22, size: 1.42, variantOf: 'golem_elemental', element: 'grass',
     desc: '이끼와 나무뿌리가 감긴 숲 바위 골렘. 연두빛 생명의 코어가 박동하고 등에 잎이 무성하다.',
     skill: { kind: 'vineGrasp', name: '덩굴 속박', icon: '🌿', cd: 8.2, range: 5.2, radius: 6.6, power: 1.3,
@@ -517,7 +517,7 @@ const MONSTER_LIST = [
   {
     id: 'golem_electric', name: '전기 골렘', short: '전기골렘', emoji: '⚡', cat: 'monster', tier: 3, cost: 5, role: '번개 수호자',
     hp: 410, atk: 36, spd: 2.2, range: 3.2, atkInterval: 1.45,
-    colors: { main: 0x2f2f38, dark: 0x14141a, accent: 0xffe14a, belly: 0x4d4d5a },
+    colors: { main: 0x4f4f5e, dark: 0x26262e, accent: 0xffe85a, belly: 0x74748a },
     scale: 1.22, size: 1.42, variantOf: 'golem_elemental', element: 'electric',
     desc: '검은 현무암 몸체에 노란 전기가 지글거리는 원소 골렘. 어깨의 코일이 번쩍인다.',
     skill: { kind: 'chainStorm', name: '연쇄 감전', icon: '⚡', cd: 7.0, range: 11.5, radius: 7, power: 1.65,
@@ -529,7 +529,7 @@ const MONSTER_LIST = [
   {
     id: 'golem_ice', name: '얼음 골렘', short: '얼음골렘', emoji: '❄️', cat: 'monster', tier: 3, cost: 5, role: '서리 수호자',
     hp: 440, atk: 33, spd: 1.95, range: 3.2, atkInterval: 1.55,
-    colors: { main: 0x5f8098, dark: 0x2a3f4f, accent: 0xbdf2ff, belly: 0x93bacd },
+    colors: { main: 0x8fb4c8, dark: 0x466578, accent: 0xc4f4ff, belly: 0xb8d8e6 },
     scale: 1.22, size: 1.42, variantOf: 'golem_elemental', element: 'ice',
     desc: '서리 낀 빙하 바위로 된 원소 골렘. 머리에 얼음 결정 뿔이 자라고 하늘색 코어가 차갑게 빛난다.',
     skill: { kind: 'frostStorm', name: '서리 폭풍', icon: '❄️', cd: 8.0, range: 5.4, radius: 7.0, power: 1.5,
